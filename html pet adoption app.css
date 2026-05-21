@@ -1,0 +1,1846 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Pawfect Match</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,500;0,9..144,700;1,9..144,400&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{
+  --br:#E8603C;--brd:#C44A28;--brl:#FDE8DC;
+  --gn:#1D9E75;--gnl:#EDFAF4;--gnd:#0F6E56;
+  --bl:#2D7DD2;--bll:#EEF4FF;
+  --gd:#C47A0A;--gdl:#FEF3DC;
+  --pu:#7B4FBF;--pul:#F3EEFF;
+  --bg:#FDF8F4;--sf:#FFF;--sf2:#FAF4EF;--sf3:#F4EDE5;
+  --tx:#1A1208;--t2:#6B5B4E;--t3:#A89E96;
+  --bd:#EDE5DE;--bd2:#DDD0C5;
+  --r:18px;--rm:12px;--rs:8px;
+  --shl:0 8px 32px rgba(60,30,10,.12);
+  --fd:'Fraunces',serif;--fb:'DM Sans',sans-serif;
+}
+html,body{height:100%;overflow:hidden;background:#c8bfb4;font-family:var(--fb);color:var(--tx)}
+.shell{width:390px;height:844px;margin:0 auto;background:var(--bg);position:relative;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 0 0 1px rgba(0,0,0,.08),var(--shl)}
+@media(max-width:430px){.shell{width:100%;height:100dvh}}
+
+/* ── TOP BAR ─────────────────────────────────────────────────── */
+.topbar{height:48px;min-height:48px;display:flex;align-items:center;justify-content:space-between;padding:0 15px;background:var(--sf);border-bottom:1px solid var(--bd);z-index:60}
+.logo{font-family:var(--fd);font-size:19px;color:var(--br);display:flex;align-items:center;gap:5px}
+.logo em{font-style:italic;color:var(--tx);font-weight:300}
+.topbar-right{display:flex;gap:8px;align-items:center}
+.icon-pill{width:32px;height:32px;border-radius:50%;border:1.5px solid var(--bd);background:var(--sf2);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .18s;flex-shrink:0}
+.icon-pill svg{width:16px;height:16px;stroke:var(--t2);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.icon-pill:hover,.icon-pill.on{background:var(--br);border-color:var(--br)}
+.icon-pill:hover svg,.icon-pill.on svg{stroke:#fff}
+.notif-dot{width:8px;height:8px;background:var(--br);border-radius:50%;border:2px solid var(--sf);position:absolute;top:5px;right:5px}
+
+/* ── MAIN TABS ───────────────────────────────────────────────── */
+.main-tabs{display:flex;background:var(--sf);border-top:1px solid var(--bd);padding:0;gap:0;flex-shrink:0;z-index:50;height:56px;min-height:56px}
+.mtab{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:5px 2px 7px;cursor:pointer;color:var(--t3);transition:color .18s;font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;position:relative;border-top:2.5px solid transparent}
+.mtab svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;transition:all .18s}
+.mtab.on{color:var(--br);border-top-color:var(--br)}
+.mtab.on svg{stroke:var(--br)}
+.tab-badge{position:absolute;top:5px;right:calc(50% - 16px);width:8px;height:8px;background:var(--br);border-radius:50%;border:2px solid var(--sf);display:none}
+.tab-badge.show{display:block}
+
+/* ── SCREENS ─────────────────────────────────────────────────── */
+.screens{flex:1;position:relative;overflow:hidden}
+.scr{position:absolute;inset:0;display:flex;flex-direction:column;opacity:0;pointer-events:none;transform:translateX(10px);transition:opacity .22s,transform .22s}
+.scr.on{opacity:1;pointer-events:all;transform:none}
+.scroll{flex:1;overflow-y:auto;scrollbar-width:none}
+.scroll::-webkit-scrollbar{display:none}
+
+/* ── ADOPT TAB ───────────────────────────────────────────────── */
+.filterbar{display:flex;gap:5px;overflow-x:auto;padding:6px 12px 5px;scrollbar-width:none;flex-shrink:0;background:var(--sf);border-bottom:1px solid var(--bd)}
+.filterbar::-webkit-scrollbar{display:none}
+.fpill{padding:5px 12px;border-radius:20px;border:1.5px solid var(--bd);font-size:11px;cursor:pointer;white-space:nowrap;background:var(--sf2);color:var(--t2);transition:all .15s;font-weight:500}
+.fpill.on{background:var(--br);border-color:var(--br);color:#fff}
+.adopt-inner{display:flex;flex-direction:column;height:100%;overflow:hidden}
+/* card zone */
+.czone{flex:1;position:relative;margin:6px 12px 0;overflow:hidden}
+.pcard{position:absolute;inset:0;border-radius:20px;background:var(--sf);box-shadow:var(--shl);overflow:hidden;cursor:grab;user-select:none;touch-action:none;will-change:transform;display:flex;flex-direction:column}
+.pcard.c2{transform:scale(.955) translateY(10px);z-index:1}
+.pcard.c3{transform:scale(.912) translateY(20px);z-index:0}
+.pcard.c1{z-index:2}
+.pcard:active{cursor:grabbing}
+.cphoto{height:210px;flex-shrink:0;position:relative;overflow:hidden;background:var(--sf3);display:flex;align-items:center;justify-content:center;font-size:80px}
+.cgrad{position:absolute;bottom:0;left:0;right:0;height:90px;background:linear-gradient(transparent,rgba(26,18,8,.42));pointer-events:none}
+.ctag{position:absolute;border-radius:20px;font-size:10px;font-weight:700;backdrop-filter:blur(6px)}
+.ctag-org{top:9px;left:9px;background:rgba(255,255,255,.92);color:var(--t2);padding:3px 9px;max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ctag-match{top:9px;right:9px;color:#fff;padding:3px 9px}
+.ctag-loc{bottom:9px;left:9px;background:rgba(255,255,255,.9);color:var(--t2);padding:3px 8px;font-size:9.5px}
+.stamp{position:absolute;font-size:20px;font-weight:800;padding:5px 10px;border-radius:8px;opacity:0;pointer-events:none;letter-spacing:2px;z-index:10}
+.sl{top:20px;left:12px;color:#1D9E75;border:3px solid #1D9E75;transform:rotate(-18deg)}
+.sp{top:20px;right:12px;color:#E24B4A;border:3px solid #E24B4A;transform:rotate(18deg)}
+.cbody{padding:11px 14px 8px;flex:1;overflow:hidden}
+.cnrow{display:flex;align-items:baseline;gap:7px;margin-bottom:3px}
+.cname{font-family:var(--fd);font-size:21px;color:var(--tx)}
+.cage{font-size:12.5px;color:var(--t3)}
+.cbreed{font-size:12px;color:var(--t2);margin-bottom:7px}
+.ctags{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:6px}
+.ct{font-size:10.5px;padding:3px 8px;border-radius:20px;background:var(--sf2);color:var(--t2);border:1px solid var(--bd)}
+.cdesc{font-size:12px;color:var(--t2);line-height:1.5}
+/* ad strip */
+.adstrip{background:linear-gradient(90deg,var(--brl),#FFF8F4);border:1px solid #FAD5BE;border-radius:var(--rm);padding:7px 11px;display:flex;align-items:center;gap:9px;cursor:pointer;margin:4px 12px 2px;flex-shrink:0}
+.adstrip:hover{opacity:.86}
+.adstrip-em{font-size:24px;flex-shrink:0}
+.adstrip-body{flex:1;min-width:0}
+.adstrip-lbl{font-size:8.5px;text-transform:uppercase;letter-spacing:.8px;color:var(--t3);margin-bottom:1px}
+.adstrip-title{font-size:12px;font-weight:600;color:var(--tx);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.adstrip-sub{font-size:10.5px;color:var(--t2)}
+.adstrip-cta{font-size:10.5px;color:var(--br);font-weight:700;white-space:nowrap;flex-shrink:0}
+/* actions */
+.acts{display:flex;justify-content:center;align-items:center;gap:10px;padding:5px 0 3px;flex-shrink:0}
+.act{border:none;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .18s}
+.act:hover{transform:scale(1.1)}
+.act:active{transform:scale(.93)}
+.act svg{stroke-width:2;stroke-linecap:round;stroke-linejoin:round;fill:none}
+.a-p{width:50px;height:50px;background:#FFF0F0;border:2px solid #FFCECE}.a-p svg{stroke:#E24B4A;width:22px;height:22px}
+.a-u{width:36px;height:36px;background:var(--sf2);border:1.5px solid var(--bd2)}.a-u svg{stroke:var(--t2);width:16px;height:16px}
+.a-i{width:36px;height:36px;background:var(--sf2);border:1.5px solid var(--bd2)}.a-i svg{stroke:var(--t2);width:16px;height:16px}
+.a-s{width:36px;height:36px;background:var(--bll);border:1.5px solid #C3D8FF}.a-s svg{stroke:var(--bl);width:16px;height:16px}
+.a-l{width:50px;height:50px;background:var(--gnl);border:2px solid #A8E8CC}.a-l svg{stroke:var(--gn);width:22px;height:22px}
+.hint{text-align:center;font-size:9.5px;color:var(--t3);padding:1px 0 4px;flex-shrink:0}
+
+/* ── SHOP TAB ────────────────────────────────────────────────── */
+.shop-hero{background:linear-gradient(135deg,#1A1208,#3A2818);padding:20px 16px 22px;position:relative;overflow:hidden;flex-shrink:0}
+.shop-hero::after{content:'🛍️';position:absolute;right:-12px;bottom:-10px;font-size:90px;opacity:.08}
+.shop-hero h2{font-family:var(--fd);font-size:22px;color:#fff;margin-bottom:5px}
+.shop-hero p{font-size:12.5px;color:rgba(255,255,255,.6);line-height:1.5}
+.shop-search{margin:12px 14px 0;display:flex;gap:8px;flex-shrink:0}
+.shop-search input{flex:1;padding:10px 14px;border:1.5px solid var(--bd);border-radius:30px;font-size:13px;font-family:var(--fb);background:var(--sf2);color:var(--tx);outline:none;transition:border .2s}
+.shop-search input:focus{border-color:var(--br);background:var(--sf)}
+.shop-search button{width:38px;height:38px;border-radius:50%;background:var(--br);border:none;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.shop-search button svg{stroke:#fff;width:16px;height:16px;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;fill:none}
+/* section headers */
+.sec-hdr{display:flex;align-items:center;justify-content:space-between;padding:14px 14px 8px}
+.sec-hdr h3{font-family:var(--fd);font-size:17px;color:var(--tx)}
+.sec-hdr span{font-size:12px;color:var(--br);font-weight:500;cursor:pointer}
+/* category pills */
+.cat-row{display:flex;gap:8px;overflow-x:auto;padding:0 14px 10px;scrollbar-width:none}
+.cat-row::-webkit-scrollbar{display:none}
+.cat-pill{display:flex;flex-direction:column;align-items:center;gap:5px;cursor:pointer;flex-shrink:0}
+.cat-em{width:52px;height:52px;border-radius:14px;background:var(--sf2);border:1.5px solid var(--bd);display:flex;align-items:center;justify-content:center;font-size:24px;transition:all .18s}
+.cat-pill:hover .cat-em,.cat-pill.on .cat-em{background:var(--brl);border-color:var(--br)}
+.cat-lbl{font-size:10px;color:var(--t2);font-weight:500;white-space:nowrap}
+/* big retailer cards */
+.retailer-row{display:flex;gap:10px;overflow-x:auto;padding:0 14px 4px;scrollbar-width:none}
+.retailer-row::-webkit-scrollbar{display:none}
+.ret-card{min-width:160px;border-radius:var(--r);overflow:hidden;border:1px solid var(--bd);background:var(--sf);flex-shrink:0;cursor:pointer;transition:transform .15s,box-shadow .15s}
+.ret-card:hover{transform:translateY(-2px);box-shadow:var(--shl)}
+.ret-banner{height:80px;display:flex;align-items:center;justify-content:center;font-size:36px;font-weight:700}
+.ret-body{padding:10px 12px}
+.ret-name{font-size:13px;font-weight:600;color:var(--tx);margin-bottom:3px}
+.ret-deal{font-size:11px;color:var(--gn);font-weight:500;margin-bottom:5px}
+.ret-cta{font-size:11px;color:var(--br);font-weight:600}
+/* product cards */
+.prod-row{display:flex;gap:10px;overflow-x:auto;padding:0 14px 10px;scrollbar-width:none}
+.prod-row::-webkit-scrollbar{display:none}
+.prod-card{min-width:140px;border-radius:var(--rm);border:1px solid var(--bd);background:var(--sf);flex-shrink:0;cursor:pointer;overflow:hidden;transition:transform .15s}
+.prod-card:hover{transform:translateY(-2px)}
+.prod-img{height:100px;background:var(--sf2);display:flex;align-items:center;justify-content:center;font-size:44px}
+.prod-body{padding:9px 10px}
+.prod-name{font-size:12px;font-weight:600;color:var(--tx);margin-bottom:3px;line-height:1.35}
+.prod-brand{font-size:10px;color:var(--t3);margin-bottom:5px}
+.prod-price-row{display:flex;align-items:center;gap:6px}
+.prod-price{font-size:13px;font-weight:700;color:var(--tx)}
+.prod-orig{font-size:11px;color:var(--t3);text-decoration:line-through}
+.prod-badge{font-size:9px;background:var(--brl);color:var(--brd);padding:2px 6px;border-radius:20px;font-weight:600}
+/* local store cards */
+.local-card{margin:0 14px 12px;border-radius:var(--r);border:1px solid var(--bd);background:var(--sf);overflow:hidden;cursor:pointer;transition:transform .15s}
+.local-card:hover{transform:translateY(-2px);box-shadow:var(--shl)}
+.local-banner{height:90px;display:flex;align-items:center;justify-content:center;font-size:52px;position:relative}
+.local-owner-badge{position:absolute;bottom:8px;right:10px;background:rgba(255,255,255,.92);border-radius:20px;padding:3px 9px;font-size:10px;font-weight:600;color:var(--tx);display:flex;align-items:center;gap:4px}
+.local-body{padding:12px 14px}
+.local-name{font-family:var(--fd);font-size:16px;color:var(--tx);margin-bottom:3px}
+.local-meta{font-size:11.5px;color:var(--t2);margin-bottom:8px}
+.local-tags{display:flex;gap:5px;flex-wrap:wrap}
+.ltag{font-size:10.5px;padding:3px 8px;border-radius:20px;background:var(--sf2);color:var(--t2);border:1px solid var(--bd)}
+.event-chip{background:var(--brl);color:var(--brd);border:none;font-size:10.5px;font-weight:600;display:flex;align-items:center;gap:4px}
+
+/* ── COMMUNITY TAB ───────────────────────────────────────────── */
+.comm-hero{background:linear-gradient(135deg,#0F6E56,#1D9E75);padding:20px 16px 22px;flex-shrink:0;position:relative;overflow:hidden}
+.comm-hero::after{content:'🌍';position:absolute;right:-10px;bottom:-10px;font-size:90px;opacity:.1}
+.comm-hero h2{font-family:var(--fd);font-size:22px;color:#fff;margin-bottom:5px}
+.comm-hero p{font-size:12.5px;color:rgba(255,255,255,.7);line-height:1.5}
+/* events */
+.event-card{margin:0 14px 10px;border-radius:var(--r);border:1px solid var(--bd);background:var(--sf);overflow:hidden;cursor:pointer;transition:transform .15s,box-shadow .15s;display:flex;gap:0}
+.event-card:hover{transform:translateY(-2px);box-shadow:var(--shl)}
+.event-date-col{width:64px;flex-shrink:0;background:var(--br);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:12px 8px}
+.ev-month{font-size:10px;color:rgba(255,255,255,.8);text-transform:uppercase;letter-spacing:.5px;font-weight:600}
+.ev-day{font-family:var(--fd);font-size:30px;color:#fff;line-height:1}
+.event-body{padding:12px 14px;flex:1;min-width:0}
+.ev-title{font-size:14px;font-weight:600;color:var(--tx);margin-bottom:3px}
+.ev-host{font-size:11.5px;color:var(--t2);margin-bottom:6px;display:flex;align-items:center;gap:4px}
+.ev-details{display:flex;gap:12px}
+.ev-detail{font-size:11px;color:var(--t3);display:flex;align-items:center;gap:4px}
+.ev-going{position:absolute;top:10px;right:12px;background:var(--gnl);color:var(--gnd);font-size:10px;font-weight:600;padding:3px 9px;border-radius:20px;display:none}
+.event-card.going .ev-going{display:block}
+/* post cards */
+.post-card{margin:0 14px 10px;border-radius:var(--r);border:1px solid var(--bd);background:var(--sf);padding:14px;cursor:pointer}
+.post-header{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.post-avatar{width:36px;height:36px;border-radius:50%;background:var(--sf3);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;border:1.5px solid var(--bd)}
+.post-author{font-size:13px;font-weight:600;color:var(--tx)}
+.post-time{font-size:11px;color:var(--t3)}
+.post-text{font-size:13px;color:var(--t2);line-height:1.6;margin-bottom:10px}
+.post-pet{background:var(--sf2);border-radius:10px;padding:10px 12px;margin-bottom:10px;display:flex;align-items:center;gap:10px;border:1px solid var(--bd)}
+.post-pet-em{font-size:28px}
+.post-pet-name{font-size:13px;font-weight:600;color:var(--tx)}
+.post-pet-from{font-size:11px;color:var(--t2)}
+.post-actions{display:flex;gap:14px}
+.post-act{font-size:12px;color:var(--t2);display:flex;align-items:center;gap:5px;cursor:pointer;transition:color .18s;font-weight:500}
+.post-act:hover{color:var(--br)}
+.post-act.liked{color:var(--br)}
+.post-act svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+
+/* ── SHELTER PROFILE PAGE ────────────────────────────────────── */
+.shelter-page{position:absolute;inset:0;background:var(--bg);z-index:200;overflow-y:auto;scrollbar-width:none;display:none;flex-direction:column}
+.shelter-page::-webkit-scrollbar{display:none}
+.shelter-page.show{display:flex}
+/* back button */
+.shelter-back{position:sticky;top:0;z-index:10;display:flex;align-items:center;gap:10px;padding:12px 15px;background:rgba(253,248,244,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--bd)}
+.shelter-back-btn{width:32px;height:32px;border-radius:50%;border:1.5px solid var(--bd);background:var(--sf);display:flex;align-items:center;justify-content:center;cursor:pointer}
+.shelter-back-btn svg{width:16px;height:16px;stroke:var(--tx);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.shelter-back-title{font-family:var(--fd);font-size:17px;color:var(--tx)}
+/* hero banner */
+.shelter-banner{height:180px;position:relative;overflow:hidden;display:flex;align-items:flex-end;flex-shrink:0}
+.shelter-banner-bg{position:absolute;inset:0;background-size:cover;background-position:center}
+.shelter-banner-overlay{position:absolute;inset:0;background:linear-gradient(transparent 30%,rgba(26,18,8,.7))}
+.shelter-banner-content{position:relative;z-index:1;padding:16px;display:flex;align-items:flex-end;gap:14px;width:100%}
+.shelter-logo{width:70px;height:70px;border-radius:16px;border:3px solid #fff;background:var(--sf);display:flex;align-items:center;justify-content:center;font-size:36px;flex-shrink:0;box-shadow:0 4px 16px rgba(0,0,0,.2)}
+.shelter-banner-info{flex:1}
+.shelter-banner-name{font-family:var(--fd);font-size:20px;color:#fff;text-shadow:0 1px 8px rgba(0,0,0,.4);margin-bottom:3px}
+.shelter-banner-loc{font-size:12px;color:rgba(255,255,255,.85);display:flex;align-items:center;gap:4px}
+.shelter-verified{display:inline-flex;align-items:center;gap:4px;background:var(--gnl);color:var(--gnd);font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px}
+/* shelter tabs */
+.shelter-tabs{display:flex;background:var(--sf);border-bottom:1px solid var(--bd);flex-shrink:0;position:sticky;top:57px;z-index:9}
+.stab{flex:1;text-align:center;padding:12px 4px;font-size:12px;font-weight:600;color:var(--t3);cursor:pointer;border-bottom:2px solid transparent;transition:all .2s}
+.stab.on{color:var(--br);border-bottom-color:var(--br)}
+/* shelter content */
+.shelter-content{padding:14px}
+.shelter-stat-row{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px}
+.shstat{background:var(--sf);border-radius:var(--rm);padding:12px;border:1px solid var(--bd);text-align:center}
+.shstat-n{font-family:var(--fd);font-size:22px;color:var(--br);font-weight:500}
+.shstat-l{font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.3px;margin-top:2px}
+.shelter-about{background:var(--sf);border-radius:var(--r);border:1px solid var(--bd);padding:16px;margin-bottom:12px}
+.shelter-about h4{font-size:13px;font-weight:600;color:var(--tx);margin-bottom:8px}
+.shelter-about p{font-size:13px;color:var(--t2);line-height:1.65}
+.shelter-team{display:flex;gap:10px;overflow-x:auto;margin-bottom:16px;scrollbar-width:none}
+.shelter-team::-webkit-scrollbar{display:none}
+.team-card{min-width:90px;background:var(--sf);border-radius:var(--rm);border:1px solid var(--bd);padding:12px 8px;text-align:center;flex-shrink:0}
+.team-em{font-size:28px;margin-bottom:6px}
+.team-name{font-size:11.5px;font-weight:600;color:var(--tx);margin-bottom:2px}
+.team-role{font-size:10px;color:var(--t3)}
+.shelter-pets-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.spet{border-radius:var(--rm);overflow:hidden;border:1px solid var(--bd);background:var(--sf);cursor:pointer;transition:transform .15s}
+.spet:hover{transform:scale(1.02)}
+.spet-img{height:90px;background:var(--sf2);display:flex;align-items:center;justify-content:center;font-size:36px}
+.spet-body{padding:7px 8px 9px}
+.spet-name{font-size:12px;font-weight:600;color:var(--tx);margin-bottom:2px}
+.spet-breed{font-size:10px;color:var(--t3)}
+.spet-match{font-size:9.5px;font-weight:600;padding:2px 6px;border-radius:10px;margin-top:4px;display:inline-block}
+/* shelter events in shelter page */
+.shelter-event{background:var(--sf);border-radius:var(--r);border:1px solid var(--bd);padding:14px;margin-bottom:10px;display:flex;gap:12px}
+.se-date{width:48px;height:48px;border-radius:12px;background:var(--br);display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0}
+.se-month{font-size:9px;color:rgba(255,255,255,.8);text-transform:uppercase;font-weight:600}
+.se-day{font-family:var(--fd);font-size:22px;color:#fff;line-height:1}
+.se-body{flex:1}
+.se-title{font-size:14px;font-weight:600;color:var(--tx);margin-bottom:4px}
+.se-meta{font-size:11.5px;color:var(--t2)}
+.se-btn{margin-top:8px;padding:7px 16px;background:var(--br);color:#fff;border:none;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;font-family:var(--fb)}
+
+/* ── MATCH MODAL ─────────────────────────────────────────────── */
+.mbg{position:absolute;inset:0;background:rgba(15,8,3,.65);z-index:500;display:none;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(3px)}
+.mbg.on{display:flex}
+.mbox{background:var(--sf);border-radius:22px;padding:24px 20px 20px;text-align:center;width:100%;max-width:320px}
+.mpic{font-size:60px;animation:pop .4s cubic-bezier(.36,.07,.19,.97) both;display:block;margin:0 auto 10px}
+@keyframes pop{0%{transform:scale(.2);opacity:0}65%{transform:scale(1.15)}100%{transform:scale(1);opacity:1}}
+.mttl{font-family:var(--fd);font-size:24px;color:var(--br);margin-bottom:4px}
+.msub{font-size:13px;color:var(--t2);line-height:1.5;margin-bottom:14px}
+.aib{background:var(--sf2);border-radius:var(--rm);padding:11px;margin-bottom:14px;font-size:12.5px;color:var(--t2);text-align:left;border-left:3px solid var(--br);line-height:1.55;min-height:48px}
+.aidots{display:flex;gap:4px;align-items:center;height:26px;justify-content:center}
+.aidot{width:6px;height:6px;border-radius:50%;background:var(--br);animation:lb .8s infinite ease-in-out}
+.aidot:nth-child(2){animation-delay:.15s}.aidot:nth-child(3){animation-delay:.3s}
+@keyframes lb{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-7px)}}
+.mbtns{display:flex;flex-direction:column;gap:7px}
+.mbp{padding:13px;background:var(--br);color:#fff;border:none;border-radius:var(--r);font-size:13.5px;font-weight:600;cursor:pointer;font-family:var(--fb)}
+.mbp:hover{background:var(--brd)}
+.mbs{padding:10px;background:transparent;color:var(--t2);border:1px solid var(--bd);border-radius:var(--r);font-size:12.5px;cursor:pointer;font-family:var(--fb)}
+
+/* ── TOAST ───────────────────────────────────────────────────── */
+.toast{position:absolute;top:8px;left:50%;transform:translateX(-50%);background:var(--tx);color:#fff;padding:8px 18px;border-radius:20px;font-size:12.5px;font-weight:500;z-index:700;white-space:nowrap;animation:tin .22s ease;pointer-events:none}
+@keyframes tin{from{opacity:0;transform:translateX(-50%) translateY(-5px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+
+/* ── PROFILE PAGE ─────────────────────────────────────────────── */
+.profile-page{position:absolute;inset:0;background:var(--bg);z-index:300;display:none;flex-direction:column;overflow:hidden}
+.profile-page.show{display:flex}
+/* onboarding flow */
+.ob-wrap{flex:1;overflow-y:auto;scrollbar-width:none;display:flex;flex-direction:column}
+.ob-wrap::-webkit-scrollbar{display:none}
+/* step indicator */
+.ob-steps{display:flex;align-items:center;padding:14px 18px 0;gap:0;flex-shrink:0}
+.ob-step-dot{width:8px;height:8px;border-radius:50%;background:var(--bd2);transition:background .3s,transform .3s}
+.ob-step-dot.done{background:var(--gn)}
+.ob-step-dot.active{background:var(--br);transform:scale(1.4)}
+.ob-step-line{flex:1;height:2px;background:var(--bd);transition:background .3s;margin:0 3px}
+.ob-step-line.done{background:var(--gn)}
+/* panels */
+.ob-panel{display:none;flex-direction:column;flex:1;padding:0 0 20px;animation:panIn .28s ease}
+.ob-panel.active{display:flex}
+@keyframes panIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+/* hero panels */
+.ob-hero{padding:28px 22px 22px;flex-shrink:0}
+.ob-hero-em{font-size:52px;margin-bottom:14px;display:block}
+.ob-hero h2{font-family:var(--fd);font-size:26px;color:var(--tx);margin-bottom:7px;line-height:1.15}
+.ob-hero h2 em{font-style:italic;color:var(--br)}
+.ob-hero p{font-size:14px;color:var(--t2);line-height:1.6}
+/* avatar picker */
+.avatar-ring{width:96px;height:96px;border-radius:50%;border:3px solid var(--br);background:var(--brl);display:flex;align-items:center;justify-content:center;font-size:48px;cursor:pointer;transition:all .2s;margin:0 auto 14px;position:relative;flex-shrink:0}
+.avatar-ring:hover{transform:scale(1.05)}
+.avatar-ring .av-edit{position:absolute;bottom:2px;right:2px;width:24px;height:24px;border-radius:50%;background:var(--br);color:#fff;font-size:13px;display:flex;align-items:center;justify-content:center;border:2px solid var(--sf)}
+.avatar-picker{display:none;grid-template-columns:repeat(6,1fr);gap:8px;padding:0 22px;margin-bottom:16px}
+.avatar-picker.show{display:grid}
+.av-opt{width:44px;height:44px;border-radius:50%;background:var(--sf2);border:2px solid var(--bd);display:flex;align-items:center;justify-content:center;font-size:22px;cursor:pointer;transition:all .18s}
+.av-opt:hover,.av-opt.sel{border-color:var(--br);background:var(--brl)}
+/* fields */
+.ob-fields{padding:0 22px;display:flex;flex-direction:column;gap:12px;flex-shrink:0}
+.ob-field{display:flex;flex-direction:column;gap:5px}
+.ob-field label{font-size:12px;font-weight:600;color:var(--t2);letter-spacing:.2px}
+.ob-field label .req{color:var(--br);margin-left:2px}
+.ob-field input,.ob-field select,.ob-field textarea{padding:11px 14px;border:1.5px solid var(--bd);border-radius:10px;font-size:14px;color:var(--tx);background:var(--sf2);font-family:var(--fb);outline:none;width:100%;transition:border .2s,background .2s}
+.ob-field input:focus,.ob-field select:focus,.ob-field textarea:focus{border-color:var(--br);background:var(--sf)}
+.ob-field textarea{resize:none;line-height:1.5}
+.ob-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+/* lifestyle chips */
+.chip-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;padding:0 22px}
+.lchip{padding:11px 10px;border:1.5px solid var(--bd);border-radius:var(--rm);cursor:pointer;transition:all .18s;background:var(--sf2);display:flex;align-items:center;gap:9px}
+.lchip:hover{border-color:var(--br);background:var(--brl)}
+.lchip.sel{border-color:var(--br);background:var(--brl)}
+.lchip-em{font-size:20px;flex-shrink:0}
+.lchip-lbl{font-size:12.5px;font-weight:500;color:var(--tx);line-height:1.3}
+.lchip-sub{font-size:11px;color:var(--t3);margin-top:1px}
+/* pet cards */
+.my-pets-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:0 22px}
+.mypet-card{border-radius:14px;border:2px dashed var(--bd2);background:var(--sf2);aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;transition:all .2s;gap:5px;font-size:11px;color:var(--t3);font-weight:500}
+.mypet-card:hover{border-color:var(--br);color:var(--br)}
+.mypet-card.filled{border-style:solid;border-color:var(--bd);background:var(--sf)}
+.mypet-card .mpc-em{font-size:28px}
+.mypet-card .mpc-name{font-size:11px;font-weight:600;color:var(--tx)}
+.mypet-card .mpc-breed{font-size:10px;color:var(--t3)}
+/* add pet modal */
+.addpet-modal{position:absolute;inset:0;background:rgba(15,8,3,.55);z-index:400;display:none;align-items:flex-end;backdrop-filter:blur(2px)}
+.addpet-modal.show{display:flex}
+.addpet-sheet{background:var(--sf);border-radius:22px 22px 0 0;width:100%;padding:20px 20px 32px;max-height:88%;overflow-y:auto;scrollbar-width:none}
+.addpet-sheet::-webkit-scrollbar{display:none}
+.addpet-handle{width:34px;height:4px;border-radius:2px;background:var(--bd2);margin:0 auto 16px}
+.addpet-title{font-family:var(--fd);font-size:20px;color:var(--tx);margin-bottom:16px}
+.pet-em-row{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;margin-bottom:14px;padding-bottom:4px}
+.pet-em-row::-webkit-scrollbar{display:none}
+.pem-opt{width:44px;height:44px;border-radius:50%;border:2px solid var(--bd);background:var(--sf2);display:flex;align-items:center;justify-content:center;font-size:22px;cursor:pointer;flex-shrink:0;transition:all .18s}
+.pem-opt:hover,.pem-opt.sel{border-color:var(--br);background:var(--brl)}
+/* nav buttons */
+.ob-nav{display:flex;justify-content:space-between;align-items:center;padding:16px 22px 0;margin-top:auto;flex-shrink:0}
+.ob-back{padding:10px 20px;border-radius:30px;border:1.5px solid var(--bd);background:transparent;color:var(--t2);font-size:13.5px;font-weight:500;cursor:pointer;font-family:var(--fb);transition:all .2s}
+.ob-back:hover{border-color:var(--tx);color:var(--tx)}
+.ob-next{padding:12px 28px;border-radius:30px;background:var(--br);color:#fff;font-size:13.5px;font-weight:600;cursor:pointer;font-family:var(--fb);transition:all .2s;border:none;display:flex;align-items:center;gap:7px}
+.ob-next:hover{background:var(--brd);transform:translateY(-1px)}
+.ob-next:disabled{background:var(--bd);color:var(--t3);cursor:not-allowed;transform:none}
+.ob-next svg{width:15px;height:15px;stroke:#fff;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+/* PROFILE VIEW (after setup) */
+.pv-header{background:linear-gradient(160deg,var(--tx) 0%,#3A2818 100%);padding:28px 18px 22px;position:relative;overflow:hidden;flex-shrink:0}
+.pv-header::after{content:'🐾';position:absolute;right:-14px;bottom:-14px;font-size:100px;opacity:.06;transform:rotate(-15deg)}
+.pv-avatar{width:80px;height:80px;border-radius:50%;border:3px solid rgba(255,255,255,.3);background:rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;font-size:40px;margin-bottom:12px}
+.pv-name{font-family:var(--fd);font-size:22px;color:#fff;margin-bottom:3px}
+.pv-meta{font-size:12.5px;color:rgba(255,255,255,.6);margin-bottom:12px}
+.pv-bio{font-size:13px;color:rgba(255,255,255,.75);line-height:1.55;margin-bottom:14px}
+.pv-badges{display:flex;gap:8px;flex-wrap:wrap}
+.pv-badge{font-size:11px;padding:4px 10px;border-radius:20px;font-weight:600;background:rgba(255,255,255,.12);color:rgba(255,255,255,.85)}
+.pv-badge.green{background:rgba(29,158,117,.3);color:#A8E8CC}
+.pv-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:14px 16px;background:var(--sf);border-bottom:1px solid var(--bd);flex-shrink:0}
+.pvs{text-align:center;padding:8px 4px}
+.pvs-n{font-family:var(--fd);font-size:22px;color:var(--br)}
+.pvs-l{font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.3px;margin-top:2px}
+.pv-section{padding:14px 16px;border-bottom:1px solid var(--bd);flex-shrink:0}
+.pv-section-title{font-size:12px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:12px}
+.pv-pets-row{display:flex;gap:10px;overflow-x:auto;scrollbar-width:none;padding-bottom:4px}
+.pv-pets-row::-webkit-scrollbar{display:none}
+.pvpet{flex-shrink:0;width:88px;border-radius:var(--rm);border:1px solid var(--bd);background:var(--sf2);overflow:hidden;cursor:pointer}
+.pvpet-img{height:72px;display:flex;align-items:center;justify-content:center;font-size:32px}
+.pvpet-name{font-size:11px;font-weight:600;color:var(--tx);padding:5px 7px 2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pvpet-breed{font-size:10px;color:var(--t3);padding:0 7px 6px}
+.pv-menu-item{display:flex;align-items:center;gap:12px;padding:13px 16px;cursor:pointer;transition:background .15s;border-bottom:1px solid var(--bd)}
+.pv-menu-item:hover{background:var(--sf2)}
+.pv-menu-item:last-child{border-bottom:none}
+.pv-menu-em{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.pv-menu-text{flex:1}
+.pv-menu-title{font-size:14px;font-weight:500;color:var(--tx)}
+.pv-menu-sub{font-size:11.5px;color:var(--t3);margin-top:1px}
+.pv-menu-arrow{color:var(--t3);font-size:16px}
+.pv-edit-btn{margin:14px 16px 0;width:calc(100% - 32px);padding:13px;background:var(--sf2);border:1.5px solid var(--bd2);border-radius:var(--r);font-size:13.5px;font-weight:600;color:var(--tx);cursor:pointer;font-family:var(--fb);transition:all .2s}
+.pv-edit-btn:hover{border-color:var(--br);color:var(--br)}
+</style>
+</head>
+<body>
+<div class="shell" id="app">
+
+  <!-- TOP BAR -->
+  <div class="topbar">
+    <div class="logo">🐾 Pawfect <em>Match</em></div>
+    <div class="topbar-right">
+      <div class="icon-pill" style="position:relative" onclick="toast('3 new matches! 🎉')">
+        <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        <div class="notif-dot"></div>
+      </div>
+      <div class="icon-pill" id="profileIconBtn" onclick="openProfilePage()">
+        <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN TABS — now at bottom, inserted after screens -->
+  <!-- SCREENS -->
+  <div class="screens">
+
+    <!-- ── ADOPT ──────────────────────────────────────────────── -->
+    <div class="scr on" id="scr-adopt">
+      <div class="adopt-inner">
+        <div class="filterbar">
+          <div class="fpill on" onclick="setFP(this)">All</div>
+          <div class="fpill" onclick="setFP(this)">🐕 Dogs</div>
+          <div class="fpill" onclick="setFP(this)">🐈 Cats</div>
+          <div class="fpill" onclick="setFP(this)">🐇 Rabbits</div>
+          <div class="fpill" onclick="setFP(this)">🐾 Near me</div>
+          <div class="fpill" onclick="setFP(this)">🌱 Young</div>
+        </div>
+        <div class="czone" id="czone" onmousedown="mdn(event)" ontouchstart="tcs(event)" ontouchmove="tcm(event)" ontouchend="tce(event)"></div>
+        <div class="adstrip" onclick="toast('Opening Chewy deal…')">
+          <div class="adstrip-em" id="adEm">🦴</div>
+          <div class="adstrip-body">
+            <div class="adstrip-lbl">Sponsored · Chewy</div>
+            <div class="adstrip-title" id="adTitle">Biscuit & Baxter Premium Dog Food</div>
+            <div class="adstrip-sub" id="adSub">Vet-formulated grain-free recipes</div>
+          </div>
+          <div class="adstrip-cta">20% off →</div>
+        </div>
+        <div class="acts">
+          <button class="act a-p" onclick="doSwipe('left')"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+          <button class="act a-u" onclick="undoLast()"><svg viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.51"/></svg></button>
+          <button class="act a-i" onclick="openCur()"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></button>
+          <button class="act a-s" onclick="doSwipe('super')"><svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></button>
+          <button class="act a-l" onclick="doSwipe('right')"><svg viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></button>
+        </div>
+        <div class="hint">← pass &nbsp;·&nbsp; tap card for info &nbsp;·&nbsp; like →</div>
+      </div>
+    </div>
+
+    <!-- ── SHOP ───────────────────────────────────────────────── -->
+    <div class="scr" id="scr-shop">
+      <div class="scroll">
+        <div class="shop-hero">
+          <h2>Shop for your pet</h2>
+          <p>Big brands, local gems, deals curated for your pet.</p>
+        </div>
+        <div class="shop-search" style="padding:10px 14px 0">
+          <input placeholder="Search food, toys, beds…">
+          <button><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></button>
+        </div>
+
+        <!-- Category pills -->
+        <div style="padding:12px 14px 4px;font-size:13px;font-weight:600;color:var(--tx)">Shop by category</div>
+        <div class="cat-row">
+          <div class="cat-pill on" onclick="setCat(this)"><div class="cat-em">🍖</div><div class="cat-lbl">Food</div></div>
+          <div class="cat-pill" onclick="setCat(this)"><div class="cat-em">🧸</div><div class="cat-lbl">Toys</div></div>
+          <div class="cat-pill" onclick="setCat(this)"><div class="cat-em">🛁</div><div class="cat-lbl">Grooming</div></div>
+          <div class="cat-pill" onclick="setCat(this)"><div class="cat-em">🏠</div><div class="cat-lbl">Beds</div></div>
+          <div class="cat-pill" onclick="setCat(this)"><div class="cat-em">💊</div><div class="cat-lbl">Health</div></div>
+          <div class="cat-pill" onclick="setCat(this)"><div class="cat-em">👕</div><div class="cat-lbl">Apparel</div></div>
+          <div class="cat-pill" onclick="setCat(this)"><div class="cat-em">🐾</div><div class="cat-lbl">Treats</div></div>
+        </div>
+
+        <!-- Big retailers -->
+        <div class="sec-hdr"><h3>Top retailers</h3><span onclick="toast('All retailers coming soon!')">See all →</span></div>
+        <div class="retailer-row">
+          <div class="ret-card" onclick="toast('Opening Chewy…')">
+            <div class="ret-banner" style="background:#1A4A9C;color:#fff;font-size:28px;font-weight:700;letter-spacing:-1px">chewy</div>
+            <div class="ret-body"><div class="ret-name">Chewy</div><div class="ret-deal">35% off first Auto-Ship</div><div class="ret-cta">Shop now →</div></div>
+          </div>
+          <div class="ret-card" onclick="toast('Opening PetSmart…')">
+            <div class="ret-banner" style="background:#E31837;font-size:22px;font-weight:700;color:#fff;letter-spacing:-1px">PetSmart</div>
+            <div class="ret-body"><div class="ret-name">PetSmart</div><div class="ret-deal">Buy 2 get 1 free on toys</div><div class="ret-cta">Shop now →</div></div>
+          </div>
+          <div class="ret-card" onclick="toast('Opening Petco…')">
+            <div class="ret-banner" style="background:#00A0E3;font-size:22px;font-weight:700;color:#fff;letter-spacing:-1px">petco</div>
+            <div class="ret-body"><div class="ret-name">Petco</div><div class="ret-deal">20% off your first order</div><div class="ret-cta">Shop now →</div></div>
+          </div>
+          <div class="ret-card" onclick="toast('Opening Amazon…')">
+            <div class="ret-banner" style="background:#FF9900;font-size:28px">📦</div>
+            <div class="ret-body"><div class="ret-name">Amazon</div><div class="ret-deal">Free shipping on $25+</div><div class="ret-cta">Shop now →</div></div>
+          </div>
+        </div>
+
+        <!-- Featured products -->
+        <div class="sec-hdr"><h3>Deals for dogs</h3><span>See all →</span></div>
+        <div class="prod-row">
+          <div class="prod-card" onclick="toast('Opening product…')">
+            <div class="prod-img" style="background:#FDE8DC">🦴</div>
+            <div class="prod-body"><div class="prod-name">Biscuit & Baxter Grain-Free Chicken</div><div class="prod-brand">Biscuit & Baxter</div><div class="prod-price-row"><span class="prod-price">$32</span><span class="prod-orig">$42</span><span class="prod-badge">-24%</span></div></div>
+          </div>
+          <div class="prod-card" onclick="toast('Opening product…')">
+            <div class="prod-img" style="background:#E8EDF8">🎾</div>
+            <div class="prod-body"><div class="prod-name">Kong Classic Interactive Toy</div><div class="prod-brand">Kong</div><div class="prod-price-row"><span class="prod-price">$14</span><span class="prod-orig">$18</span><span class="prod-badge">-22%</span></div></div>
+          </div>
+          <div class="prod-card" onclick="toast('Opening product…')">
+            <div class="prod-img" style="background:#EDFAF4">🛁</div>
+            <div class="prod-body"><div class="prod-name">FurFresh Monthly Grooming Box</div><div class="prod-brand">FurFresh</div><div class="prod-price-row"><span class="prod-price">$19<span style="font-size:10px;font-weight:500">/mo</span></span></div></div>
+          </div>
+          <div class="prod-card" onclick="toast('Opening product…')">
+            <div class="prod-img" style="background:#F0E8F8">🏠</div>
+            <div class="prod-body"><div class="prod-name">PawPad Ortho Memory Foam Bed</div><div class="prod-brand">PawPad</div><div class="prod-price-row"><span class="prod-price">$54</span><span class="prod-orig">$74</span><span class="prod-badge">-27%</span></div></div>
+          </div>
+        </div>
+
+        <!-- Local stores -->
+        <div class="sec-hdr"><h3>🏘️ Local pet shops</h3><span>See all near you →</span></div>
+        <div style="padding:0 14px 8px;font-size:12px;color:var(--t2)">Small businesses near San Diego · tap to visit their page</div>
+
+        <div class="local-card" onclick="openLocalStore('Coastal Paws Pet Supply')">
+          <div class="local-banner" style="background:linear-gradient(135deg,#E8F4F8,#C8E8F0)">
+            🌊
+            <div class="local-owner-badge">👤 Owner posts here</div>
+          </div>
+          <div class="local-body">
+            <div class="local-name">Coastal Paws Pet Supply</div>
+            <div class="local-meta">📍 Ocean Beach, San Diego · 0.8 mi away · ⭐ 4.9</div>
+            <div class="local-tags">
+              <span class="ltag">🐾 Raw food</span>
+              <span class="ltag">Supplements</span>
+              <span class="ltag event-chip">📅 Event this week</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="local-card" onclick="openLocalStore('The Bark Shoppe')">
+          <div class="local-banner" style="background:linear-gradient(135deg,#FDE8DC,#F5D0B8)">
+            🐕
+            <div class="local-owner-badge">👤 Owner posts here</div>
+          </div>
+          <div class="local-body">
+            <div class="local-name">The Bark Shoppe</div>
+            <div class="local-meta">📍 North Park, San Diego · 2.1 mi away · ⭐ 4.8</div>
+            <div class="local-tags">
+              <span class="ltag">🎂 Bakery</span>
+              <span class="ltag">Handmade toys</span>
+              <span class="ltag">Dog apparel</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="local-card" onclick="openLocalStore('Mission Valley Pet Wellness')">
+          <div class="local-banner" style="background:linear-gradient(135deg,#EDFAF4,#C8F0E0)">
+            💊
+            <div class="local-owner-badge">👤 Owner posts here</div>
+          </div>
+          <div class="local-body">
+            <div class="local-name">Mission Valley Pet Wellness</div>
+            <div class="local-meta">📍 Mission Valley · 3.4 mi away · ⭐ 4.7</div>
+            <div class="local-tags">
+              <span class="ltag">🌿 Holistic</span>
+              <span class="ltag">CBD products</span>
+              <span class="ltag event-chip">📅 Free consult Sat</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="height:20px"></div>
+      </div>
+    </div>
+
+    <!-- ── COMMUNITY ──────────────────────────────────────────── -->
+    <div class="scr" id="scr-community">
+      <div class="scroll">
+        <div class="comm-hero">
+          <h2>Your pet community</h2>
+          <p>Events, stories, and fellow pet lovers near San Diego</p>
+        </div>
+
+        <!-- Events -->
+        <div class="sec-hdr"><h3>📅 Upcoming events</h3><span>See all →</span></div>
+
+        <div class="event-card going" style="position:relative;margin:0 14px 10px" onclick="toast('You\'re going! 🎉')">
+          <div class="ev-going">✓ Going</div>
+          <div class="event-date-col"><div class="ev-month">May</div><div class="ev-day">17</div></div>
+          <div class="event-body">
+            <div class="ev-title">Adoption Day at SD Humane Society</div>
+            <div class="ev-host">🏠 SD Humane Society · <span style="color:var(--gn);font-weight:600">Free</span></div>
+            <div class="ev-details">
+              <div class="ev-detail"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>10am–4pm</div>
+              <div class="ev-detail"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>San Diego</div>
+              <div class="ev-detail">👤 42 going</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="event-card" style="position:relative;margin:0 14px 10px" onclick="rsvp(this)">
+          <div class="ev-going">✓ Going</div>
+          <div class="event-date-col" style="background:var(--pu)"><div class="ev-month">May</div><div class="ev-day">24</div></div>
+          <div class="event-body">
+            <div class="ev-title">Puppy Training Class — Beginners</div>
+            <div class="ev-host">🐕 Coastal Paws Pet Supply · <span style="color:var(--gd);font-weight:600">$25</span></div>
+            <div class="ev-details">
+              <div class="ev-detail"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>2pm–3:30pm</div>
+              <div class="ev-detail"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>Ocean Beach</div>
+              <div class="ev-detail">👤 8 spots left</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="event-card" style="position:relative;margin:0 14px 10px" onclick="rsvp(this)">
+          <div class="ev-going">✓ Going</div>
+          <div class="event-date-col" style="background:var(--gn)"><div class="ev-month">Jun</div><div class="ev-day">1</div></div>
+          <div class="event-body">
+            <div class="ev-title">Dog Beach Meetup — All Breeds Welcome</div>
+            <div class="ev-host">🌊 Pawfect Match Community · <span style="color:var(--gn);font-weight:600">Free</span></div>
+            <div class="ev-details">
+              <div class="ev-detail"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>9am–11am</div>
+              <div class="ev-detail"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>OB Dog Beach</div>
+              <div class="ev-detail">👤 89 going</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Community posts -->
+        <div class="sec-hdr"><h3>💬 Stories</h3><span>Share yours →</span></div>
+
+        <div class="post-card" onclick="likePost(this)">
+          <div class="post-header">
+            <div class="post-avatar">😊</div>
+            <div><div class="post-author">Sarah M. · Ocean Beach</div><div class="post-time">2 hours ago</div></div>
+          </div>
+          <p class="post-text">Week 3 with Noodle and I genuinely cannot imagine life before him. He found his favorite spot on the couch immediately and has not moved. 10/10 greyhound behavior 😂</p>
+          <div class="post-pet">
+            <div class="post-pet-em">🐩</div>
+            <div><div class="post-pet-name">Noodle — Greyhound</div><div class="post-pet-from">Adopted from SD Humane Society via Pawfect Match</div></div>
+          </div>
+          <div class="post-actions">
+            <div class="post-act" id="like1"><svg viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg><span>47 loves</span></div>
+            <div class="post-act"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><span>12 comments</span></div>
+            <div class="post-act"><svg viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg><span>Share</span></div>
+          </div>
+        </div>
+
+        <div class="post-card" onclick="likePost(this)">
+          <div class="post-header">
+            <div class="post-avatar">🧑</div>
+            <div><div class="post-author">Marcus T. · North Park</div><div class="post-time">Yesterday</div></div>
+          </div>
+          <p class="post-text">Biscuit graduated puppy training at Coastal Paws today!! The little guy worked so hard. Highly recommend their Saturday beginner class — trainer is incredible with anxious dogs.</p>
+          <div class="post-pet">
+            <div class="post-pet-em">🐕</div>
+            <div><div class="post-pet-name">Biscuit — Golden Retriever</div><div class="post-pet-from">Adopted from Helen Woodward via Pawfect Match</div></div>
+          </div>
+          <div class="post-actions">
+            <div class="post-act"><svg viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg><span>83 loves</span></div>
+            <div class="post-act"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><span>24 comments</span></div>
+            <div class="post-act"><svg viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg><span>Share</span></div>
+          </div>
+        </div>
+
+        <div style="height:20px"></div>
+      </div>
+    </div>
+
+    <!-- ── SAVED ───────────────────────────────────────────────── -->
+    <div class="scr" id="scr-saved">
+      <div class="scroll" style="padding:14px">
+        <div style="font-family:var(--fd);font-size:20px;margin-bottom:14px">Saved pets</div>
+        <div id="saved-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:10px"></div>
+        <div id="saved-empty" style="text-align:center;padding:48px 20px;color:var(--t2)">
+          <div style="font-size:48px;margin-bottom:12px;opacity:.3">❤️</div>
+          <div style="font-family:var(--fd);font-size:18px;margin-bottom:7px;color:var(--tx)">No saved pets yet</div>
+          <div style="font-size:13px;line-height:1.55">Swipe right on any pet to save them here.</div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /screens -->
+
+  <!-- ── BOTTOM NAV ─────────────────────────────────────────────── -->
+  <div class="main-tabs">
+    <div class="mtab on" id="tab-adopt" onclick="goTab('adopt')">
+      <svg viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+      Adopt
+    </div>
+    <div class="mtab" id="tab-shop" onclick="goTab('shop')">
+      <svg viewBox="0 0 24 24"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+      Shop
+      <div class="tab-badge show" id="shop-badge"></div>
+    </div>
+    <div class="mtab" id="tab-community" onclick="goTab('community')">
+      <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      Community
+    </div>
+    <div class="mtab" id="tab-saved" onclick="goTab('saved')">
+      <svg viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+      Saved
+      <div class="tab-badge" id="saved-badge"></div>
+    </div>
+  </div>
+
+  <!-- ── SHELTER PROFILE PAGE ───────────────────────────────────── -->
+  <div class="shelter-page" id="shelterPage">
+    <div class="shelter-back">
+      <div class="shelter-back-btn" onclick="closeShelter()"><svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg></div>
+      <div class="shelter-back-title" id="shelterBackTitle">SD Humane Society</div>
+    </div>
+
+    <!-- Banner (customizable by shelter) -->
+    <div class="shelter-banner" id="shelterBanner">
+      <div class="shelter-banner-bg" id="shelterBannerBg" style="background:linear-gradient(135deg,#1A4A9C,#2D7DD2)"></div>
+      <div class="shelter-banner-overlay"></div>
+      <div class="shelter-banner-content">
+        <div class="shelter-logo" id="shelterLogo">🏠</div>
+        <div class="shelter-banner-info">
+          <div class="shelter-banner-name" id="shelterBannerName">SD Humane Society</div>
+          <div class="shelter-banner-loc">📍 <span id="shelterBannerLoc">San Diego, CA</span></div>
+        </div>
+        <div class="shelter-verified">✓ Verified</div>
+      </div>
+    </div>
+
+    <!-- Shelter sub-tabs -->
+    <div class="shelter-tabs">
+      <div class="stab on" onclick="setShelterTab('animals',this)">Animals</div>
+      <div class="stab" onclick="setShelterTab('about',this)">About</div>
+      <div class="stab" onclick="setShelterTab('events',this)">Events</div>
+      <div class="stab" onclick="setShelterTab('stories',this)">Stories</div>
+    </div>
+
+    <!-- Shelter content area -->
+    <div class="shelter-content" id="shelterContent"></div>
+  </div>
+
+  <!-- MATCH MODAL -->
+  <div class="mbg" id="matchBg" onclick="if(event.target===this)closeMatch()">
+    <div class="mbox">
+      <div class="mpic" id="matchPic">🐕</div>
+      <div class="mttl">It's a match!</div>
+      <div class="msub">You and <strong id="matchName">Buddy</strong> are <strong id="matchPct" style="color:var(--br)">94%</strong> compatible!</div>
+      <div class="aib" id="aibox">
+        <div class="aidots" id="aidots"><div class="aidot"></div><div class="aidot"></div><div class="aidot"></div></div>
+        <div id="aitxt" style="display:none"></div>
+      </div>
+      <div class="mbtns">
+        <button class="mbp" onclick="closeMatch();goTab('saved')">❤️ View saved pets</button>
+        <button class="mbs" onclick="closeMatch()">Keep swiping</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── PROFILE PAGE ──────────────────────────────────────── -->
+  <div class="profile-page" id="profilePage">
+
+    <!-- ONBOARDING (shown when no profile yet) -->
+    <div id="ob-flow" style="display:flex;flex-direction:column;height:100%;overflow:hidden">
+
+      <!-- Step dots -->
+      <div class="ob-steps" id="obStepDots">
+        <div class="ob-step-dot active" id="osd0"></div>
+        <div class="ob-step-line" id="osl0"></div>
+        <div class="ob-step-dot" id="osd1"></div>
+        <div class="ob-step-line" id="osl1"></div>
+        <div class="ob-step-dot" id="osd2"></div>
+        <div class="ob-step-line" id="osl2"></div>
+        <div class="ob-step-dot" id="osd3"></div>
+        <div class="ob-step-line" id="osl3"></div>
+        <div class="ob-step-dot" id="osd4"></div>
+      </div>
+
+      <div class="ob-wrap" id="obWrap">
+
+        <!-- PANEL 0 — Welcome -->
+        <div class="ob-panel active" id="ob-panel-0">
+          <div class="ob-hero">
+            <span class="ob-hero-em">🐾</span>
+            <h2>Let's set up your <em>Pawfect</em> profile</h2>
+            <p>Tell us a little about yourself so we can find pets that truly match your life — and connect you with your local pet community.</p>
+          </div>
+          <div style="padding:0 22px;display:flex;flex-direction:column;gap:10px;flex-shrink:0">
+            <div style="background:var(--gnl);border:1px solid #A8E8CC;border-radius:var(--rm);padding:14px;display:flex;gap:10px">
+              <div style="font-size:20px;flex-shrink:0">✅</div>
+              <div style="font-size:13px;color:var(--gnd);line-height:1.55">Better matches based on <strong>your actual lifestyle</strong>, not just location</div>
+            </div>
+            <div style="background:var(--bll);border:1px solid #C3D8FF;border-radius:var(--rm);padding:14px;display:flex;gap:10px">
+              <div style="font-size:20px;flex-shrink:0">📅</div>
+              <div style="font-size:13px;color:var(--bl);line-height:1.55">See <strong>events near you</strong> tailored to your pets and interests</div>
+            </div>
+            <div style="background:var(--brl);border:1px solid #FAD5BE;border-radius:var(--rm);padding:14px;display:flex;gap:10px">
+              <div style="font-size:20px;flex-shrink:0">❤️</div>
+              <div style="font-size:13px;color:var(--brd);line-height:1.55">Share <strong>your adoption story</strong> with the community</div>
+            </div>
+          </div>
+          <div class="ob-nav">
+            <div></div>
+            <button class="ob-next" onclick="obNext(0)">Get started <svg viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg></button>
+          </div>
+        </div>
+
+        <!-- PANEL 1 — Avatar + name -->
+        <div class="ob-panel" id="ob-panel-1">
+          <div class="ob-hero" style="text-align:center;padding-bottom:16px">
+            <h2 style="font-size:22px">Who are you?</h2>
+            <p>Pick a photo and tell us your name.</p>
+          </div>
+          <div style="text-align:center;padding:0 22px 14px;flex-shrink:0">
+            <div class="avatar-ring" id="avatarRing" onclick="toggleAvatarPicker()">
+              <span id="avatarDisplay">🙂</span>
+              <div class="av-edit">✎</div>
+            </div>
+            <div style="font-size:11.5px;color:var(--t3);margin-bottom:10px">Tap to change</div>
+          </div>
+          <div class="avatar-picker" id="avatarPicker">
+            <div class="av-opt" onclick="pickAvatar('🙂',this)">🙂</div>
+            <div class="av-opt" onclick="pickAvatar('😊',this)">😊</div>
+            <div class="av-opt" onclick="pickAvatar('🧑',this)">🧑</div>
+            <div class="av-opt" onclick="pickAvatar('👩',this)">👩</div>
+            <div class="av-opt" onclick="pickAvatar('👨',this)">👨</div>
+            <div class="av-opt" onclick="pickAvatar('🧓',this)">🧓</div>
+            <div class="av-opt" onclick="pickAvatar('🧑‍🦱',this)">🧑‍🦱</div>
+            <div class="av-opt" onclick="pickAvatar('🧑‍🦰',this)">🧑‍🦰</div>
+            <div class="av-opt" onclick="pickAvatar('🧑‍🦳',this)">🧑‍🦳</div>
+            <div class="av-opt" onclick="pickAvatar('🧑‍🦲',this)">🧑‍🦲</div>
+            <div class="av-opt" onclick="pickAvatar('🐾',this)">🐾</div>
+            <div class="av-opt" onclick="pickAvatar('🌻',this)">🌻</div>
+          </div>
+          <div class="ob-fields">
+            <div class="ob-row">
+              <div class="ob-field"><label>First name <span class="req">*</span></label><input id="ob-fname" placeholder="Sarah" autocomplete="given-name"></div>
+              <div class="ob-field"><label>Last initial</label><input id="ob-lname" placeholder="M." maxlength="3" autocomplete="family-name"></div>
+            </div>
+            <div class="ob-field"><label>City / neighborhood <span class="req">*</span></label><input id="ob-city" placeholder="Ocean Beach, San Diego" autocomplete="address-level2"></div>
+            <div class="ob-field"><label>Bio <span style="font-weight:400;color:var(--t3)">(optional)</span></label><textarea id="ob-bio" rows="3" placeholder="Dog mom, trail runner, local coffee addict ☕"></textarea></div>
+          </div>
+          <div class="ob-nav">
+            <button class="ob-back" onclick="obBack(1)">← Back</button>
+            <button class="ob-next" onclick="obNext(1)">Continue <svg viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg></button>
+          </div>
+        </div>
+
+        <!-- PANEL 2 — Lifestyle -->
+        <div class="ob-panel" id="ob-panel-2">
+          <div class="ob-hero" style="padding-bottom:14px">
+            <h2 style="font-size:22px">Your lifestyle</h2>
+            <p>This is how we match you with the right pets. Pick all that apply.</p>
+          </div>
+          <div class="chip-grid" id="lifestyleGrid">
+            <div class="lchip" onclick="toggleChip(this,'apartment')"><div class="lchip-em">🏢</div><div><div class="lchip-lbl">Apartment</div><div class="lchip-sub">No yard</div></div></div>
+            <div class="lchip" onclick="toggleChip(this,'house')"><div class="lchip-em">🏠</div><div><div class="lchip-lbl">House + yard</div><div class="lchip-sub">Outdoor space</div></div></div>
+            <div class="lchip" onclick="toggleChip(this,'active')"><div class="lchip-em">🏃</div><div><div class="lchip-lbl">Very active</div><div class="lchip-sub">Hiker / runner</div></div></div>
+            <div class="lchip" onclick="toggleChip(this,'couch')"><div class="lchip-em">🛋️</div><div><div class="lchip-lbl">Relaxed</div><div class="lchip-sub">Couch & cuddles</div></div></div>
+            <div class="lchip" onclick="toggleChip(this,'kids')"><div class="lchip-em">👶</div><div><div class="lchip-lbl">Kids at home</div><div class="lchip-sub">Family friendly</div></div></div>
+            <div class="lchip" onclick="toggleChip(this,'otherpets')"><div class="lchip-em">🐾</div><div><div class="lchip-lbl">Other pets</div><div class="lchip-sub">Already have one</div></div></div>
+            <div class="lchip" onclick="toggleChip(this,'firsttime')"><div class="lchip-em">🌱</div><div><div class="lchip-lbl">First-time owner</div><div class="lchip-sub">New to this!</div></div></div>
+            <div class="lchip" onclick="toggleChip(this,'experienced')"><div class="lchip-em">⭐</div><div><div class="lchip-lbl">Experienced</div><div class="lchip-sub">Had pets before</div></div></div>
+          </div>
+          <div class="ob-fields" style="margin-top:14px">
+            <div class="ob-field">
+              <label>How much time daily for a pet?</label>
+              <select id="ob-time">
+                <option value="">Select…</option>
+                <option value="low">Less than 1 hour</option>
+                <option value="med">1–3 hours</option>
+                <option value="high">3–5 hours</option>
+                <option value="lots">All day!</option>
+              </select>
+            </div>
+          </div>
+          <div class="ob-nav">
+            <button class="ob-back" onclick="obBack(2)">← Back</button>
+            <button class="ob-next" onclick="obNext(2)">Continue <svg viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg></button>
+          </div>
+        </div>
+
+        <!-- PANEL 3 — Your pets -->
+        <div class="ob-panel" id="ob-panel-3">
+          <div class="ob-hero" style="padding-bottom:14px">
+            <h2 style="font-size:22px">Your pets</h2>
+            <p>Already have a pet? Add them to your profile so the community can see your family.</p>
+          </div>
+          <div class="my-pets-grid" id="myPetsGrid">
+            <div class="mypet-card" id="addPetCard" onclick="openAddPet()">
+              <div style="font-size:28px">+</div>
+              <div>Add a pet</div>
+            </div>
+          </div>
+          <div style="padding:14px 22px 0;font-size:12.5px;color:var(--t3);text-align:center;flex-shrink:0">No pets yet? That's okay — you can add them after adopting!</div>
+          <div class="ob-nav">
+            <button class="ob-back" onclick="obBack(3)">← Back</button>
+            <button class="ob-next" onclick="obNext(3)">Continue <svg viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg></button>
+          </div>
+        </div>
+
+        <!-- PANEL 4 — Notifications & finish -->
+        <div class="ob-panel" id="ob-panel-4">
+          <div class="ob-hero" style="padding-bottom:16px">
+            <h2 style="font-size:22px">Almost done!</h2>
+            <p>Choose what you'd like to hear about.</p>
+          </div>
+          <div style="padding:0 22px;display:flex;flex-direction:column;gap:10px;flex-shrink:0">
+            <!-- Notification toggles -->
+            <div id="notifList"></div>
+          </div>
+          <div style="padding:16px 22px 0;flex-shrink:0">
+            <div style="background:var(--sf2);border:1px solid var(--bd);border-radius:var(--rm);padding:14px">
+              <div style="font-size:12px;font-weight:600;color:var(--tx);margin-bottom:8px">Your match preferences</div>
+              <div style="font-size:12px;color:var(--t2);line-height:1.55">Based on your lifestyle answers, we'll prioritize pets that fit your home, activity level, and experience. You can refine this anytime in settings.</div>
+            </div>
+          </div>
+          <div class="ob-nav">
+            <button class="ob-back" onclick="obBack(4)">← Back</button>
+            <button class="ob-next" style="background:var(--gn)" onclick="finishProfile()">Create my profile 🐾</button>
+          </div>
+        </div>
+
+      </div><!-- /ob-wrap -->
+    </div><!-- /ob-flow -->
+
+    <!-- PROFILE VIEW (shown after setup) -->
+    <div id="pv-view" style="display:none;flex-direction:column;height:100%;overflow:hidden">
+      <div style="display:flex;flex-direction:column;flex:1;overflow-y:auto;scrollbar-width:none" id="pvScroll">
+
+        <!-- Header -->
+        <div class="pv-header">
+          <div class="pv-avatar" id="pv-avatar">🙂</div>
+          <div class="pv-name" id="pv-name">Sarah M.</div>
+          <div class="pv-meta" id="pv-meta">📍 Ocean Beach, San Diego</div>
+          <div class="pv-bio" id="pv-bio">Dog mom, trail runner, local coffee addict ☕</div>
+          <div class="pv-badges" id="pv-badges">
+            <div class="pv-badge green">🐾 Pet lover</div>
+            <div class="pv-badge green">🏃 Active lifestyle</div>
+          </div>
+        </div>
+
+        <!-- Stats -->
+        <div class="pv-stats">
+          <div class="pvs"><div class="pvs-n" id="pv-stat-saved">0</div><div class="pvs-l">Saved pets</div></div>
+          <div class="pvs"><div class="pvs-n" id="pv-stat-pets">0</div><div class="pvs-l">My pets</div></div>
+          <div class="pvs"><div class="pvs-n" id="pv-stat-events">3</div><div class="pvs-l">Events RSVPed</div></div>
+        </div>
+
+        <!-- My pets -->
+        <div class="pv-section" id="pv-pets-section">
+          <div class="pv-section-title">My pets</div>
+          <div class="pv-pets-row" id="pvPetsRow">
+            <div style="font-size:13px;color:var(--t3);padding:4px 0">No pets added yet</div>
+          </div>
+        </div>
+
+        <!-- Edit profile button -->
+        <button class="pv-edit-btn" onclick="editProfile()">✎ Edit profile</button>
+
+        <!-- Menu -->
+        <div style="padding:16px 0 0">
+          <div class="pv-menu-item" onclick="openMatchPrefs()">
+            <div class="pv-menu-em" style="background:var(--brl)">🎯</div>
+            <div class="pv-menu-text"><div class="pv-menu-title">Match preferences</div><div class="pv-menu-sub">Update your lifestyle & pet preferences</div></div>
+            <div class="pv-menu-arrow">›</div>
+          </div>
+          <div class="pv-menu-item" onclick="openNotifSettings()">
+            <div class="pv-menu-em" style="background:var(--bll)">🔔</div>
+            <div class="pv-menu-text"><div class="pv-menu-title">Notifications</div><div class="pv-menu-sub">New matches, events, community updates</div></div>
+            <div class="pv-menu-arrow">›</div>
+          </div>
+          <div class="pv-menu-item" onclick="toast('Adoption history coming soon!')">
+            <div class="pv-menu-em" style="background:var(--gnl)">❤️</div>
+            <div class="pv-menu-text"><div class="pv-menu-title">Adoption history</div><div class="pv-menu-sub">Pets you've adopted via Pawfect Match</div></div>
+            <div class="pv-menu-arrow">›</div>
+          </div>
+          <div class="pv-menu-item" onclick="toast('Coming soon!')">
+            <div class="pv-menu-em" style="background:var(--gdl)">💳</div>
+            <div class="pv-menu-text"><div class="pv-menu-title">Subscription</div><div class="pv-menu-sub">Free plan · Upgrade to remove ads</div></div>
+            <div class="pv-menu-arrow">›</div>
+          </div>
+          <div class="pv-menu-item" onclick="toast('Help & support coming soon!')">
+            <div class="pv-menu-em" style="background:var(--sf2)">💬</div>
+            <div class="pv-menu-text"><div class="pv-menu-title">Help & support</div><div class="pv-menu-sub">FAQ, contact us, send feedback</div></div>
+            <div class="pv-menu-arrow">›</div>
+          </div>
+          <div class="pv-menu-item" onclick="signOut()" style="border-bottom:none">
+            <div class="pv-menu-em" style="background:#FFF0F0">🚪</div>
+            <div class="pv-menu-text"><div class="pv-menu-title" style="color:#E24B4A">Sign out</div><div class="pv-menu-sub">You'll need to sign back in</div></div>
+            <div class="pv-menu-arrow" style="color:#E24B4A">›</div>
+          </div>
+        </div>
+
+        <div style="height:24px"></div>
+      </div><!-- /pvScroll -->
+    </div><!-- /pv-view -->
+
+    <!-- SETTINGS SUB-PANEL (Notifications / Match preferences) -->
+    <div id="settings-panel" style="position:absolute;inset:0;background:var(--bg);z-index:20;display:none;flex-direction:column">
+      <div style="height:48px;min-height:48px;display:flex;align-items:center;padding:0 16px;background:var(--sf);border-bottom:1px solid var(--bd);gap:10px;flex-shrink:0">
+        <div class="icon-pill" onclick="closeSettingsPanel()">
+          <svg viewBox="0 0 24 24"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+        </div>
+        <span id="settings-panel-title" style="font-size:16px;font-weight:600;color:var(--tx)">Settings</span>
+      </div>
+      <div id="settings-panel-body" style="flex:1;overflow-y:auto;padding:16px 20px;scrollbar-width:none"></div>
+      <div style="padding:12px 20px 24px;background:var(--sf);border-top:1px solid var(--bd);flex-shrink:0">
+        <button id="settings-save-btn" onclick="saveSettingsPanel()" style="width:100%;padding:13px;background:var(--br);color:#fff;border:none;border-radius:var(--r);font-size:14px;font-weight:600;cursor:pointer;font-family:var(--fb)">Save changes</button>
+      </div>
+    </div>
+
+    <!-- Close button -->
+    <div id="profileCloseBtn" style="position:absolute;top:14px;right:14px;z-index:10">
+      <div class="icon-pill" onclick="closeProfilePage()" style="background:rgba(255,255,255,.15);border-color:rgba(255,255,255,.2)">
+        <svg viewBox="0 0 24 24" style="stroke:#fff"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </div>
+    </div>
+
+  </div><!-- /profile-page -->
+
+  <!-- ADD PET MODAL -->
+  <div class="addpet-modal" id="addPetModal" onclick="if(event.target===this)closeAddPet()">
+    <div class="addpet-sheet">
+      <div class="addpet-handle"></div>
+      <div class="addpet-title">Add your pet</div>
+      <div style="font-size:12.5px;color:var(--t2);margin-bottom:12px">Pick an icon:</div>
+      <div class="pet-em-row">
+        <div class="pem-opt sel" onclick="pickPetEm('🐕',this)">🐕</div>
+        <div class="pem-opt" onclick="pickPetEm('🐈',this)">🐈</div>
+        <div class="pem-opt" onclick="pickPetEm('🐩',this)">🐩</div>
+        <div class="pem-opt" onclick="pickPetEm('🦮',this)">🦮</div>
+        <div class="pem-opt" onclick="pickPetEm('🐕‍🦺',this)">🐕‍🦺</div>
+        <div class="pem-opt" onclick="pickPetEm('🐱',this)">🐱</div>
+        <div class="pem-opt" onclick="pickPetEm('🐇',this)">🐇</div>
+        <div class="pem-opt" onclick="pickPetEm('🐹',this)">🐹</div>
+        <div class="pem-opt" onclick="pickPetEm('🦜',this)">🦜</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px">
+        <div class="ob-field"><label>Pet's name <span class="req">*</span></label><input id="ap-name" placeholder="Biscuit"></div>
+        <div class="ob-row">
+          <div class="ob-field"><label>Species / breed</label><input id="ap-breed" placeholder="Golden Retriever"></div>
+          <div class="ob-field"><label>Age</label><input id="ap-age" placeholder="2 years"></div>
+        </div>
+        <div class="ob-field">
+          <label>Adopted from (optional)</label>
+          <input id="ap-shelter" placeholder="SD Humane Society">
+        </div>
+        <div class="ob-field">
+          <label>Fun fact about them</label>
+          <textarea id="ap-fact" rows="2" placeholder="Stole my heart and my socks on day one…"></textarea>
+        </div>
+      </div>
+      <button onclick="saveMyPet()" style="width:100%;padding:13px;background:var(--br);color:#fff;border:none;border-radius:var(--r);font-size:14px;font-weight:600;cursor:pointer;font-family:var(--fb)">Add to my profile ❤️</button>
+    </div>
+  </div>
+
+</div><!-- /shell -->
+
+<script>
+// ── DATA ────────────────────────────────────────────────────────
+const PETS = [
+  {id:1,name:'Biscuit',age:'2 yrs',em:'🐕',breed:'Golden Retriever',gender:'Male',size:'Large',energy:'High',traits:['Friendly','Trained','Playful'],desc:'Loves fetch and cuddles. House-trained, great with kids and other dogs.',shelter:'SD Humane Society',city:'San Diego, CA',fee:'$150',bg:'#FDE8DC',match:94,url:'https://www.sdhumane.org',good:['house','active','high','school','toddlers']},
+  {id:2,name:'Luna',age:'3 yrs',em:'🐈',breed:'Tabby Cat',gender:'Female',size:'Medium',energy:'Low',traits:['Calm','Indoor','Gentle'],desc:'Loves sunny windows and quiet evenings. Perfect for apartment life.',shelter:'County Animal Services',city:'Bonita, CA',fee:'$85',bg:'#E8F4E8',match:88,url:'#',good:['apartment','couch','low','no']},
+  {id:3,name:'Pepper',age:'1 yr',em:'🦮',breed:'Border Collie Mix',gender:'Female',size:'Medium',energy:'Very High',traits:['Smart','Athletic','Energetic'],desc:'Brilliant pup who needs a job and lots of miles. Thrives with active families.',shelter:'Rescue Mission SD',city:'La Mesa, CA',fee:'$200',bg:'#E8EDF8',match:76,url:'#',good:['house','active','outdoorsy','lots']},
+  {id:4,name:'Noodle',age:'6 yrs',em:'🐩',breed:'Greyhound',gender:'Male',size:'Large',energy:'Low',traits:['Gentle','Quiet','Couch-lover'],desc:'A 40mph couch potato. Surprisingly lazy, very gentle with everyone.',shelter:'Greyhound Rescue SD',city:'San Diego, CA',fee:'$120',bg:'#E8F4F8',match:91,url:'#',good:['apartment','couch','low','moderate']},
+  {id:5,name:'Mochi',age:'4 yrs',em:'🐇',breed:'Holland Lop',gender:'Female',size:'Small',energy:'Low',traits:['Gentle','Easy-care','Quiet'],desc:'Litter-trained and surprisingly cuddly. Perfect for apartment life.',shelter:'Small Paws Rescue',city:'Chula Vista, CA',fee:'$60',bg:'#F8F0E8',match:85,url:'#',good:['apartment','condo','low','school']},
+  {id:6,name:'Titan',age:'5 yrs',em:'🐕‍🦺',breed:'German Shepherd',gender:'Male',size:'Large',energy:'High',traits:['Loyal','Confident','Alert'],desc:'Calm, well-socialized companion. Loves structure and family time.',shelter:'SD Humane Society',city:'San Diego, CA',fee:'$175',bg:'#F0E8F8',match:82,url:'https://www.sdhumane.org',good:['house','active','high','school','teens']},
+  {id:7,name:'Maple',age:'2 yrs',em:'🐶',breed:'Aussie Shepherd',gender:'Female',size:'Medium',energy:'Very High',traits:['Athletic','Smart','Loyal'],desc:'Needs open spaces and adventures. Incredibly loyal once bonded.',shelter:'Helen Woodward',city:'Rancho Santa Fe, CA',fee:'$185',bg:'#E8F8EC',match:79,url:'https://animalcenter.org',good:['house','rural','active','outdoorsy']},
+  {id:8,name:'Cheddar',age:'9 yrs',em:'🐱',breed:'Orange Tabby',gender:'Male',size:'Medium',energy:'Low',traits:['Lap cat','Senior','Calm'],desc:'A wise old gentleman. Knows every sunny spot, loves slow mornings.',shelter:'County Animal Services',city:'Bonita, CA',fee:'$40',bg:'#FFF0E0',match:87,url:'#',good:['apartment','couch','low','no','toddlers']},
+];
+
+const ADS = [
+  {em:'🦴',title:'Biscuit & Baxter Dog Food',sub:'Vet-formulated grain-free',sp:'dog'},
+  {em:'🧶',title:'Meow Mix Interactive Bundle',sub:'Keep your cat entertained',sp:'cat'},
+  {em:'🛁',title:'FurFresh Grooming Subscription',sub:'Monthly essentials delivered',sp:'all'},
+  {em:'🏡',title:'PawPad Ortho Beds',sub:'Memory foam for every size',sp:'all'},
+  {em:'💊',title:'VetRx Monthly Health Plan',sub:'Flea, tick & heartworm',sp:'all'},
+  {em:'🎉',title:'Chewy — 35% Off First Auto-Ship',sub:'Never run out again',sp:'all'},
+];
+
+const SHELTER_DATA = {
+  'SD Humane Society': {
+    em:'🏠', bg:'linear-gradient(135deg,#1A4A9C,#2D7DD2)',
+    loc:'San Diego, CA', founded:'1880',
+    mission:'The San Diego Humane Society has been saving and improving the lives of animals for over 140 years. We believe every animal deserves a loving home and a second chance.',
+    animals:47, placed:1240, years:144,
+    team:[{em:'👩',name:'Dr. Sarah K.',role:'Vet Director'},{em:'👨',name:'Tom R.',role:'Adoption Mgr'},{em:'👩',name:'Maria L.',role:'Foster Coord'},{em:'🧑',name:'James P.',role:'Behavior Spec'}],
+    pets:[
+      {name:'Biscuit',em:'🐕',bg:'#FDE8DC',breed:'Golden Retriever',match:94},
+      {name:'Titan',em:'🐕‍🦺',bg:'#F0E8F8',breed:'German Shepherd',match:82},
+      {name:'Cheddar',em:'🐱',bg:'#FFF0E0',breed:'Orange Tabby',match:87},
+      {name:'Daisy',em:'🐶',bg:'#FDE8DC',breed:'Labrador Mix',match:90},
+      {name:'Luna',em:'🐈',bg:'#E8F4E8',breed:'Domestic Shorthair',match:85},
+      {name:'Rex',em:'🐕',bg:'#E8EDF8',breed:'Pit Bull Mix',match:78},
+    ],
+    events:[
+      {month:'MAY',day:'17',title:'Weekend Adoption Day',desc:'Meet all our available animals. Free entry, adoptions fees waived for seniors!',time:'10am – 4pm',loc:'Main Campus'},
+      {month:'JUN',day:'7',title:'Pet Health & Wellness Fair',desc:'Free vaccinations, microchipping, and nail trims for the community.',time:'9am – 2pm',loc:'Morena Campus'},
+      {month:'JUN',day:'21',title:'Volunteer Orientation',desc:'Join our team! Learn how to become a dog walker, cat socializer, or adoption counselor.',time:'1pm – 3pm',loc:'Education Center'},
+    ],
+  },
+  'Coastal Paws Pet Supply': {
+    em:'🌊', bg:'linear-gradient(135deg,#1A6A8A,#2D9ED2)',
+    loc:'Ocean Beach, San Diego', founded:'2015',
+    mission:'A neighborhood pet supply store dedicated to natural, wholesome products for your pets. We believe what you feed your pet matters — come in for a free nutrition consult.',
+    animals:0, placed:0, years:9,
+    team:[{em:'👩',name:'Jess & Rob',role:'Owners'},{em:'🧑',name:'Kyle M.',role:'Nutrition Spec'},{em:'👩',name:'Amy T.',role:'Groomer'}],
+    pets:[],
+    events:[
+      {month:'MAY',day:'24',title:'Puppy Training — Beginners',desc:'6-week course with certified trainer. Small classes, big results.',time:'2pm – 3:30pm',loc:'Store classroom'},
+      {month:'JUN',day:'14',title:'Raw Food Q&A with Nutritionist',desc:'Free event. Bring your pet! Learn how to transition to a raw diet.',time:'11am – 1pm',loc:'Coastal Paws'},
+    ],
+  },
+};
+
+// ── STATE ────────────────────────────────────────────────────────
+let deck=[...PETS],liked=[],history=[],idx=0,adIdx=0;
+let dragCard=null,dragX=0,dragY=0,moved=false;
+let curMatchPet=null,currentShelter=null,currentShelterTab='animals';
+
+// ── TAB NAV ──────────────────────────────────────────────────────
+function goTab(t) {
+  document.querySelectorAll('.mtab').forEach(b=>b.classList.remove('on'));
+  document.querySelectorAll('.scr').forEach(s=>s.classList.remove('on'));
+  document.getElementById('tab-'+t).classList.add('on');
+  document.getElementById('scr-'+t).classList.add('on');
+  if(t==='saved') renderSaved();
+  document.getElementById('shop-badge').classList.remove('show');
+}
+
+// ── ADOPT CARDS ──────────────────────────────────────────────────
+function renderCards() {
+  const z=document.getElementById('czone');
+  z.querySelectorAll('.pcard').forEach(c=>c.remove());
+  if(idx>=deck.length){
+    z.innerHTML=`<div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center;padding:22px"><span style="font-size:56px">🐾</span><div style="font-family:var(--fd);font-size:18px;color:var(--tx)">You've seen everyone!</div><div style="font-size:12.5px;color:var(--t2)">Check back soon for new arrivals.</div><button onclick="idx=0;renderCards()" style="padding:10px 22px;background:var(--br);color:#fff;border:none;border-radius:20px;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--fb)">Start over</button></div>`;
+    return;
+  }
+  for(let i=Math.min(idx+2,deck.length-1);i>=idx;i--){
+    const p=deck[i];
+    const cls=i===idx?'c1':(i===idx+1?'c2':'c3');
+    const mc=p.match>=85?'#1D9E75':p.match>=72?'#E8603C':'#888';
+    const card=document.createElement('div');
+    card.className='pcard '+cls; card.dataset.idx=i;
+    card.innerHTML=`
+      <div class="cphoto" style="background:${p.bg}">
+        <span>${p.em}</span>
+        <div class="cgrad"></div>
+        <div class="ctag ctag-org" onclick="openShelterPage('${p.shelter}',event)">${p.shelter} ↗</div>
+        <div class="ctag ctag-match" style="background:${mc}">${p.match}% match</div>
+        <div class="ctag ctag-loc">📍 ${p.city}</div>
+      </div>
+      <div class="stamp sl" id="sl${i}">ADOPT</div>
+      <div class="stamp sp" id="sp${i}">PASS</div>
+      <div class="cbody">
+        <div class="cnrow"><span class="cname">${p.name}</span><span class="cage">${p.age}</span></div>
+        <div class="cbreed">${p.breed} · ${p.gender} · ${p.size} · ${p.fee}</div>
+        <div class="ctags">${p.traits.map(t=>`<span class="ct">${t}</span>`).join('')}</div>
+        <div class="cdesc">${p.desc}</div>
+      </div>`;
+    if(i===idx) card.addEventListener('click',()=>{ if(!moved) openPetDetail(p); });
+    z.insertBefore(card,z.firstChild);
+  }
+  renderAd();
+}
+
+function openShelterPage(name, e) {
+  e && e.stopPropagation();
+  openShelterProfile(name);
+}
+
+function openPetDetail(p) {
+  toast(`${p.name} · ${p.breed} · ${p.fee} adoption fee`);
+}
+
+// ── DRAG ────────────────────────────────────────────────────────
+function mdn(e){const c=e.target.closest('.pcard.c1');if(!c)return;dragCard=c;dragX=e.clientX;dragY=e.clientY;moved=false;c.style.transition='none';document.addEventListener('mousemove',mmv);document.addEventListener('mouseup',mmu);}
+function mmv(e){if(!dragCard)return;const dx=e.clientX-dragX,dy=e.clientY-dragY;if(Math.abs(dx)>4)moved=true;dragCard.style.transform=`translateX(${dx}px) translateY(${dy}px) rotate(${dx*.038}deg)`;stamps(dx,dragCard.dataset.idx);}
+function mmu(e){document.removeEventListener('mousemove',mmv);document.removeEventListener('mouseup',mmu);if(!dragCard)return;const dx=e.clientX-dragX;dragCard.style.transition='transform .3s ease';if(dx>85)anim(dragCard,'right');else if(dx<-85)anim(dragCard,'left');else{dragCard.style.transform='';clrS(dragCard.dataset.idx);}dragCard=null;}
+let tcX=0;
+function tcs(e){const c=e.target.closest('.pcard.c1');if(!c)return;dragCard=c;tcX=e.touches[0].clientX;dragY=e.touches[0].clientY;moved=false;c.style.transition='none';}
+function tcm(e){if(!dragCard)return;const dx=e.touches[0].clientX-tcX,dy=e.touches[0].clientY-dragY;if(Math.abs(dx)>5)moved=true;dragCard.style.transform=`translateX(${dx}px) translateY(${dy}px) rotate(${dx*.038}deg)`;stamps(dx,dragCard.dataset.idx);if(Math.abs(dx)>Math.abs(dy))e.preventDefault();}
+function tce(e){if(!dragCard)return;const dx=e.changedTouches[0].clientX-tcX;dragCard.style.transition='transform .3s ease';if(dx>85)anim(dragCard,'right');else if(dx<-85)anim(dragCard,'left');else{dragCard.style.transform='';clrS(dragCard.dataset.idx);}dragCard=null;}
+function stamps(dx,i){const sl=document.getElementById('sl'+i),sp=document.getElementById('sp'+i);if(sl)sl.style.opacity=dx>30?Math.min((dx-30)/70,1):0;if(sp)sp.style.opacity=dx<-30?Math.min((-dx-30)/70,1):0;}
+function clrS(i){['sl','sp'].forEach(p=>{const e=document.getElementById(p+i);if(e)e.style.opacity=0;});}
+
+function doSwipe(dir){if(idx>=deck.length)return;const c=document.querySelector('.pcard.c1');if(!c)return;anim(c,dir);}
+function anim(card,dir){
+  const p=deck[parseInt(card.dataset.idx)];
+  card.style.transition='transform .38s ease,opacity .32s';
+  if(dir==='right'||dir==='super'){
+    card.style.transform=`translateX(520px) rotate(20deg)`;
+    if(!liked.find(x=>x.id===p.id))liked.push(p);
+    history.push({p,dir});renderSaved();updBadge();
+    setTimeout(()=>{idx++;renderCards();showMatch(p);},380);
+  } else {
+    card.style.transform=`translateX(-520px) rotate(-20deg)`;
+    history.push({p,dir});
+    setTimeout(()=>{idx++;renderCards();},380);
+  }
+}
+function undoLast(){if(!history.length){toast('Nothing to undo');return;}const last=history.pop();if(last.dir!=='left'){liked=liked.filter(x=>x.id!==last.p.id);renderSaved();updBadge();}idx=Math.max(0,idx-1);renderCards();toast('Undo! '+last.p.name+' is back 🐾');}
+function openCur(){if(idx<deck.length)openPetDetail(deck[idx]);}
+
+// ── MATCH MODAL ──────────────────────────────────────────────────
+async function showMatch(p) {
+  curMatchPet=p;
+  document.getElementById('matchPic').textContent=p.em;
+  document.getElementById('matchName').textContent=p.name;
+  document.getElementById('matchPct').textContent=p.match+'%';
+  const dots=document.getElementById('aidots'),txt=document.getElementById('aitxt');
+  dots.style.display='flex'; txt.style.display='none';
+  document.getElementById('matchBg').classList.add('on');
+  try{
+    const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,system:'You are a warm pet adoption counselor. Write 2 sentences (max 40 words) about why this person and pet are a great match. Be specific and enthusiastic. Do not start with "I".',messages:[{role:'user',content:`Pet: ${p.name}, ${p.breed}, ${p.age}, ${p.energy} energy. Traits: ${p.traits.join(', ')}.`}]})});
+    const d=await r.json(); const t=d.content&&d.content[0]?d.content[0].text:'';
+    dots.style.display='none'; txt.style.display='block';
+    txt.textContent=t||`${p.name} the ${p.breed} sounds like a perfect match! Contact ${p.shelter} to schedule a meet and greet.`;
+  }catch{
+    dots.style.display='none'; txt.style.display='block';
+    txt.textContent=`${p.name} the ${p.breed} has the ${p.traits[0].toLowerCase()} personality that would thrive in your home. Reach out to ${p.shelter} today!`;
+  }
+}
+function closeMatch(){document.getElementById('matchBg').classList.remove('on');}
+
+// ── SAVED ────────────────────────────────────────────────────────
+function renderSaved(){
+  const grid=document.getElementById('saved-grid'),empty=document.getElementById('saved-empty');
+  grid.innerHTML='';
+  if(!liked.length){empty.style.display='block';return;}
+  empty.style.display='none';
+  liked.forEach(p=>{
+    const mc=p.match>=85?'background:#EDFAF4;color:#0F6E56':p.match>=72?'background:#FDE8DC;color:#C44A28':'background:#F0F0F0;color:#888';
+    const el=document.createElement('div');
+    el.style.cssText='background:var(--sf);border-radius:var(--r);border:1px solid var(--bd);overflow:hidden;cursor:pointer;transition:transform .15s';
+    el.innerHTML=`<div style="height:100px;background:${p.bg};display:flex;align-items:center;justify-content:center;font-size:44px">${p.em}</div><div style="padding:9px 11px 11px"><div style="font-family:var(--fd);font-size:15px;color:var(--tx);margin-bottom:2px">${p.name}</div><div style="font-size:10.5px;color:var(--t3);margin-bottom:5px">${p.breed} · ${p.age}</div><span style="font-size:10.5px;padding:2px 7px;border-radius:10px;font-weight:600;${mc}">${p.match}% match</span><div style="font-size:10.5px;color:var(--t2);margin-top:4px">${p.fee}</div></div>`;
+    el.onmouseenter=()=>el.style.transform='translateY(-2px)';
+    el.onmouseleave=()=>el.style.transform='';
+    el.onclick=()=>toast(p.name+' · '+p.shelter);
+    grid.appendChild(el);
+  });
+}
+function updBadge(){
+  const b = document.getElementById('saved-badge');
+  const c = document.getElementById('pv-stat-saved');
+  if(b){ b.textContent=liked.length; b.classList.toggle('show', liked.length>0); }
+  if(c) c.textContent = liked.length;
+}
+
+// ── AD STRIP ─────────────────────────────────────────────────────
+function renderAd(){
+  const sp=idx<deck.length?deck[idx].breed.toLowerCase().includes('cat')?'cat':'dog':'all';
+  const rel=ADS.filter(a=>a.sp==='all'||a.sp===sp);
+  const ad=rel[adIdx%rel.length];adIdx++;
+  document.getElementById('adEm').textContent=ad.em;
+  document.getElementById('adTitle').textContent=ad.title;
+  document.getElementById('adSub').textContent=ad.sub;
+}
+
+// ── SHELTER PROFILE PAGE ─────────────────────────────────────────
+function openShelterProfile(name) {
+  const data = SHELTER_DATA[name] || SHELTER_DATA['SD Humane Society'];
+  currentShelter = name;
+  currentShelterTab = 'animals';
+
+  // Set banner
+  document.getElementById('shelterBackTitle').textContent = name;
+  document.getElementById('shelterBannerName').textContent = name;
+  document.getElementById('shelterBannerBg').style.background = data.bg;
+  document.getElementById('shelterLogo').textContent = data.em;
+  document.getElementById('shelterBannerLoc').textContent = data.loc;
+
+  // Reset tabs
+  document.querySelectorAll('.stab').forEach(t=>t.classList.remove('on'));
+  document.querySelector('.stab').classList.add('on');
+
+  renderShelterContent('animals', data);
+  document.getElementById('shelterPage').classList.add('show');
+}
+
+function closeShelter() {
+  document.getElementById('shelterPage').classList.remove('show');
+}
+
+function setShelterTab(tab, el) {
+  document.querySelectorAll('.stab').forEach(t=>t.classList.remove('on'));
+  el.classList.add('on');
+  currentShelterTab = tab;
+  const data = SHELTER_DATA[currentShelter] || SHELTER_DATA['SD Humane Society'];
+  renderShelterContent(tab, data);
+}
+
+function renderShelterContent(tab, data) {
+  const c = document.getElementById('shelterContent');
+  if (tab === 'animals') {
+    c.innerHTML = `
+      <div class="shelter-stat-row">
+        <div class="shstat"><div class="shstat-n">${data.animals||'—'}</div><div class="shstat-l">Available</div></div>
+        <div class="shstat"><div class="shstat-n">${data.placed?data.placed.toLocaleString():'—'}</div><div class="shstat-l">Placed</div></div>
+        <div class="shstat"><div class="shstat-n">${data.years||'—'}</div><div class="shstat-l">Years open</div></div>
+      </div>
+      <div style="font-size:13px;font-weight:600;color:var(--tx);margin-bottom:10px">Available now</div>
+      <div class="shelter-pets-grid">
+        ${(data.pets||[]).map(p=>`
+          <div class="spet" onclick="toast('${p.name} — ${p.breed}')">
+            <div class="spet-img" style="background:${p.bg}">${p.em}</div>
+            <div class="spet-body">
+              <div class="spet-name">${p.name}</div>
+              <div class="spet-breed">${p.breed}</div>
+              <div class="spet-match" style="background:${p.match>=85?'#EDFAF4':p.match>=72?'#FDE8DC':'#F0F0F0'};color:${p.match>=85?'#0F6E56':p.match>=72?'#C44A28':'#888'}">${p.match}% match</div>
+            </div>
+          </div>`).join('') || '<div style="grid-column:1/-1;text-align:center;padding:24px;color:var(--t3);font-size:13px">No animals listed yet</div>'}
+      </div>`;
+  } else if (tab === 'about') {
+    c.innerHTML = `
+      <div class="shelter-about">
+        <h4>Our mission</h4>
+        <p>${data.mission}</p>
+      </div>
+      <div style="font-size:13px;font-weight:600;color:var(--tx);margin-bottom:10px">Meet the team</div>
+      <div class="shelter-team">
+        ${(data.team||[]).map(t=>`<div class="team-card"><div class="team-em">${t.em}</div><div class="team-name">${t.name}</div><div class="team-role">${t.role}</div></div>`).join('')}
+      </div>
+      <div style="margin-top:4px">
+        <div style="font-size:13px;font-weight:600;color:var(--tx);margin-bottom:10px">Location & hours</div>
+        <div style="background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);padding:16px">
+          <div style="font-size:13px;color:var(--t2);line-height:1.8">
+            📍 ${data.loc}<br>
+            🕐 Mon–Fri: 10am – 6pm<br>
+            🕐 Sat–Sun: 10am – 4pm<br>
+            📞 (619) 299-7012
+          </div>
+        </div>
+      </div>`;
+  } else if (tab === 'events') {
+    c.innerHTML = (data.events||[]).map(ev=>`
+      <div class="shelter-event">
+        <div class="se-date"><div class="se-month">${ev.month}</div><div class="se-day">${ev.day}</div></div>
+        <div class="se-body">
+          <div class="se-title">${ev.title}</div>
+          <div class="se-meta">🕐 ${ev.time} &nbsp;·&nbsp; 📍 ${ev.loc}</div>
+          <div style="font-size:12.5px;color:var(--t2);margin-top:5px;line-height:1.5">${ev.desc}</div>
+          <button class="se-btn" onclick="toast('RSVP sent! ✓')">RSVP</button>
+        </div>
+      </div>`).join('') || '<div style="text-align:center;padding:32px;color:var(--t3);font-size:13px">No upcoming events</div>';
+  } else if (tab === 'stories') {
+    c.innerHTML = `
+      <div style="background:var(--gnl);border:1px solid #A8E8CC;border-radius:var(--r);padding:14px;margin-bottom:14px;font-size:13px;color:var(--gnd)">
+        ❤️ <strong>127 animals</strong> adopted from this shelter through Pawfect Match this year
+      </div>
+      <div class="post-card" style="margin:0 0 10px">
+        <div class="post-header"><div class="post-avatar">😊</div><div><div class="post-author">Sarah M.</div><div class="post-time">3 days ago</div></div></div>
+        <p class="post-text">"We adopted Noodle last month and he is the most perfect dog for our apartment life. Greyhounds are SO misunderstood — this guy sleeps 20 hours a day!"</p>
+        <div class="post-pet"><div class="post-pet-em">🐩</div><div><div class="post-pet-name">Noodle — Greyhound</div><div class="post-pet-from">Adopted from this shelter</div></div></div>
+      </div>
+      <div class="post-card" style="margin:0">
+        <div class="post-header"><div class="post-avatar">🧑</div><div><div class="post-author">Marcus T.</div><div class="post-time">1 week ago</div></div></div>
+        <p class="post-text">"Titan has been incredible with our kids. The AI match score said 94% and honestly, 100% feels more accurate. Best decision we ever made."</p>
+        <div class="post-pet"><div class="post-pet-em">🐕‍🦺</div><div><div class="post-pet-name">Titan — German Shepherd</div><div class="post-pet-from">Adopted from this shelter</div></div></div>
+      </div>`;
+  }
+}
+
+function openLocalStore(name) {
+  openShelterProfile(name);
+}
+
+// ── UI HELPERS ───────────────────────────────────────────────────
+function setFP(el){document.querySelectorAll('.fpill').forEach(p=>p.classList.remove('on'));el.classList.add('on');}
+function setCat(el){document.querySelectorAll('.cat-pill').forEach(p=>p.classList.remove('on'));el.classList.add('on');}
+function rsvp(card){card.classList.add('going');toast('RSVP confirmed! 🎉');}
+function likePost(card){const act=card.querySelector('.post-act');if(act)act.classList.toggle('liked');}
+
+// ── TOAST ────────────────────────────────────────────────────────
+let tt;
+function toast(msg){const ex=document.querySelector('.toast');if(ex)ex.remove();clearTimeout(tt);const t=document.createElement('div');t.className='toast';t.textContent=msg;document.getElementById('app').appendChild(t);tt=setTimeout(()=>t.remove(),2400);}
+
+// ── PROFILE STATE ────────────────────────────────────────────────
+let userProfile = null; // null = not set up yet
+let obStep = 0;
+const OB_TOTAL = 5;
+let selectedAvatar = '🙂';
+let selectedPetEm = '🐕';
+let lifestyleChoices = new Set();
+let myPets = [];
+let notifToggles = {
+  matches: true,
+  events: true,
+  community: false,
+  deals: true,
+};
+
+const NOTIF_OPTIONS = [
+  { key:'matches',  em:'🐾', title:'New pet matches',       sub:'When a great match shows up near you' },
+  { key:'events',   em:'📅', title:'Events near you',        sub:'From shelters and local pet stores'   },
+  { key:'community',em:'💬', title:'Community activity',     sub:'Likes and comments on your posts'     },
+  { key:'deals',    em:'🛍️', title:'Deals & new arrivals',   sub:'Pet supply sales and new store items' },
+];
+
+// ── PROFILE PAGE OPEN / CLOSE ────────────────────────────────────
+function openProfilePage() {
+  document.getElementById('profilePage').classList.add('show');
+  if (userProfile) {
+    showProfileView();
+  } else {
+    showObFlow();
+  }
+}
+function closeProfilePage() {
+  document.getElementById('profilePage').classList.remove('show');
+}
+
+function showObFlow() {
+  document.getElementById('ob-flow').style.display = 'flex';
+  document.getElementById('pv-view').style.display = 'none';
+  const closeBtn = document.getElementById('profileCloseBtn').querySelector('.icon-pill');
+  closeBtn.style.background = 'var(--sf2)';
+  closeBtn.style.borderColor = 'var(--bd)';
+  document.getElementById('profileCloseBtn').querySelector('svg').style.stroke = 'var(--tx)';
+  buildNotifToggles();
+}
+function showProfileView() {
+  document.getElementById('ob-flow').style.display = 'none';
+  document.getElementById('pv-view').style.display = 'flex';
+  const closeBtn = document.getElementById('profileCloseBtn').querySelector('.icon-pill');
+  closeBtn.style.background = 'rgba(255,255,255,.15)';
+  closeBtn.style.borderColor = 'rgba(255,255,255,.2)';
+  document.getElementById('profileCloseBtn').querySelector('svg').style.stroke = '#fff';
+  renderProfileView();
+}
+
+// ── ONBOARDING STEPS ─────────────────────────────────────────────
+function obNext(from) {
+  if (from === 1) {
+    const fname = document.getElementById('ob-fname').value.trim();
+    const city  = document.getElementById('ob-city').value.trim();
+    if (!fname || !city) { shakeOb(fname ? 'ob-city' : 'ob-fname'); return; }
+  }
+  const next = from + 1;
+  if (next >= OB_TOTAL) return;
+  obSetStep(next);
+}
+function obBack(from) {
+  if (from <= 0) { closeProfilePage(); return; }
+  obSetStep(from - 1);
+}
+function obSetStep(n) {
+  document.querySelectorAll('.ob-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('ob-panel-' + n).classList.add('active');
+  obStep = n;
+  // Update dots
+  for (let i = 0; i < OB_TOTAL; i++) {
+    const dot = document.getElementById('osd' + i);
+    const line = document.getElementById('osl' + i);
+    if (!dot) continue;
+    dot.className = 'ob-step-dot' + (i < n ? ' done' : i === n ? ' active' : '');
+    if (line) line.className = 'ob-step-line' + (i < n ? ' done' : '');
+  }
+  document.getElementById('obWrap').scrollTop = 0;
+}
+
+function shakeOb(id) {
+  const el = document.getElementById(id); if (!el) return;
+  el.style.borderColor = '#E24B4A';
+  el.style.animation = 'obShake .4s ease';
+  setTimeout(() => { el.style.borderColor = ''; el.style.animation = ''; }, 900);
+}
+const _ss = document.createElement('style');
+_ss.textContent = '@keyframes obShake{0%,100%{transform:translateX(0)}25%,75%{transform:translateX(-5px)}50%{transform:translateX(5px)}}';
+document.head.appendChild(_ss);
+
+// ── AVATAR ───────────────────────────────────────────────────────
+function toggleAvatarPicker() {
+  document.getElementById('avatarPicker').classList.toggle('show');
+}
+function pickAvatar(em, el) {
+  selectedAvatar = em;
+  document.getElementById('avatarDisplay').textContent = em;
+  document.querySelectorAll('.av-opt').forEach(o => o.classList.remove('sel'));
+  el.classList.add('sel');
+  document.getElementById('avatarPicker').classList.remove('show');
+}
+
+// ── LIFESTYLE CHIPS ──────────────────────────────────────────────
+function toggleChip(el, val) {
+  el.classList.toggle('sel');
+  if (el.classList.contains('sel')) lifestyleChoices.add(val);
+  else lifestyleChoices.delete(val);
+}
+
+// ── MY PETS ──────────────────────────────────────────────────────
+function openAddPet() {
+  document.getElementById('addPetModal').classList.add('show');
+}
+function closeAddPet() {
+  document.getElementById('addPetModal').classList.remove('show');
+}
+function pickPetEm(em, el) {
+  selectedPetEm = em;
+  document.querySelectorAll('.pem-opt').forEach(o => o.classList.remove('sel'));
+  el.classList.add('sel');
+}
+function saveMyPet() {
+  const name = document.getElementById('ap-name').value.trim();
+  if (!name) {
+    const el = document.getElementById('ap-name');
+    el.style.borderColor = '#E24B4A';
+    setTimeout(() => el.style.borderColor = '', 800);
+    return;
+  }
+  const pet = {
+    em: selectedPetEm,
+    name,
+    breed: document.getElementById('ap-breed').value.trim() || 'Mixed',
+    age: document.getElementById('ap-age').value.trim() || '',
+    shelter: document.getElementById('ap-shelter').value.trim() || '',
+    fact: document.getElementById('ap-fact').value.trim() || '',
+    bg: ['#FDE8DC','#E8F4E8','#E8EDF8','#F8F0E8','#EDFAF4','#F0E8F8'][myPets.length % 6],
+  };
+  myPets.push(pet);
+  renderPetsInOb();
+  // reset form
+  ['ap-name','ap-breed','ap-age','ap-shelter','ap-fact'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
+  selectedPetEm = '🐕';
+  document.querySelectorAll('.pem-opt').forEach((o,i) => o.classList.toggle('sel', i===0));
+  closeAddPet();
+  toast(pet.name + ' added! ❤️');
+}
+function renderPetsInOb() {
+  const grid = document.getElementById('myPetsGrid');
+  grid.innerHTML = '';
+  myPets.forEach((p, i) => {
+    const el = document.createElement('div');
+    el.className = 'mypet-card filled';
+    el.style.background = p.bg;
+    el.innerHTML = `<div class="mpc-em">${p.em}</div><div class="mpc-name">${p.name}</div><div class="mpc-breed">${p.breed||''}</div>`;
+    el.onclick = () => toast(p.name + (p.fact ? ' — ' + p.fact.slice(0,40) : ''));
+    grid.appendChild(el);
+  });
+  // Add button
+  const addEl = document.createElement('div');
+  addEl.className = 'mypet-card';
+  addEl.id = 'addPetCard';
+  addEl.innerHTML = '<div style="font-size:28px">+</div><div>Add a pet</div>';
+  addEl.onclick = openAddPet;
+  grid.appendChild(addEl);
+}
+
+// ── NOTIFICATIONS ────────────────────────────────────────────────
+function buildNotifToggles() {
+  const list = document.getElementById('notifList');
+  list.innerHTML = '';
+  NOTIF_OPTIONS.forEach(opt => {
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;align-items:center;gap:12px;padding:13px 0;border-bottom:1px solid var(--bd)';
+    const on = notifToggles[opt.key];
+    row.innerHTML = `
+      <div style="width:36px;height:36px;border-radius:10px;background:var(--sf2);border:1px solid var(--bd);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">${opt.em}</div>
+      <div style="flex:1">
+        <div style="font-size:13.5px;font-weight:500;color:var(--tx)">${opt.title}</div>
+        <div style="font-size:11.5px;color:var(--t3);margin-top:1px">${opt.sub}</div>
+      </div>
+      <div class="ntoggle ${on?'on':''}" data-key="${opt.key}" onclick="toggleNotif('${opt.key}',this)" style="width:44px;height:24px;border-radius:12px;background:${on?'var(--gn)':'var(--bd2)'};cursor:pointer;position:relative;transition:background .2s;flex-shrink:0">
+        <div style="width:20px;height:20px;border-radius:50%;background:#fff;position:absolute;top:2px;left:${on?'22px':'2px'};transition:left .2s;box-shadow:0 1px 4px rgba(0,0,0,.15)"></div>
+      </div>`;
+    list.appendChild(row);
+  });
+}
+function toggleNotif(key, el) {
+  notifToggles[key] = !notifToggles[key];
+  const on = notifToggles[key];
+  el.style.background = on ? 'var(--gn)' : 'var(--bd2)';
+  el.querySelector('div').style.left = on ? '22px' : '2px';
+}
+
+// ── FINISH PROFILE ───────────────────────────────────────────────
+function finishProfile() {
+  const fname = document.getElementById('ob-fname').value.trim() || 'Friend';
+  const lname = document.getElementById('ob-lname').value.trim();
+  const city  = document.getElementById('ob-city').value.trim()  || 'San Diego';
+  const bio   = document.getElementById('ob-bio').value.trim();
+  const time  = document.getElementById('ob-time').value;
+
+  userProfile = {
+    avatar: selectedAvatar,
+    name: fname + (lname ? ' ' + lname : ''),
+    city,
+    bio,
+    lifestyle: [...lifestyleChoices],
+    time,
+    pets: [...myPets],
+    notifs: { ...notifToggles },
+    savedCount: liked.length,
+  };
+
+  // Update top-right profile icon to show avatar
+  const profileBtn = document.getElementById('profileIconBtn');
+  if (profileBtn) {
+    profileBtn.querySelector('svg').style.display = 'none';
+    const avSpan = document.createElement('span');
+    avSpan.id = 'profileAvatarSpan';
+    avSpan.style.cssText = 'font-size:17px;line-height:1';
+    avSpan.textContent = selectedAvatar;
+    profileBtn.appendChild(avSpan);
+  }
+
+  showProfileView();
+  saveToStorage();
+  toast('Profile created! Welcome, ' + fname + ' 🐾');
+}
+
+// ── PROFILE VIEW RENDER ──────────────────────────────────────────
+function renderProfileView() {
+  if (!userProfile) return;
+  const p = userProfile;
+
+  document.getElementById('pv-avatar').textContent = p.avatar;
+  document.getElementById('pv-name').textContent = p.name;
+  document.getElementById('pv-meta').textContent = '📍 ' + p.city;
+  document.getElementById('pv-bio').textContent = p.bio || '';
+  document.getElementById('pv-bio').style.display = p.bio ? 'block' : 'none';
+
+  // Badges from lifestyle
+  const badgeMap = {
+    active:'🏃 Active lifestyle', couch:'🛋️ Homebody', house:'🏠 House + yard',
+    apartment:'🏢 Apartment living', kids:'👶 Family friendly', firsttime:'🌱 First-time owner',
+    experienced:'⭐ Experienced owner', otherpets:'🐾 Multi-pet home',
+  };
+  const badges = document.getElementById('pv-badges');
+  badges.innerHTML = '';
+  const shown = p.lifestyle.slice(0,3).map(l => badgeMap[l]).filter(Boolean);
+  shown.forEach(b => {
+    const el = document.createElement('div');
+    el.className = 'pv-badge green';
+    el.textContent = b;
+    badges.appendChild(el);
+  });
+  if (!shown.length) badges.innerHTML = '<div class="pv-badge green">🐾 Pet lover</div>';
+
+  // Stats
+  document.getElementById('pv-stat-saved').textContent = liked.length;
+  document.getElementById('pv-stat-pets').textContent = p.pets.length;
+
+  // Pets row
+  const row = document.getElementById('pvPetsRow');
+  row.innerHTML = '';
+  if (p.pets.length === 0) {
+    row.innerHTML = '<div style="font-size:13px;color:var(--t3);padding:4px 0">No pets added yet</div>';
+  } else {
+    p.pets.forEach(pet => {
+      const el = document.createElement('div');
+      el.className = 'pvpet';
+      el.innerHTML = `<div class="pvpet-img" style="background:${pet.bg}">${pet.em}</div><div class="pvpet-name">${pet.name}</div><div class="pvpet-breed">${pet.breed||''}</div>`;
+      el.onclick = () => toast(pet.name + (pet.fact ? ' — ' + pet.fact : ''));
+      row.appendChild(el);
+    });
+    // add more button
+    const addEl = document.createElement('div');
+    addEl.className = 'pvpet';
+    addEl.style.cssText = 'display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;cursor:pointer;min-width:88px;border:1.5px dashed var(--bd2);background:var(--sf2)';
+    addEl.innerHTML = '<div style="font-size:20px;color:var(--t3)">+</div><div style="font-size:10px;color:var(--t3);font-weight:500">Add pet</div>';
+    addEl.onclick = () => { closeProfilePage(); setTimeout(openAddPetFromProfile, 200); };
+    row.appendChild(addEl);
+  }
+}
+
+function openAddPetFromProfile() {
+  openProfilePage();
+  openAddPet();
+}
+
+function editProfile() {
+  const savedPets    = userProfile ? [...userProfile.pets] : [...myPets];
+  const savedProfile = userProfile;
+  userProfile = null;
+  myPets = savedPets;
+
+  if (savedProfile) {
+    // Pre-fill name fields
+    const parts = savedProfile.name.split(' ');
+    document.getElementById('ob-fname').value = parts[0] || '';
+    document.getElementById('ob-lname').value = parts.slice(1).join(' ') || '';
+    document.getElementById('ob-city').value  = savedProfile.city || '';
+    document.getElementById('ob-bio').value   = savedProfile.bio  || '';
+    // Restore avatar
+    selectedAvatar = savedProfile.avatar;
+    document.getElementById('avatarDisplay').textContent = savedProfile.avatar;
+    // Restore lifestyle chips
+    lifestyleChoices = new Set(savedProfile.lifestyle || []);
+    document.querySelectorAll('#lifestyleGrid .lchip').forEach(el => {
+      const m = el.getAttribute('onclick').match(/toggleChip\(this,'(.+?)'\)/);
+      const val = m ? m[1] : null;
+      if (val) el.classList.toggle('sel', lifestyleChoices.has(val));
+    });
+    // Restore time dropdown
+    document.getElementById('ob-time').value = savedProfile.time || '';
+    // Restore notification toggles
+    if (savedProfile.notifs) Object.assign(notifToggles, savedProfile.notifs);
+    // Re-render existing pets in the grid
+    renderPetsInOb();
+  }
+
+  showObFlow();
+  obSetStep(1);
+}
+
+function signOut() {
+  userProfile = null; myPets = []; liked = []; lifestyleChoices = new Set();
+  try { localStorage.removeItem('pawfect_profile'); } catch(e) {}
+  // Reset top-right profile icon
+  const profileBtn = document.getElementById('profileIconBtn');
+  if (profileBtn) {
+    const span = document.getElementById('profileAvatarSpan');
+    if (span) span.remove();
+    const svg = profileBtn.querySelector('svg');
+    if (svg) svg.style.display = '';
+  }
+  closeProfilePage();
+  renderSaved();
+  toast('Signed out. See you soon! 🐾');
+}
+
+// ── LOCAL STORAGE ────────────────────────────────────────────────
+function saveToStorage() {
+  try {
+    localStorage.setItem('pawfect_profile', JSON.stringify({
+      userProfile, myPets, liked: [...liked],
+    }));
+  } catch(e) {}
+}
+function loadFromStorage() {
+  try {
+    const raw = localStorage.getItem('pawfect_profile');
+    if (!raw) return;
+    const data = JSON.parse(raw);
+    if (!data.userProfile) return;
+    userProfile      = data.userProfile;
+    myPets           = data.myPets  || [];
+    liked            = data.liked   || [];
+    lifestyleChoices = new Set(userProfile.lifestyle || []);
+    if (userProfile.notifs) Object.assign(notifToggles, userProfile.notifs);
+    // Restore avatar icon in top bar
+    const profileBtn = document.getElementById('profileIconBtn');
+    if (profileBtn && userProfile.avatar) {
+      const svg = profileBtn.querySelector('svg');
+      if (svg) svg.style.display = 'none';
+      if (!document.getElementById('profileAvatarSpan')) {
+        const avSpan = document.createElement('span');
+        avSpan.id = 'profileAvatarSpan';
+        avSpan.style.cssText = 'font-size:17px;line-height:1';
+        avSpan.textContent = userProfile.avatar;
+        profileBtn.appendChild(avSpan);
+      }
+    }
+  } catch(e) {}
+}
+
+// ── SETTINGS PANEL (Notifications / Match preferences) ───────────
+let settingsPanelMode = null;
+
+const LIFESTYLE_DEFS = [
+  {val:'apartment', em:'🏢', lbl:'Apartment',      sub:'No yard'},
+  {val:'house',     em:'🏠', lbl:'House + yard',   sub:'Outdoor space'},
+  {val:'active',    em:'🏃', lbl:'Very active',    sub:'Hiker / runner'},
+  {val:'couch',     em:'🛋️', lbl:'Relaxed',        sub:'Couch & cuddles'},
+  {val:'kids',      em:'👶', lbl:'Kids at home',   sub:'Family friendly'},
+  {val:'otherpets', em:'🐾', lbl:'Other pets',     sub:'Already have one'},
+  {val:'firsttime', em:'🌱', lbl:'First-time owner',sub:'New to this!'},
+  {val:'experienced',em:'⭐',lbl:'Experienced',    sub:'Had pets before'},
+];
+
+function openSettingsPanel(mode) {
+  settingsPanelMode = mode;
+  const panel = document.getElementById('settings-panel');
+  const body  = document.getElementById('settings-panel-body');
+  const title = document.getElementById('settings-panel-title');
+
+  if (mode === 'notifs') {
+    title.textContent = 'Notifications';
+    body.innerHTML = '';
+    NOTIF_OPTIONS.forEach(opt => {
+      const on  = notifToggles[opt.key];
+      const row = document.createElement('div');
+      row.style.cssText = 'display:flex;align-items:center;gap:12px;padding:13px 0;border-bottom:1px solid var(--bd)';
+      row.innerHTML = `
+        <div style="width:36px;height:36px;border-radius:10px;background:var(--sf2);border:1px solid var(--bd);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">${opt.em}</div>
+        <div style="flex:1">
+          <div style="font-size:13.5px;font-weight:500;color:var(--tx)">${opt.title}</div>
+          <div style="font-size:11.5px;color:var(--t3);margin-top:1px">${opt.sub}</div>
+        </div>
+        <div class="ntoggle ${on?'on':''}" data-key="${opt.key}" onclick="toggleNotif('${opt.key}',this)"
+             style="width:44px;height:24px;border-radius:12px;background:${on?'var(--gn)':'var(--bd2)'};cursor:pointer;position:relative;transition:background .2s;flex-shrink:0">
+          <div style="width:20px;height:20px;border-radius:50%;background:#fff;position:absolute;top:2px;left:${on?'22px':'2px'};transition:left .2s;box-shadow:0 1px 4px rgba(0,0,0,.15)"></div>
+        </div>`;
+      body.appendChild(row);
+    });
+
+  } else if (mode === 'matchprefs') {
+    title.textContent = 'Match preferences';
+    body.innerHTML = `
+      <div style="font-size:13px;color:var(--t2);margin-bottom:14px;line-height:1.5">Update your lifestyle so we can show you better matches.</div>
+      <div class="chip-grid" id="settingsLifestyleGrid"></div>
+      <div style="margin-top:18px">
+        <label style="font-size:12.5px;font-weight:500;color:var(--tx);display:block;margin-bottom:6px">Daily time for a pet</label>
+        <select id="settings-ob-time" style="width:100%;padding:10px 12px;border:1.5px solid var(--bd);border-radius:var(--rm);font-size:13px;background:var(--sf);color:var(--tx);font-family:var(--fb);-webkit-appearance:none">
+          <option value="">Select…</option>
+          <option value="low">Less than 1 hour</option>
+          <option value="med">1–3 hours</option>
+          <option value="high">3–5 hours</option>
+          <option value="lots">All day!</option>
+        </select>
+      </div>`;
+    const grid = document.getElementById('settingsLifestyleGrid');
+    LIFESTYLE_DEFS.forEach(item => {
+      const el = document.createElement('div');
+      el.className = 'lchip' + (lifestyleChoices.has(item.val) ? ' sel' : '');
+      el.dataset.val = item.val;
+      el.innerHTML = `<div class="lchip-em">${item.em}</div><div><div class="lchip-lbl">${item.lbl}</div><div class="lchip-sub">${item.sub}</div></div>`;
+      el.onclick = () => el.classList.toggle('sel');
+      grid.appendChild(el);
+    });
+    document.getElementById('settings-ob-time').value = userProfile?.time || '';
+  }
+
+  panel.style.display = 'flex';
+}
+
+function openNotifSettings() { openSettingsPanel('notifs'); }
+function openMatchPrefs()     { openSettingsPanel('matchprefs'); }
+
+function closeSettingsPanel() {
+  document.getElementById('settings-panel').style.display = 'none';
+  settingsPanelMode = null;
+}
+
+function saveSettingsPanel() {
+  if (settingsPanelMode === 'notifs') {
+    if (userProfile) { userProfile.notifs = { ...notifToggles }; saveToStorage(); }
+    toast('Notification preferences saved ✓');
+
+  } else if (settingsPanelMode === 'matchprefs') {
+    lifestyleChoices = new Set();
+    document.querySelectorAll('#settingsLifestyleGrid .lchip.sel').forEach(el => {
+      lifestyleChoices.add(el.dataset.val);
+    });
+    const time = document.getElementById('settings-ob-time').value;
+    if (userProfile) {
+      userProfile.lifestyle = [...lifestyleChoices];
+      userProfile.time = time;
+      renderProfileView();
+      saveToStorage();
+    }
+    toast('Match preferences updated ✓');
+  }
+  closeSettingsPanel();
+}
+
+// ── INIT ─────────────────────────────────────────────────────────
+loadFromStorage();
+renderCards();
+</script>
+</body>
+</html>
