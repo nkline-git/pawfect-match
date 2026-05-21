@@ -281,6 +281,8 @@ html,body{height:100%;overflow:hidden;background:#c8bfb4;font-family:var(--fb);c
 .banner-color-opt.sel{border-color:var(--tx)}
 .ro-appt-opt{padding:8px 16px;border-radius:20px;border:1.5px solid var(--bd);font-size:12px;font-weight:500;color:var(--t2);cursor:pointer;background:var(--sf2);transition:all .15s;white-space:nowrap}
 .ro-appt-opt.sel{background:var(--bl);border-color:var(--bl);color:#fff}
+.ro-spinner{width:48px;height:48px;border:4px solid var(--bd);border-top-color:var(--bl);border-radius:50%;animation:roSpin .8s linear infinite;margin:0 auto 20px}
+@keyframes roSpin{to{transform:rotate(360deg)}}
 /* onboarding flow */
 .ob-wrap{flex:1;overflow-y:auto;scrollbar-width:none;display:flex;flex-direction:column}
 .ob-wrap::-webkit-scrollbar{display:none}
@@ -1010,8 +1012,57 @@ html,body{height:100%;overflow:hidden;background:#c8bfb4;font-family:var(--fb);c
   ════════════════════════════════════════════════════════════════ -->
   <div class="rescue-page" id="rescuePage">
 
+    <!-- ── VERIFICATION GATE ────────────────────────────────────── -->
+    <div id="ro-gate" style="display:flex;flex-direction:column;height:100%;overflow-y:auto;scrollbar-width:none">
+
+      <!-- Idle: form -->
+      <div id="rg-idle" style="padding:0 22px 40px">
+        <div style="text-align:center;padding:40px 0 24px">
+          <div style="width:72px;height:72px;border-radius:20px;background:var(--bll);border:2px solid #C3D8FF;display:flex;align-items:center;justify-content:center;font-size:36px;margin:0 auto 16px">🔐</div>
+          <h2 style="font-family:var(--fd);font-size:22px;color:var(--tx);margin-bottom:10px">Rescue Verification</h2>
+          <p style="font-size:13px;color:var(--t2);line-height:1.6">Pawfect Match verifies all rescue organizations before they can list animals. This keeps our platform safe for adopters.</p>
+        </div>
+        <div style="background:var(--gnl);border:1px solid #A8E8CC;border-radius:var(--rm);padding:13px 14px;display:flex;gap:10px;margin-bottom:22px">
+          <div style="font-size:18px;flex-shrink:0">ℹ️</div>
+          <div style="font-size:12.5px;color:var(--gnd);line-height:1.55">Your EIN is the 9-digit Employer Identification Number assigned by the IRS. It appears on your 501(c)3 determination letter.</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:14px">
+          <div class="ob-field">
+            <label>EIN (Employer Identification Number) <span class="req">*</span></label>
+            <input id="rg-ein" placeholder="12-3456789" maxlength="10" oninput="formatEIN(this)" inputmode="numeric">
+          </div>
+          <div class="ob-field">
+            <label>Registered organization name <span class="req">*</span></label>
+            <input id="rg-orgname" placeholder="e.g. Paws & Hearts Rescue Inc.">
+          </div>
+          <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;padding:2px 0">
+            <input type="checkbox" id="rg-confirm" style="width:17px;height:17px;margin-top:2px;flex-shrink:0;accent-color:var(--bl)">
+            <span style="font-size:12.5px;color:var(--t2);line-height:1.55">I confirm this is a registered 501(c)3 nonprofit and I am authorized to represent it.</span>
+          </label>
+        </div>
+        <button onclick="verifyEIN()" style="width:100%;margin-top:22px;padding:14px;background:var(--bl);color:#fff;border:none;border-radius:var(--r);font-size:14px;font-weight:600;cursor:pointer;font-family:var(--fb)">🔍 Verify organization</button>
+        <div id="rg-error" style="display:none;margin-top:12px;background:#FFF0F0;border:1px solid #FFCECE;border-radius:var(--rm);padding:12px 14px;font-size:12.5px;color:#C0392B;line-height:1.55"></div>
+      </div>
+
+      <!-- Verifying: spinner -->
+      <div id="rg-verifying" style="display:none;flex-direction:column;align-items:center;justify-content:center;flex:1;text-align:center;padding:40px 22px">
+        <div class="ro-spinner"></div>
+        <div style="font-size:16px;font-weight:600;color:var(--tx);margin-bottom:8px">Checking IRS database…</div>
+        <div style="font-size:13px;color:var(--t3)">Verifying nonprofit registration</div>
+      </div>
+
+      <!-- Success: confirmed -->
+      <div id="rg-success" style="display:none;flex-direction:column;align-items:center;justify-content:center;flex:1;text-align:center;padding:40px 22px">
+        <div style="width:72px;height:72px;border-radius:50%;background:var(--gnl);border:2px solid #A8E8CC;display:flex;align-items:center;justify-content:center;font-size:36px;margin-bottom:20px">✅</div>
+        <div style="font-size:19px;font-weight:700;color:var(--gn);margin-bottom:8px">Organization verified!</div>
+        <div style="font-size:13.5px;font-weight:500;color:var(--tx)" id="rg-verified-name"></div>
+        <div style="font-size:12px;color:var(--t3);margin-top:6px">Setting up your portal…</div>
+      </div>
+
+    </div><!-- /ro-gate -->
+
     <!-- ── ONBOARDING FLOW ──────────────────────────────────────── -->
-    <div id="ro-flow" style="display:flex;flex-direction:column;height:100%;overflow:hidden">
+    <div id="ro-flow" style="display:none;flex-direction:column;height:100%;overflow:hidden">
 
       <div class="ob-steps" id="roStepDots">
         <div class="ob-step-dot active" id="rod0"></div><div class="ob-step-line" id="rol0"></div>
@@ -2098,12 +2149,14 @@ function saveSettingsPanel() {
 }
 
 // ── RESCUE PORTAL ────────────────────────────────────────────────
-let rescueProfile      = null;
-let rescueLogoEm       = '🏠';
+let rescueProfile        = null;
+let rescueVerified       = false;
+let rescueEIN            = '';
+let rescueLogoEm         = '🏠';
 let rescueBannerGradient = 'linear-gradient(135deg,#1A4A9C,#2D7DD2)';
-let rescueAnimalTypes  = new Set();
-let rescueAppt         = 'no';
-let rescueReqs         = { application: true, homeVisit: false, refCheck: false, trial: false };
+let rescueAnimalTypes    = new Set();
+let rescueAppt           = 'no';
+let rescueReqs           = { application: true, homeVisit: false, refCheck: false, trial: false };
 
 const RESCUE_REQ_OPTIONS = [
   { key:'application', em:'📋', title:'Adoption application', sub:'Written application required'        },
@@ -2124,21 +2177,86 @@ const FEE_LABELS = {
 function openRescuePage() {
   closeProfilePage();
   document.getElementById('rescuePage').classList.add('show');
-  if (rescueProfile) showRescueView(); else showRescueFlow();
+  if (rescueProfile)   showRescueView();
+  else if (rescueVerified) showRescueFlow();
+  else showRescueGate();
 }
 function closeRescuePage() {
   document.getElementById('rescuePage').classList.remove('show');
 }
+function showRescueGate() {
+  document.getElementById('ro-gate').style.display  = 'flex';
+  document.getElementById('ro-flow').style.display  = 'none';
+  document.getElementById('rv-view').style.display  = 'none';
+  // Reset gate to idle state
+  document.getElementById('rg-idle').style.display      = 'block';
+  document.getElementById('rg-verifying').style.display = 'none';
+  document.getElementById('rg-success').style.display   = 'none';
+  document.getElementById('rg-error').style.display     = 'none';
+}
 function showRescueFlow() {
+  document.getElementById('ro-gate').style.display = 'none';
   document.getElementById('ro-flow').style.display = 'flex';
   document.getElementById('rv-view').style.display = 'none';
   buildReqToggles();
   roSetStep(0);
 }
 function showRescueView() {
+  document.getElementById('ro-gate').style.display = 'none';
   document.getElementById('ro-flow').style.display = 'none';
   document.getElementById('rv-view').style.display = 'flex';
   renderRescueView();
+}
+
+// ── EIN VERIFICATION ─────────────────────────────────────────────
+function formatEIN(input) {
+  let val = input.value.replace(/\D/g, '').slice(0, 9);
+  if (val.length > 2) val = val.slice(0, 2) + '-' + val.slice(2);
+  input.value = val;
+}
+function verifyEIN() {
+  const ein       = document.getElementById('rg-ein').value.trim();
+  const org       = document.getElementById('rg-orgname').value.trim();
+  const confirmed = document.getElementById('rg-confirm').checked;
+  const errorEl   = document.getElementById('rg-error');
+  errorEl.style.display = 'none';
+
+  if (!ein) { shakeOb('rg-ein'); return; }
+  if (!org)  { shakeOb('rg-orgname'); return; }
+
+  const digits = ein.replace(/\D/g, '');
+  if (digits.length !== 9) {
+    errorEl.textContent = 'Please enter a valid 9-digit EIN in the format XX-XXXXXXX.';
+    errorEl.style.display = 'block';
+    shakeOb('rg-ein');
+    return;
+  }
+  if (!confirmed) {
+    errorEl.textContent = 'Please confirm you are authorized to represent this organization.';
+    errorEl.style.display = 'block';
+    return;
+  }
+
+  // Show verifying spinner
+  document.getElementById('rg-idle').style.display      = 'none';
+  document.getElementById('rg-verifying').style.display = 'flex';
+
+  // Simulate IRS database check (~2.5s)
+  setTimeout(() => {
+    document.getElementById('rg-verifying').style.display = 'none';
+    document.getElementById('rg-success').style.display   = 'flex';
+    document.getElementById('rg-verified-name').textContent = org;
+    rescueVerified = true;
+    rescueEIN = ein;
+    saveRescueToStorage();
+    // Brief success screen then proceed to setup
+    setTimeout(() => {
+      showRescueFlow();
+      // Pre-fill org name into step 1
+      const nameEl = document.getElementById('ro-name');
+      if (nameEl && !nameEl.value) nameEl.value = org;
+    }, 1800);
+  }, 2500);
 }
 
 // ── RESCUE ONBOARDING STEPS ──────────────────────────────────────
@@ -2352,7 +2470,8 @@ function editRescueProfile() {
 
 // ── RESCUE SIGN OUT ───────────────────────────────────────────────
 function signOutRescue() {
-  rescueProfile = null; rescueAnimalTypes = new Set(); rescueAppt = 'no';
+  rescueProfile = null; rescueVerified = false; rescueEIN = '';
+  rescueAnimalTypes = new Set(); rescueAppt = 'no';
   rescueReqs = { application:true, homeVisit:false, refCheck:false, trial:false };
   try { localStorage.removeItem('pawfect_rescue'); } catch(e) {}
   closeRescuePage();
@@ -2361,13 +2480,22 @@ function signOutRescue() {
 
 // ── RESCUE STORAGE ────────────────────────────────────────────────
 function saveRescueToStorage() {
-  try { localStorage.setItem('pawfect_rescue', JSON.stringify(rescueProfile)); } catch(e) {}
+  try {
+    localStorage.setItem('pawfect_rescue', JSON.stringify({
+      profile: rescueProfile, verified: rescueVerified, ein: rescueEIN,
+    }));
+  } catch(e) {}
 }
 function loadRescueFromStorage() {
   try {
     const raw = localStorage.getItem('pawfect_rescue');
     if (!raw) return;
-    rescueProfile = JSON.parse(raw);
+    const data       = JSON.parse(raw);
+    // Support old format (profile stored directly) and new format
+    const profile    = data?.profile !== undefined ? data.profile : data;
+    rescueVerified   = data?.verified || false;
+    rescueEIN        = data?.ein      || '';
+    rescueProfile    = profile;
     if (rescueProfile) {
       rescueLogoEm         = rescueProfile.logo   || '🏠';
       rescueBannerGradient = rescueProfile.banner || 'linear-gradient(135deg,#1A4A9C,#2D7DD2)';
