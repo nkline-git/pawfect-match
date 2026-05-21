@@ -275,6 +275,12 @@ html,body{height:100%;overflow:hidden;background:#c8bfb4;font-family:var(--fb);c
 /* ── PROFILE PAGE ─────────────────────────────────────────────── */
 .profile-page{position:absolute;inset:0;background:var(--bg);z-index:300;display:none;flex-direction:column;overflow:hidden}
 .profile-page.show{display:flex}
+.rescue-page{position:absolute;inset:0;background:var(--bg);z-index:310;display:none;flex-direction:column;overflow:hidden}
+.rescue-page.show{display:flex}
+.banner-color-opt{width:36px;height:36px;border-radius:10px;cursor:pointer;border:3px solid transparent;flex-shrink:0;transition:border-color .15s}
+.banner-color-opt.sel{border-color:var(--tx)}
+.ro-appt-opt{padding:8px 16px;border-radius:20px;border:1.5px solid var(--bd);font-size:12px;font-weight:500;color:var(--t2);cursor:pointer;background:var(--sf2);transition:all .15s;white-space:nowrap}
+.ro-appt-opt.sel{background:var(--bl);border-color:var(--bl);color:#fff}
 /* onboarding flow */
 .ob-wrap{flex:1;overflow-y:auto;scrollbar-width:none;display:flex;flex-direction:column}
 .ob-wrap::-webkit-scrollbar{display:none}
@@ -960,6 +966,11 @@ html,body{height:100%;overflow:hidden;background:#c8bfb4;font-family:var(--fb);c
             <div class="pv-menu-text"><div class="pv-menu-title">Help & support</div><div class="pv-menu-sub">FAQ, contact us, send feedback</div></div>
             <div class="pv-menu-arrow">›</div>
           </div>
+          <div class="pv-menu-item" onclick="openRescuePage()">
+            <div class="pv-menu-em" style="background:#E8F0FF">🏠</div>
+            <div class="pv-menu-text"><div class="pv-menu-title" style="color:var(--bl)">Rescue / Shelter portal</div><div class="pv-menu-sub">Manage your rescue's profile & animals</div></div>
+            <div class="pv-menu-arrow" style="color:var(--bl)">›</div>
+          </div>
           <div class="pv-menu-item" onclick="signOut()" style="border-bottom:none">
             <div class="pv-menu-em" style="background:#FFF0F0">🚪</div>
             <div class="pv-menu-text"><div class="pv-menu-title" style="color:#E24B4A">Sign out</div><div class="pv-menu-sub">You'll need to sign back in</div></div>
@@ -993,6 +1004,259 @@ html,body{height:100%;overflow:hidden;background:#c8bfb4;font-family:var(--fb);c
     </div>
 
   </div><!-- /profile-page -->
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       RESCUE / SHELTER PORTAL
+  ════════════════════════════════════════════════════════════════ -->
+  <div class="rescue-page" id="rescuePage">
+
+    <!-- ── ONBOARDING FLOW ──────────────────────────────────────── -->
+    <div id="ro-flow" style="display:flex;flex-direction:column;height:100%;overflow:hidden">
+
+      <div class="ob-steps" id="roStepDots">
+        <div class="ob-step-dot active" id="rod0"></div><div class="ob-step-line" id="rol0"></div>
+        <div class="ob-step-dot" id="rod1"></div><div class="ob-step-line" id="rol1"></div>
+        <div class="ob-step-dot" id="rod2"></div><div class="ob-step-line" id="rol2"></div>
+        <div class="ob-step-dot" id="rod3"></div><div class="ob-step-line" id="rol3"></div>
+        <div class="ob-step-dot" id="rod4"></div>
+      </div>
+
+      <div class="ob-wrap" id="roWrap">
+
+        <!-- PANEL 0 — Welcome -->
+        <div class="ob-panel active" id="ro-panel-0">
+          <div class="ob-hero">
+            <span class="ob-hero-em">🏠</span>
+            <h2>Welcome to the <em>Rescue</em> Portal</h2>
+            <p>Set up your rescue or shelter's profile to connect with thousands of local adopters.</p>
+          </div>
+          <div style="padding:0 22px;display:flex;flex-direction:column;gap:10px;flex-shrink:0">
+            <div style="background:var(--gnl);border:1px solid #A8E8CC;border-radius:var(--rm);padding:14px;display:flex;gap:10px">
+              <div style="font-size:20px;flex-shrink:0">🐾</div>
+              <div style="font-size:13px;color:var(--gnd);line-height:1.55">Reach <strong>local adopters</strong> actively looking for a pet just like yours</div>
+            </div>
+            <div style="background:var(--bll);border:1px solid #C3D8FF;border-radius:var(--rm);padding:14px;display:flex;gap:10px">
+              <div style="font-size:20px;flex-shrink:0">📋</div>
+              <div style="font-size:13px;color:var(--bl);line-height:1.55">Manage your <strong>animals and applications</strong> in one place</div>
+            </div>
+            <div style="background:var(--brl);border:1px solid #FAD5BE;border-radius:var(--rm);padding:14px;display:flex;gap:10px">
+              <div style="font-size:20px;flex-shrink:0">📊</div>
+              <div style="font-size:13px;color:var(--brd);line-height:1.55">Track <strong>placements and outcomes</strong> with real-time stats</div>
+            </div>
+          </div>
+          <div class="ob-nav">
+            <div></div>
+            <button class="ob-next" onclick="roNext(0)">Get started <svg viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg></button>
+          </div>
+        </div>
+
+        <!-- PANEL 1 — Basic info -->
+        <div class="ob-panel" id="ro-panel-1">
+          <div class="ob-hero" style="padding-bottom:12px">
+            <h2 style="font-size:22px">Your rescue info</h2>
+            <p>Tell adopters who you are.</p>
+          </div>
+          <div style="text-align:center;padding:0 22px 10px;flex-shrink:0">
+            <div class="avatar-ring" id="rescueLogoRing" onclick="toggleRescueLogoPicker()">
+              <span id="rescueLogoDisplay">🏠</span>
+              <div class="av-edit">✎</div>
+            </div>
+            <div style="font-size:11.5px;color:var(--t3);margin-bottom:8px">Tap to change logo</div>
+          </div>
+          <div class="avatar-picker" id="rescueLogoPicker">
+            <div class="av-opt" onclick="pickRescueLogo('🏠',this)">🏠</div>
+            <div class="av-opt" onclick="pickRescueLogo('🐾',this)">🐾</div>
+            <div class="av-opt" onclick="pickRescueLogo('❤️',this)">❤️</div>
+            <div class="av-opt" onclick="pickRescueLogo('🐕',this)">🐕</div>
+            <div class="av-opt" onclick="pickRescueLogo('🐈',this)">🐈</div>
+            <div class="av-opt" onclick="pickRescueLogo('🌟',this)">🌟</div>
+            <div class="av-opt" onclick="pickRescueLogo('🌻',this)">🌻</div>
+            <div class="av-opt" onclick="pickRescueLogo('🕊️',this)">🕊️</div>
+            <div class="av-opt" onclick="pickRescueLogo('🌈',this)">🌈</div>
+            <div class="av-opt" onclick="pickRescueLogo('⭐',this)">⭐</div>
+            <div class="av-opt" onclick="pickRescueLogo('🏡',this)">🏡</div>
+            <div class="av-opt" onclick="pickRescueLogo('🤝',this)">🤝</div>
+          </div>
+          <div style="padding:0 22px 10px;flex-shrink:0">
+            <div style="font-size:12px;font-weight:500;color:var(--tx);margin-bottom:8px">Banner color</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap" id="bannerColorPicker">
+              <div class="banner-color-opt sel" onclick="pickBannerColor('linear-gradient(135deg,#1A4A9C,#2D7DD2)',this)" style="background:linear-gradient(135deg,#1A4A9C,#2D7DD2)"></div>
+              <div class="banner-color-opt" onclick="pickBannerColor('linear-gradient(135deg,#0F6E56,#1D9E75)',this)" style="background:linear-gradient(135deg,#0F6E56,#1D9E75)"></div>
+              <div class="banner-color-opt" onclick="pickBannerColor('linear-gradient(135deg,#C44A28,#E8603C)',this)" style="background:linear-gradient(135deg,#C44A28,#E8603C)"></div>
+              <div class="banner-color-opt" onclick="pickBannerColor('linear-gradient(135deg,#7B4FBF,#9B6FDF)',this)" style="background:linear-gradient(135deg,#7B4FBF,#9B6FDF)"></div>
+              <div class="banner-color-opt" onclick="pickBannerColor('linear-gradient(135deg,#C47A0A,#E8A020)',this)" style="background:linear-gradient(135deg,#C47A0A,#E8A020)"></div>
+              <div class="banner-color-opt" onclick="pickBannerColor('linear-gradient(135deg,#2A4A2A,#4A7A4A)',this)" style="background:linear-gradient(135deg,#2A4A2A,#4A7A4A)"></div>
+            </div>
+          </div>
+          <div class="ob-fields">
+            <div class="ob-field"><label>Rescue / org name <span class="req">*</span></label><input id="ro-name" placeholder="SD Humane Society" autocomplete="organization"></div>
+            <div class="ob-field"><label>City / location <span class="req">*</span></label><input id="ro-city" placeholder="San Diego, CA" autocomplete="address-level2"></div>
+            <div class="ob-field"><label>Mission statement <span style="font-weight:400;color:var(--t3)">(optional)</span></label><textarea id="ro-mission" rows="3" placeholder="We rescue, rehabilitate, and rehome animals in need across San Diego County."></textarea></div>
+          </div>
+          <div class="ob-nav">
+            <button class="ob-back" onclick="roBack(1)">← Back</button>
+            <button class="ob-next" onclick="roNext(1)">Continue <svg viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg></button>
+          </div>
+        </div>
+
+        <!-- PANEL 2 — Contact & hours -->
+        <div class="ob-panel" id="ro-panel-2">
+          <div class="ob-hero" style="padding-bottom:14px">
+            <h2 style="font-size:22px">Contact & hours</h2>
+            <p>Help adopters reach you easily.</p>
+          </div>
+          <div class="ob-fields">
+            <div class="ob-row">
+              <div class="ob-field"><label>Phone</label><input id="ro-phone" type="tel" placeholder="(619) 299-7012" autocomplete="tel"></div>
+              <div class="ob-field"><label>Email</label><input id="ro-email" type="email" placeholder="adopt@example.org" autocomplete="email"></div>
+            </div>
+            <div class="ob-field"><label>Website</label><input id="ro-website" type="url" placeholder="https://yourrescue.org"></div>
+            <div class="ob-field"><label>Open hours</label><input id="ro-hours" placeholder="Mon–Sat 10am–6pm, Sun Noon–5pm"></div>
+            <div class="ob-field">
+              <label>Walk-ins or appointments?</label>
+              <div style="display:flex;gap:8px;margin-top:8px">
+                <div class="ro-appt-opt sel" id="ro-appt-no"  onclick="setAppt('no') ">🚶 Walk-ins welcome</div>
+                <div class="ro-appt-opt"     id="ro-appt-yes" onclick="setAppt('yes')">📅 By appointment</div>
+              </div>
+            </div>
+          </div>
+          <div class="ob-nav">
+            <button class="ob-back" onclick="roBack(2)">← Back</button>
+            <button class="ob-next" onclick="roNext(2)">Continue <svg viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg></button>
+          </div>
+        </div>
+
+        <!-- PANEL 3 — Animals you rescue -->
+        <div class="ob-panel" id="ro-panel-3">
+          <div class="ob-hero" style="padding-bottom:14px">
+            <h2 style="font-size:22px">Animals you rescue</h2>
+            <p>Select all that apply — we'll match you with the right adopters.</p>
+          </div>
+          <div class="chip-grid" id="animalTypeGrid">
+            <div class="lchip" onclick="toggleRescueAnimalType(this,'dogs')"><div class="lchip-em">🐕</div><div><div class="lchip-lbl">Dogs</div><div class="lchip-sub">All breeds</div></div></div>
+            <div class="lchip" onclick="toggleRescueAnimalType(this,'cats')"><div class="lchip-em">🐈</div><div><div class="lchip-lbl">Cats</div><div class="lchip-sub">All ages</div></div></div>
+            <div class="lchip" onclick="toggleRescueAnimalType(this,'rabbits')"><div class="lchip-em">🐇</div><div><div class="lchip-lbl">Rabbits</div><div class="lchip-sub">& small mammals</div></div></div>
+            <div class="lchip" onclick="toggleRescueAnimalType(this,'birds')"><div class="lchip-em">🐦</div><div><div class="lchip-lbl">Birds</div><div class="lchip-sub">Parrots & more</div></div></div>
+            <div class="lchip" onclick="toggleRescueAnimalType(this,'reptiles')"><div class="lchip-em">🦎</div><div><div class="lchip-lbl">Reptiles</div><div class="lchip-sub">Lizards, snakes</div></div></div>
+            <div class="lchip" onclick="toggleRescueAnimalType(this,'small')"><div class="lchip-em">🐹</div><div><div class="lchip-lbl">Small animals</div><div class="lchip-sub">Guinea pigs, etc.</div></div></div>
+            <div class="lchip" onclick="toggleRescueAnimalType(this,'farm')"><div class="lchip-em">🐄</div><div><div class="lchip-lbl">Farm animals</div><div class="lchip-sub">Goats, chickens</div></div></div>
+            <div class="lchip" onclick="toggleRescueAnimalType(this,'special')"><div class="lchip-em">💛</div><div><div class="lchip-lbl">Special needs</div><div class="lchip-sub">Senior & medical</div></div></div>
+          </div>
+          <div class="ob-nav">
+            <button class="ob-back" onclick="roBack(3)">← Back</button>
+            <button class="ob-next" onclick="roNext(3)">Continue <svg viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg></button>
+          </div>
+        </div>
+
+        <!-- PANEL 4 — Adoption requirements -->
+        <div class="ob-panel" id="ro-panel-4">
+          <div class="ob-hero" style="padding-bottom:14px">
+            <h2 style="font-size:22px">Adoption requirements</h2>
+            <p>Let adopters know what to expect from your process.</p>
+          </div>
+          <div style="padding:0 22px;flex-shrink:0">
+            <div id="reqToggleList"></div>
+          </div>
+          <div class="ob-fields" style="margin-top:14px">
+            <div class="ob-field">
+              <label>Typical adoption fee</label>
+              <select id="ro-fee">
+                <option value="">Select…</option>
+                <option value="free">Free / donation</option>
+                <option value="low">Under $50</option>
+                <option value="mid">$50–$150</option>
+                <option value="high">$150–$300</option>
+                <option value="vary">Varies by animal</option>
+              </select>
+            </div>
+            <div class="ob-field"><label>Additional notes <span style="font-weight:400;color:var(--t3)">(optional)</span></label><textarea id="ro-req-notes" rows="3" placeholder="e.g. All adopters must meet the animal in person before applying."></textarea></div>
+          </div>
+          <div class="ob-nav">
+            <button class="ob-back" onclick="roBack(4)">← Back</button>
+            <button class="ob-next" style="background:var(--gn)" onclick="finishRescueProfile()">Create rescue profile 🏠</button>
+          </div>
+        </div>
+
+      </div><!-- /roWrap -->
+    </div><!-- /ro-flow -->
+
+    <!-- ── RESCUE DASHBOARD ──────────────────────────────────────── -->
+    <div id="rv-view" style="display:none;flex-direction:column;height:100%;overflow:hidden">
+      <div style="flex:1;overflow-y:auto;scrollbar-width:none">
+
+        <!-- Banner -->
+        <div class="shelter-banner" style="height:200px">
+          <div class="shelter-banner-bg" id="rv-banner-bg" style="background:linear-gradient(135deg,#1A4A9C,#2D7DD2)"></div>
+          <div class="shelter-banner-overlay"></div>
+          <div class="shelter-banner-content">
+            <div class="shelter-logo" id="rv-logo">🏠</div>
+            <div class="shelter-banner-info">
+              <div class="shelter-banner-name" id="rv-name">My Rescue</div>
+              <div class="shelter-banner-loc">📍 <span id="rv-loc">—</span></div>
+            </div>
+            <div class="shelter-verified">✓ Verified</div>
+          </div>
+        </div>
+
+        <!-- Mission -->
+        <div id="rv-mission-wrap" style="padding:14px 16px 0;display:none">
+          <div style="font-size:13px;color:var(--t2);line-height:1.65;font-style:italic" id="rv-mission"></div>
+        </div>
+
+        <!-- Stats -->
+        <div class="pv-stats" style="margin:14px 12px 0;border-radius:var(--r);background:var(--sf);border:1px solid var(--bd)">
+          <div class="pvs"><div class="pvs-n" id="rv-stat-animals">0</div><div class="pvs-l">Animals listed</div></div>
+          <div class="pvs"><div class="pvs-n" id="rv-stat-placed">0</div><div class="pvs-l">Placed</div></div>
+          <div class="pvs"><div class="pvs-n" id="rv-stat-apps">0</div><div class="pvs-l">Applications</div></div>
+        </div>
+
+        <!-- Quick actions -->
+        <div style="padding:14px 12px 0;display:flex;gap:8px">
+          <button onclick="toast('Add animal coming soon! 🐾')" style="flex:1;padding:11px;background:var(--br);color:#fff;border:none;border-radius:var(--rm);font-size:13px;font-weight:600;cursor:pointer;font-family:var(--fb)">+ Add animal</button>
+          <button onclick="toast('Applications coming soon! 📋')" style="flex:1;padding:11px;background:var(--sf);color:var(--tx);border:1.5px solid var(--bd);border-radius:var(--rm);font-size:13px;font-weight:600;cursor:pointer;font-family:var(--fb)">View applications</button>
+        </div>
+
+        <!-- Contact & hours -->
+        <div style="margin:14px 12px 0;background:var(--sf);border-radius:var(--r);border:1px solid var(--bd);padding:16px">
+          <div style="font-size:13px;font-weight:600;color:var(--tx);margin-bottom:10px">Contact & hours</div>
+          <div id="rv-contact-rows"></div>
+        </div>
+
+        <!-- Animal types -->
+        <div style="margin:12px 12px 0;background:var(--sf);border-radius:var(--r);border:1px solid var(--bd);padding:16px">
+          <div style="font-size:13px;font-weight:600;color:var(--tx);margin-bottom:10px">Animals we rescue</div>
+          <div id="rv-animal-chips" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+        </div>
+
+        <!-- Adoption requirements -->
+        <div style="margin:12px 12px 0;background:var(--sf);border-radius:var(--r);border:1px solid var(--bd);padding:16px">
+          <div style="font-size:13px;font-weight:600;color:var(--tx);margin-bottom:10px">Adoption requirements</div>
+          <div id="rv-req-rows"></div>
+        </div>
+
+        <!-- Actions -->
+        <div style="padding:14px 12px 0">
+          <button class="pv-edit-btn" onclick="editRescueProfile()">✎ Edit rescue profile</button>
+        </div>
+        <div style="padding:10px 12px 32px">
+          <div class="pv-menu-item" onclick="signOutRescue()" style="border:1px solid var(--bd);border-radius:var(--r);padding:0 14px">
+            <div class="pv-menu-em" style="background:#FFF0F0">🚪</div>
+            <div class="pv-menu-text"><div class="pv-menu-title" style="color:#E24B4A">Sign out of rescue portal</div><div class="pv-menu-sub">Return to adopter view</div></div>
+            <div class="pv-menu-arrow" style="color:#E24B4A">›</div>
+          </div>
+        </div>
+
+      </div>
+    </div><!-- /rv-view -->
+
+    <!-- Close button -->
+    <div style="position:absolute;top:14px;right:14px;z-index:30">
+      <div class="icon-pill" onclick="closeRescuePage()" style="background:var(--sf2);border-color:var(--bd)">
+        <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </div>
+    </div>
+
+  </div><!-- /rescue-page -->
 
   <!-- ADD PET MODAL -->
   <div class="addpet-modal" id="addPetModal" onclick="if(event.target===this)closeAddPet()">
@@ -1833,8 +2097,290 @@ function saveSettingsPanel() {
   closeSettingsPanel();
 }
 
+// ── RESCUE PORTAL ────────────────────────────────────────────────
+let rescueProfile      = null;
+let rescueLogoEm       = '🏠';
+let rescueBannerGradient = 'linear-gradient(135deg,#1A4A9C,#2D7DD2)';
+let rescueAnimalTypes  = new Set();
+let rescueAppt         = 'no';
+let rescueReqs         = { application: true, homeVisit: false, refCheck: false, trial: false };
+
+const RESCUE_REQ_OPTIONS = [
+  { key:'application', em:'📋', title:'Adoption application', sub:'Written application required'        },
+  { key:'homeVisit',   em:'🏠', title:'Home visit',           sub:'We check your living situation'      },
+  { key:'refCheck',    em:'📞', title:'Reference check',      sub:'We contact your references'          },
+  { key:'trial',       em:'🕐', title:'Trial period',         sub:'Temporary placement before finalizing'},
+];
+
+const ANIMAL_TYPE_LABELS = {
+  dogs:'🐕 Dogs', cats:'🐈 Cats', rabbits:'🐇 Rabbits', birds:'🐦 Birds',
+  reptiles:'🦎 Reptiles', small:'🐹 Small animals', farm:'🐄 Farm animals', special:'💛 Special needs',
+};
+
+const FEE_LABELS = {
+  free:'Free / donation', low:'Under $50', mid:'$50–$150', high:'$150–$300', vary:'Varies by animal',
+};
+
+function openRescuePage() {
+  closeProfilePage();
+  document.getElementById('rescuePage').classList.add('show');
+  if (rescueProfile) showRescueView(); else showRescueFlow();
+}
+function closeRescuePage() {
+  document.getElementById('rescuePage').classList.remove('show');
+}
+function showRescueFlow() {
+  document.getElementById('ro-flow').style.display = 'flex';
+  document.getElementById('rv-view').style.display = 'none';
+  buildReqToggles();
+  roSetStep(0);
+}
+function showRescueView() {
+  document.getElementById('ro-flow').style.display = 'none';
+  document.getElementById('rv-view').style.display = 'flex';
+  renderRescueView();
+}
+
+// ── RESCUE ONBOARDING STEPS ──────────────────────────────────────
+const RO_TOTAL = 5;
+function roNext(from) {
+  if (from === 1) {
+    const name = document.getElementById('ro-name').value.trim();
+    const city = document.getElementById('ro-city').value.trim();
+    if (!name || !city) { shakeOb(name ? 'ro-city' : 'ro-name'); return; }
+  }
+  const next = from + 1;
+  if (next >= RO_TOTAL) return;
+  roSetStep(next);
+}
+function roBack(from) {
+  if (from <= 0) { closeRescuePage(); return; }
+  roSetStep(from - 1);
+}
+function roSetStep(n) {
+  document.querySelectorAll('[id^="ro-panel-"]').forEach(p => p.classList.remove('active'));
+  document.getElementById('ro-panel-' + n).classList.add('active');
+  for (let i = 0; i < RO_TOTAL; i++) {
+    const dot  = document.getElementById('rod' + i);
+    const line = document.getElementById('rol' + i);
+    if (dot)  dot.className  = 'ob-step-dot'  + (i < n ? ' done' : i === n ? ' active' : '');
+    if (line) line.className = 'ob-step-line' + (i < n ? ' done' : '');
+  }
+  document.getElementById('roWrap').scrollTop = 0;
+}
+
+// ── RESCUE LOGO ───────────────────────────────────────────────────
+function toggleRescueLogoPicker() {
+  document.getElementById('rescueLogoPicker').classList.toggle('show');
+}
+function pickRescueLogo(em, el) {
+  rescueLogoEm = em;
+  document.getElementById('rescueLogoDisplay').textContent = em;
+  document.querySelectorAll('#rescueLogoPicker .av-opt').forEach(o => o.classList.remove('sel'));
+  el.classList.add('sel');
+  document.getElementById('rescueLogoPicker').classList.remove('show');
+}
+
+// ── BANNER COLOR ─────────────────────────────────────────────────
+function pickBannerColor(gradient, el) {
+  rescueBannerGradient = gradient;
+  document.querySelectorAll('.banner-color-opt').forEach(o => o.classList.remove('sel'));
+  el.classList.add('sel');
+}
+
+// ── APPOINTMENT ───────────────────────────────────────────────────
+function setAppt(val) {
+  rescueAppt = val;
+  document.getElementById('ro-appt-yes').classList.toggle('sel', val === 'yes');
+  document.getElementById('ro-appt-no').classList.toggle('sel',  val === 'no');
+}
+
+// ── ANIMAL TYPES ─────────────────────────────────────────────────
+function toggleRescueAnimalType(el, val) {
+  el.classList.toggle('sel');
+  if (el.classList.contains('sel')) rescueAnimalTypes.add(val);
+  else rescueAnimalTypes.delete(val);
+}
+
+// ── REQUIREMENTS TOGGLES ─────────────────────────────────────────
+function buildReqToggles() {
+  const list = document.getElementById('reqToggleList');
+  if (!list) return;
+  list.innerHTML = '';
+  RESCUE_REQ_OPTIONS.forEach(opt => {
+    const on  = rescueReqs[opt.key];
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;align-items:center;gap:12px;padding:13px 0;border-bottom:1px solid var(--bd)';
+    row.innerHTML = `
+      <div style="width:36px;height:36px;border-radius:10px;background:var(--sf2);border:1px solid var(--bd);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">${opt.em}</div>
+      <div style="flex:1">
+        <div style="font-size:13.5px;font-weight:500;color:var(--tx)">${opt.title}</div>
+        <div style="font-size:11.5px;color:var(--t3);margin-top:1px">${opt.sub}</div>
+      </div>
+      <div class="ntoggle ${on?'on':''}" onclick="toggleRescueReq('${opt.key}',this)"
+           style="width:44px;height:24px;border-radius:12px;background:${on?'var(--gn)':'var(--bd2)'};cursor:pointer;position:relative;transition:background .2s;flex-shrink:0">
+        <div style="width:20px;height:20px;border-radius:50%;background:#fff;position:absolute;top:2px;left:${on?'22px':'2px'};transition:left .2s;box-shadow:0 1px 4px rgba(0,0,0,.15)"></div>
+      </div>`;
+    list.appendChild(row);
+  });
+}
+function toggleRescueReq(key, el) {
+  rescueReqs[key] = !rescueReqs[key];
+  const on = rescueReqs[key];
+  el.style.background = on ? 'var(--gn)' : 'var(--bd2)';
+  el.querySelector('div').style.left = on ? '22px' : '2px';
+}
+
+// ── FINISH RESCUE PROFILE ─────────────────────────────────────────
+function finishRescueProfile() {
+  rescueProfile = {
+    name:     document.getElementById('ro-name').value.trim()     || 'My Rescue',
+    city:     document.getElementById('ro-city').value.trim()     || '',
+    mission:  document.getElementById('ro-mission').value.trim()  || '',
+    logo:     rescueLogoEm,
+    banner:   rescueBannerGradient,
+    phone:    document.getElementById('ro-phone').value.trim()    || '',
+    email:    document.getElementById('ro-email').value.trim()    || '',
+    website:  document.getElementById('ro-website').value.trim()  || '',
+    hours:    document.getElementById('ro-hours').value.trim()    || '',
+    appt:     rescueAppt,
+    animalTypes:  [...rescueAnimalTypes],
+    requirements: { ...rescueReqs },
+    fee:      document.getElementById('ro-fee').value             || '',
+    reqNotes: document.getElementById('ro-req-notes').value.trim()|| '',
+    stats:    { animals: 0, placed: 0, apps: 0 },
+  };
+  saveRescueToStorage();
+  showRescueView();
+  toast('Rescue profile created! 🏠');
+}
+
+// ── RESCUE DASHBOARD RENDER ───────────────────────────────────────
+function renderRescueView() {
+  if (!rescueProfile) return;
+  const r = rescueProfile;
+  document.getElementById('rv-banner-bg').style.background = r.banner;
+  document.getElementById('rv-logo').textContent = r.logo;
+  document.getElementById('rv-name').textContent = r.name;
+  document.getElementById('rv-loc').textContent  = r.city;
+  const mw = document.getElementById('rv-mission-wrap');
+  document.getElementById('rv-mission').textContent = r.mission ? '"' + r.mission + '"' : '';
+  mw.style.display = r.mission ? 'block' : 'none';
+  document.getElementById('rv-stat-animals').textContent = r.stats?.animals || 0;
+  document.getElementById('rv-stat-placed').textContent  = r.stats?.placed  || 0;
+  document.getElementById('rv-stat-apps').textContent    = r.stats?.apps    || 0;
+  // Contact rows
+  const cr = document.getElementById('rv-contact-rows');
+  cr.innerHTML = '';
+  [r.phone   && {em:'📞',val:r.phone},
+   r.email   && {em:'✉️',val:r.email},
+   r.website && {em:'🌐',val:r.website},
+   r.hours   && {em:'🕐',val:r.hours},
+   {em: r.appt==='yes'?'📅':'🚶', val: r.appt==='yes'?'By appointment only':'Walk-ins welcome'},
+  ].filter(Boolean).forEach(item => {
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--bd)';
+    row.innerHTML = `<span style="font-size:15px;flex-shrink:0">${item.em}</span><span style="font-size:12.5px;color:var(--t2);word-break:break-all">${item.val}</span>`;
+    cr.appendChild(row);
+  });
+  // Animal chips
+  const ac = document.getElementById('rv-animal-chips');
+  ac.innerHTML = '';
+  (r.animalTypes||[]).forEach(type => {
+    const chip = document.createElement('div');
+    chip.className = 'ct';
+    chip.textContent = ANIMAL_TYPE_LABELS[type] || type;
+    ac.appendChild(chip);
+  });
+  if (!r.animalTypes?.length) ac.innerHTML = '<div style="font-size:12px;color:var(--t3)">No animal types specified</div>';
+  // Requirements
+  const rr = document.getElementById('rv-req-rows');
+  rr.innerHTML = '';
+  RESCUE_REQ_OPTIONS.forEach(opt => {
+    if (!r.requirements?.[opt.key]) return;
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;align-items:center;gap:8px;padding:5px 0';
+    row.innerHTML = `<span style="color:var(--gn);font-size:14px">✓</span><span style="font-size:12.5px;color:var(--t2)">${opt.title}</span>`;
+    rr.appendChild(row);
+  });
+  if (r.fee) {
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;align-items:center;gap:8px;padding:5px 0';
+    row.innerHTML = `<span style="font-size:14px">💰</span><span style="font-size:12.5px;color:var(--t2)">Adoption fee: ${FEE_LABELS[r.fee]||r.fee}</span>`;
+    rr.appendChild(row);
+  }
+  if (r.reqNotes) {
+    const note = document.createElement('div');
+    note.style.cssText = 'margin-top:8px;font-size:12px;color:var(--t3);font-style:italic;line-height:1.5';
+    note.textContent = r.reqNotes;
+    rr.appendChild(note);
+  }
+  if (!rr.children.length) rr.innerHTML = '<div style="font-size:12px;color:var(--t3)">No requirements specified</div>';
+}
+
+// ── RESCUE EDIT ───────────────────────────────────────────────────
+function editRescueProfile() {
+  const saved = rescueProfile;
+  rescueProfile = null;
+  if (saved) {
+    document.getElementById('ro-name').value     = saved.name     || '';
+    document.getElementById('ro-city').value     = saved.city     || '';
+    document.getElementById('ro-mission').value  = saved.mission  || '';
+    document.getElementById('ro-phone').value    = saved.phone    || '';
+    document.getElementById('ro-email').value    = saved.email    || '';
+    document.getElementById('ro-website').value  = saved.website  || '';
+    document.getElementById('ro-hours').value    = saved.hours    || '';
+    document.getElementById('ro-fee').value      = saved.fee      || '';
+    document.getElementById('ro-req-notes').value= saved.reqNotes || '';
+    rescueLogoEm = saved.logo || '🏠';
+    document.getElementById('rescueLogoDisplay').textContent = rescueLogoEm;
+    rescueBannerGradient = saved.banner || 'linear-gradient(135deg,#1A4A9C,#2D7DD2)';
+    document.querySelectorAll('.banner-color-opt').forEach(el => {
+      el.classList.toggle('sel', el.getAttribute('onclick').includes(saved.banner?.replace(/,/g,'').slice(0,30)||''));
+    });
+    rescueAnimalTypes = new Set(saved.animalTypes || []);
+    document.querySelectorAll('#animalTypeGrid .lchip').forEach(el => {
+      const m = el.getAttribute('onclick').match(/toggleRescueAnimalType\(this,'(.+?)'\)/);
+      if (m) el.classList.toggle('sel', rescueAnimalTypes.has(m[1]));
+    });
+    rescueAppt = saved.appt || 'no';
+    Object.assign(rescueReqs, saved.requirements || {});
+  }
+  showRescueFlow();
+  roSetStep(1);
+}
+
+// ── RESCUE SIGN OUT ───────────────────────────────────────────────
+function signOutRescue() {
+  rescueProfile = null; rescueAnimalTypes = new Set(); rescueAppt = 'no';
+  rescueReqs = { application:true, homeVisit:false, refCheck:false, trial:false };
+  try { localStorage.removeItem('pawfect_rescue'); } catch(e) {}
+  closeRescuePage();
+  toast('Signed out of rescue portal 🏠');
+}
+
+// ── RESCUE STORAGE ────────────────────────────────────────────────
+function saveRescueToStorage() {
+  try { localStorage.setItem('pawfect_rescue', JSON.stringify(rescueProfile)); } catch(e) {}
+}
+function loadRescueFromStorage() {
+  try {
+    const raw = localStorage.getItem('pawfect_rescue');
+    if (!raw) return;
+    rescueProfile = JSON.parse(raw);
+    if (rescueProfile) {
+      rescueLogoEm         = rescueProfile.logo   || '🏠';
+      rescueBannerGradient = rescueProfile.banner || 'linear-gradient(135deg,#1A4A9C,#2D7DD2)';
+      rescueAnimalTypes    = new Set(rescueProfile.animalTypes || []);
+      rescueAppt           = rescueProfile.appt   || 'no';
+      Object.assign(rescueReqs, rescueProfile.requirements || {});
+    }
+  } catch(e) {}
+}
+
 // ── INIT ─────────────────────────────────────────────────────────
 loadFromStorage();
+loadRescueFromStorage();
 renderCards();
 </script>
 </body>
