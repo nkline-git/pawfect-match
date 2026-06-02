@@ -1,96 +1,79 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Eye, EyeOff, Loader2 } from 'lucide-react'
 
-type Mode = 'login' | 'signup'
-
-export default function LoginPage() {
-  const router   = useRouter()
+export default function SignupPage() {
   const supabase = createClient()
 
-  const [mode, setMode]         = useState<Mode>('login')
-  const [email, setEmail]       = useState('')
+  const [email, setEmail]     = useState('')
   const [password, setPassword] = useState('')
-  const [showPw, setShowPw]     = useState(false)
-  const [loading, setLoading]   = useState(false)
+  const [showPw, setShowPw]   = useState(false)
+  const [loading, setLoading] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
-  const [error, setError]       = useState<string | null>(null)
-  const [success, setSuccess]   = useState<string | null>(null)
+  const [error, setError]     = useState<string | null>(null)
+  const [done, setDone]       = useState(false)
 
-  /* ── helpers ── */
-  const clearMessages = () => { setError(null); setSuccess(null) }
-
-  const handleEmailAuth = async (e: React.FormEvent) => {
+  const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault()
-    clearMessages()
-
-    if (!email || !password) { setError('Please fill in all fields.'); return }
-    if (password.length < 6)  { setError('Password must be at least 6 characters.'); return }
+    setError(null)
+    if (password.length < 6) { setError('Password must be at least 6 characters.'); return }
 
     setLoading(true)
     try {
-      if (mode === 'login') {
-        const { error } = await supabase.auth.signInWithPassword({ email, password })
-        if (error) { setError(error.message); return }
-        const next = new URLSearchParams(window.location.search).get('next') ?? '/'
-        router.push(next)
-        router.refresh()
-      } else {
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: { emailRedirectTo: `${window.location.origin}/api/auth/callback` },
-        })
-        if (error) { setError(error.message); return }
-        setSuccess('Check your email for a confirmation link!')
-      }
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { emailRedirectTo: `${window.location.origin}/api/auth/callback` },
+      })
+      if (error) { setError(error.message); return }
+      setDone(true)
     } finally {
       setLoading(false)
     }
   }
 
   const handleGoogle = async () => {
-    clearMessages()
+    setError(null)
     setGoogleLoading(true)
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: { redirectTo: `${window.location.origin}/api/auth/callback` },
     })
-    if (error) {
-      setError(error.message)
-      setGoogleLoading(false)
-    }
-    // on success the browser navigates away — no need to stop loading
+    if (error) { setError(error.message); setGoogleLoading(false) }
   }
 
-  const toggleMode = () => {
-    setMode(m => m === 'login' ? 'signup' : 'login')
-    clearMessages()
-    setEmail('')
-    setPassword('')
+  if (done) {
+    return (
+      <div className="w-full max-w-[390px]">
+        <div className="bg-white rounded-2xl shadow-lg px-8 py-10 text-center">
+          <div className="text-4xl mb-3">📬</div>
+          <h2 className="text-xl font-bold text-gray-900 mb-2">Check your email</h2>
+          <p className="text-sm text-gray-500 mb-6">
+            We sent a confirmation link to <strong>{email}</strong>. Click it to finish creating your account.
+          </p>
+          <a href="/login" className="text-sm font-semibold hover:underline" style={{ color: '#e05a4e' }}>
+            Back to sign in →
+          </a>
+        </div>
+      </div>
+    )
   }
 
   return (
     <div className="w-full max-w-[390px]">
-      {/* Card */}
       <div className="bg-white rounded-2xl shadow-lg px-8 py-10">
 
-        {/* Logo */}
         <div className="text-center mb-8">
           <div className="text-4xl mb-3">🐾</div>
           <h1 className="text-2xl font-bold">
             <span style={{ color: '#e05a4e' }}>Pawfect</span>
             <span className="text-gray-900"> Match</span>
           </h1>
-          <p className="text-gray-500 text-sm mt-1">
-            {mode === 'login' ? 'Welcome back!' : 'Create your account'}
-          </p>
+          <p className="text-gray-500 text-sm mt-1">Create your account</p>
         </div>
 
-        {/* Google button */}
         <button
           onClick={handleGoogle}
           disabled={googleLoading || loading}
@@ -109,15 +92,13 @@ export default function LoginPage() {
           Continue with Google
         </button>
 
-        {/* Divider */}
         <div className="flex items-center gap-3 mb-5">
           <div className="flex-1 h-px bg-gray-200" />
           <span className="text-xs text-gray-400">or</span>
           <div className="flex-1 h-px bg-gray-200" />
         </div>
 
-        {/* Email / password form */}
-        <form onSubmit={handleEmailAuth} className="space-y-4">
+        <form onSubmit={handleSignup} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Email</label>
             <input
@@ -125,7 +106,7 @@ export default function LoginPage() {
               value={email}
               onChange={e => setEmail(e.target.value)}
               placeholder="you@example.com"
-              className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 transition-all placeholder:text-gray-400"
+              className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none transition-all placeholder:text-gray-400"
               onFocus={e => e.target.style.borderColor = '#e05a4e'}
               onBlur={e => e.target.style.borderColor = '#e5e7eb'}
               autoComplete="email"
@@ -140,11 +121,11 @@ export default function LoginPage() {
                 type={showPw ? 'text' : 'password'}
                 value={password}
                 onChange={e => setPassword(e.target.value)}
-                placeholder={mode === 'signup' ? 'At least 6 characters' : '••••••••'}
+                placeholder="At least 6 characters"
                 className="w-full border border-gray-200 rounded-xl px-4 py-3 pr-11 text-sm outline-none transition-all placeholder:text-gray-400"
                 onFocus={e => e.target.style.borderColor = '#e05a4e'}
                 onBlur={e => e.target.style.borderColor = '#e5e7eb'}
-                autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+                autoComplete="new-password"
                 required
               />
               <button
@@ -155,28 +136,14 @@ export default function LoginPage() {
                 {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
             </div>
-            {mode === 'login' && (
-              <div className="text-right mt-1">
-                <a href="/forgot-password" className="text-xs hover:underline" style={{ color: '#e05a4e' }}>
-                  Forgot password?
-                </a>
-              </div>
-            )}
           </div>
 
-          {/* Error / success */}
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl px-4 py-3">
               {error}
             </div>
           )}
-          {success && (
-            <div className="bg-green-50 border border-green-200 text-green-700 text-sm rounded-xl px-4 py-3">
-              {success}
-            </div>
-          )}
 
-          {/* Submit */}
           <button
             type="submit"
             disabled={loading || googleLoading}
@@ -186,40 +153,20 @@ export default function LoginPage() {
             onMouseLeave={e => (e.currentTarget.style.backgroundColor = '#e05a4e')}
           >
             {loading && <Loader2 size={16} className="animate-spin" />}
-            {mode === 'login' ? 'Sign in' : 'Create account'}
+            Create account
           </button>
         </form>
 
-        {/* Toggle */}
         <p className="text-center text-sm text-gray-500 mt-6">
-          {mode === 'login' ? "Don't have an account?" : 'Already have an account?'}{' '}
-          <button
-            onClick={toggleMode}
-            className="font-semibold hover:underline"
-            style={{ color: '#e05a4e' }}
-          >
-            {mode === 'login' ? 'Sign up' : 'Sign in'}
-          </button>
-        </p>
-
-        {/* Rescue portal link */}
-        <div className="mt-6 pt-5 border-t border-gray-100 text-center">
-          <p className="text-xs text-gray-400">Are you a rescue or shelter?</p>
-          <a
-            href="/rescue/verify"
-            className="text-xs font-medium hover:underline mt-0.5 inline-block"
-            style={{ color: '#e05a4e' }}
-          >
-            Set up your rescue portal →
+          Already have an account?{' '}
+          <a href="/login" className="font-semibold hover:underline" style={{ color: '#e05a4e' }}>
+            Sign in
           </a>
-        </div>
+        </p>
       </div>
 
-      {/* Back to browse */}
       <p className="text-center text-sm text-white/80 mt-4">
-        <a href="/" className="hover:text-white transition-colors">
-          ← Browse pets without signing in
-        </a>
+        <a href="/" className="hover:text-white transition-colors">← Browse pets without signing in</a>
       </p>
     </div>
   )

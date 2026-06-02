@@ -1,3 +1,15 @@
+// ── Pet preferences (from onboarding quiz) ───────────────────────
+export interface PetPreferences {
+  species:         string[]        // e.g. ['dog','cat']
+  size:            string[]        // e.g. ['Small','Medium']
+  age:             string[]        // e.g. ['Young','Adult']
+  energy:          string[]        // e.g. ['Medium','High']
+  good_with_kids:  boolean | null
+  good_with_dogs:  boolean | null
+  good_with_cats:  boolean | null
+  housing:         string | null   // 'apartment'|'house'|'farm'|null
+}
+
 // ── User / Adopter profile ────────────────────────────────────────
 export interface Profile {
   id: string
@@ -9,6 +21,8 @@ export interface Profile {
   lifestyle: string[]
   time_availability: string | null
   notification_prefs: NotificationPrefs
+  preferences: PetPreferences | null
+  role: 'user' | 'admin' | 'moderator'
   created_at: string
   updated_at: string
 }
@@ -109,6 +123,48 @@ export interface Application {
 }
 
 export type ApplicationStatus = 'pending' | 'reviewing' | 'approved' | 'rejected'
+
+// ── Event ────────────────────────────────────────────────────────
+export type EventType = 'adoption_event' | 'fundraiser' | 'volunteer_day' | 'training' | 'meetup' | 'other'
+export type EventStatus = 'active' | 'cancelled' | 'completed'
+
+export interface PawfectEvent {
+  id: string
+  user_id: string
+  rescue_id: string | null
+  title: string
+  description: string | null
+  event_type: EventType
+  location: string | null
+  starts_at: string
+  ends_at: string | null
+  image_url: string | null
+  status: EventStatus
+  hidden: boolean
+  created_at: string
+  updated_at: string
+  // joined
+  rescue?: Pick<Rescue, 'id' | 'name' | 'logo' | 'city'> | null
+  profile?: Pick<Profile, 'first_name' | 'avatar'> | null
+}
+
+// ── Report ───────────────────────────────────────────────────────
+export type ReportContentType = 'post' | 'event' | 'pet' | 'user' | 'rescue'
+export type ReportReason = 'spam' | 'scam' | 'inappropriate' | 'false_info' | 'animal_safety' | 'other'
+export type ReportStatus = 'pending' | 'reviewed' | 'dismissed' | 'actioned'
+
+export interface Report {
+  id: string
+  reporter_id: string
+  content_type: ReportContentType
+  content_id: string
+  reason: ReportReason
+  notes: string | null
+  status: ReportStatus
+  reviewer_id: string | null
+  created_at: string
+  updated_at: string
+}
 
 // ── API helpers ──────────────────────────────────────────────────
 export interface ApiResponse<T> {

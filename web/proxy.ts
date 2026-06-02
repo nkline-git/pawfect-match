@@ -1,7 +1,10 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
-export async function middleware(request: NextRequest) {
+const PROTECTED  = ['/profile', '/rescue/dashboard', '/rescue/setup', '/onboarding', '/admin']
+const AUTH_PAGES = ['/login', '/signup']
+
+export async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
 
   const supabase = createServerClient(
@@ -9,14 +12,12 @@ export async function middleware(request: NextRequest) {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        getAll() {
-          return request.cookies.getAll()
-        },
+        getAll() { return request.cookies.getAll() },
         setAll(cookiesToSet) {
           cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
           supabaseResponse = NextResponse.next({ request })
           cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options),
+            supabaseResponse.cookies.set(name, value, options)
           )
         },
       },
@@ -26,14 +27,19 @@ export async function middleware(request: NextRequest) {
   // Refresh the session — required for Server Components to read auth state
   const { data: { user } } = await supabase.auth.getUser()
 
-  // Protect rescue dashboard — must be logged in AND verified
-  if (request.nextUrl.pathname.startsWith('/rescue/dashboard') && !user) {
-    return NextResponse.redirect(new URL('/rescue/verify', request.url))
+  const path = request.nextUrl.pathname
+
+  // Redirect unauthenticated users away from protected pages
+  if (!user && PROTECTED.some(p => path.startsWith(p))) {
+    const url = request.nextUrl.clone()
+    url.pathname = '/login'
+    url.searchParams.set('next', path)
+    return NextResponse.redirect(url)
   }
 
-  // Protect adopter profile
-  if (request.nextUrl.pathname.startsWith('/profile') && !user) {
-    return NextResponse.redirect(new URL('/login', request.url))
+  // Redirect logged-in users away from auth pages
+  if (user && AUTH_PAGES.some(p => path === p)) {
+    return NextResponse.redirect(new URL('/', request.url))
   }
 
   return supabaseResponse
