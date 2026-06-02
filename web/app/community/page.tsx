@@ -376,8 +376,8 @@ export default function CommunityPage() {
     new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
 
   return (
-    <div className="min-h-screen flex items-start justify-center py-4 px-4">
-      <div className="w-full max-w-[390px] flex flex-col" style={{ minHeight: 'calc(100vh - 2rem)' }}>
+    <div className="h-dvh flex items-start justify-center px-3 py-2 overflow-hidden">
+      <div className="w-full max-w-[390px] h-full flex flex-col overflow-hidden">
 
         {/* Header */}
         <header className="flex items-center justify-between px-4 py-3 bg-white rounded-2xl shadow-sm mb-3">
@@ -410,6 +410,9 @@ export default function CommunityPage() {
             </button>
           ))}
         </div>
+
+        {/* Scrollable content area */}
+        <div className="flex-1 overflow-y-auto pb-2">
 
         {/* DB missing notice */}
         {dbMissing && (
@@ -681,6 +684,7 @@ export default function CommunityPage() {
           </>
         )}
 
+        </div>{/* end scrollable */}
         <BottomNav />
       </div>
 

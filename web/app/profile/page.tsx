@@ -99,8 +99,8 @@ export default function ProfilePage() {
   const showForm = isSetup || editing
 
   return (
-    <div className="min-h-screen flex items-start justify-center py-4 px-4">
-      <div className="w-full max-w-[390px]">
+    <div className="h-dvh flex items-start justify-center px-3 py-2 overflow-hidden">
+      <div className="w-full max-w-[390px] h-full flex flex-col overflow-hidden">
 
         {/* Header */}
         <div className="flex items-center gap-3 mb-4">
@@ -112,6 +112,7 @@ export default function ProfilePage() {
           </h1>
         </div>
 
+        <div className="flex-1 overflow-y-auto pb-2">
         <div className="bg-white rounded-2xl shadow-lg p-6">
 
           {showForm ? (
@@ -308,6 +309,7 @@ export default function ProfilePage() {
           )}
         </div>
 
+        </div>{/* end scrollable */}
         <BottomNav />
       </div>
     </div>

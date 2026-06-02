@@ -57,8 +57,8 @@ export default function SavedPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-start justify-center py-4 px-4">
-      <div className="w-full max-w-[390px] flex flex-col" style={{ minHeight: 'calc(100vh - 2rem)' }}>
+    <div className="h-dvh flex items-start justify-center px-3 py-2 overflow-hidden">
+      <div className="w-full max-w-[390px] h-full flex flex-col overflow-hidden">
 
         {/* Header */}
         <header className="flex items-center justify-between px-4 py-3 bg-white rounded-2xl shadow-sm mb-3">
@@ -74,7 +74,7 @@ export default function SavedPage() {
           </Link>
         </header>
 
-        <div className="flex-1">
+        <div className="flex-1 overflow-y-auto">
           {loading ? (
             <div className="flex justify-center py-16">
               <Loader2 size={24} className="animate-spin text-white/60" />
