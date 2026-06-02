@@ -103,8 +103,8 @@ export default function BrowsePage() {
   }
 
   return (
-    <div className="min-h-screen flex items-start justify-center py-4 px-4">
-      <div className="w-full max-w-[390px] flex flex-col" style={{ minHeight: 'calc(100vh - 2rem)' }}>
+    <div className="h-dvh flex items-start justify-center px-3 py-2 overflow-hidden">
+      <div className="w-full max-w-[390px] h-full flex flex-col overflow-hidden">
 
         {/* Header */}
         <header className="flex items-center justify-between px-4 py-3 bg-white rounded-2xl shadow-sm mb-3">
@@ -172,10 +172,10 @@ export default function BrowsePage() {
         </div>
 
         {/* Pet card */}
-        <div className="flex-1 flex flex-col">
+        <div className="flex-1 flex flex-col min-h-0">
           {loading ? (
-            <div className="bg-white rounded-2xl shadow-lg overflow-hidden flex flex-col animate-pulse">
-              <div className="h-[280px] bg-gray-100" />
+            <div className="flex-1 min-h-0 bg-white rounded-2xl shadow-lg overflow-hidden flex flex-col animate-pulse">
+              <div className="flex-1 min-h-[160px] bg-gray-100" />
               <div className="px-4 pt-3 pb-4 space-y-2">
                 <div className="h-6 bg-gray-100 rounded w-1/3" />
                 <div className="h-4 bg-gray-100 rounded w-1/2" />
@@ -187,7 +187,7 @@ export default function BrowsePage() {
             </div>
           ) : pet ? (
             <div
-              className="bg-white rounded-2xl shadow-lg overflow-hidden flex flex-col relative select-none"
+              className="flex-1 min-h-0 bg-white rounded-2xl shadow-lg overflow-hidden flex flex-col relative select-none"
               style={{
                 transform: `translateX(${swipeDx}px) rotate(${swipeDx * 0.04}deg)`,
                 transition: swipeDx === 0 ? 'transform 0.3s ease' : 'none',
@@ -223,8 +223,8 @@ export default function BrowsePage() {
 
               {/* Photo */}
               <div
-                className="relative flex items-center justify-center overflow-hidden"
-                style={{ height: 280, background: SPECIES_BG[pet.species] ?? SPECIES_BG.other }}
+                className="relative flex items-center justify-center overflow-hidden flex-1 min-h-0"
+                style={{ minHeight: 160, background: SPECIES_BG[pet.species] ?? SPECIES_BG.other }}
               >
                 {/* Rescue badge */}
                 <div className="absolute top-3 left-3 z-10">
@@ -325,7 +325,7 @@ export default function BrowsePage() {
               </div>
             </div>
           ) : (
-            <div className="bg-white rounded-2xl shadow-lg flex flex-col items-center justify-center py-20 px-8 text-center">
+            <div className="flex-1 min-h-0 bg-white rounded-2xl shadow-lg flex flex-col items-center justify-center py-8 px-8 text-center">
               <span className="text-6xl mb-4">🐾</span>
               <h3 className="text-lg font-bold text-gray-800 mb-2">
                 {prefActive && prefs && filtered.length === 0 && bySpecies.length > 0
