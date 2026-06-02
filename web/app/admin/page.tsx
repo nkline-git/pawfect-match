@@ -5,8 +5,19 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import {
   ArrowLeft, Loader2, Check, X, Eye, EyeOff,
-  Flag, Users, AlertTriangle,
+  Flag, AlertTriangle, Building2, BadgeCheck, Trash2,
 } from 'lucide-react'
+
+type PendingRescue = {
+  id: string
+  name: string
+  ein: string
+  city: string
+  email: string | null
+  website: string | null
+  verified: boolean
+  created_at: string
+}
 
 type Report = {
   id: string
@@ -42,7 +53,9 @@ export default function AdminPage() {
 
   const [loading,   setLoading]   = useState(true)
   const [authed,    setAuthed]    = useState(false)
+  const [mainTab,   setMainTab]   = useState<'reports' | 'rescues'>('rescues')
   const [reports,   setReports]   = useState<Report[]>([])
+  const [rescues,   setRescues]   = useState<PendingRescue[]>([])
   const [filter,    setFilter]    = useState<'all' | 'pending' | 'actioned' | 'dismissed'>('pending')
   const [acting,    setActing]    = useState<string | null>(null)
 
@@ -78,9 +91,18 @@ export default function AdminPage() {
     })))
   }, [supabase, filter])
 
+  const fetchRescues = useCallback(async () => {
+    const { data } = await supabase
+      .from('rescues')
+      .select('id, name, ein, city, email, website, verified, created_at')
+      .order('created_at', { ascending: false })
+      .limit(100)
+    setRescues((data ?? []) as PendingRescue[])
+  }, [supabase])
+
   useEffect(() => {
-    if (authed) fetchReports()
-  }, [authed, fetchReports])
+    if (authed) { fetchReports(); fetchRescues() }
+  }, [authed, fetchReports, fetchRescues])
 
   const updateReport = async (id: string, status: string) => {
     setActing(id)
@@ -101,7 +123,23 @@ export default function AdminPage() {
     setActing(null)
   }
 
-  const pendingCount = reports.filter(r => r.status === 'pending').length
+  const verifyRescue = async (id: string) => {
+    setActing(id)
+    await supabase.from('rescues').update({ verified: true, verified_at: new Date().toISOString() }).eq('id', id)
+    setRescues(prev => prev.map(r => r.id === id ? { ...r, verified: true } : r))
+    setActing(null)
+  }
+
+  const rejectRescue = async (id: string) => {
+    if (!confirm('Delete this rescue and all its data? This cannot be undone.')) return
+    setActing(id)
+    await supabase.from('rescues').delete().eq('id', id)
+    setRescues(prev => prev.filter(r => r.id !== id))
+    setActing(null)
+  }
+
+  const pendingRescueCount  = rescues.filter(r => !r.verified).length
+  const pendingCount        = reports.filter(r => r.status === 'pending').length
 
   if (loading) {
     return (
@@ -125,14 +163,127 @@ export default function AdminPage() {
           >
             <ArrowLeft size={18} />
           </button>
-          <h1 className="text-lg font-bold text-white">Moderation</h1>
-          {pendingCount > 0 && (
+          <h1 className="text-lg font-bold text-white">Admin Panel</h1>
+          {(pendingCount + pendingRescueCount) > 0 && (
             <span className="ml-auto bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
-              {pendingCount} pending
+              {pendingCount + pendingRescueCount} pending
             </span>
           )}
         </div>
 
+        {/* Main tabs */}
+        <div className="flex bg-white rounded-2xl shadow-sm mb-4 p-1 gap-1">
+          <button
+            onClick={() => setMainTab('rescues')}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-sm font-semibold transition-all ${
+              mainTab === 'rescues' ? 'text-white' : 'text-gray-500'
+            }`}
+            style={mainTab === 'rescues' ? { backgroundColor: '#e05a4e' } : {}}
+          >
+            <Building2 size={14} />
+            Rescues
+            {pendingRescueCount > 0 && (
+              <span className="bg-amber-400 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                {pendingRescueCount}
+              </span>
+            )}
+          </button>
+          <button
+            onClick={() => setMainTab('reports')}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-sm font-semibold transition-all ${
+              mainTab === 'reports' ? 'text-white' : 'text-gray-500'
+            }`}
+            style={mainTab === 'reports' ? { backgroundColor: '#e05a4e' } : {}}
+          >
+            <Flag size={14} />
+            Reports
+            {pendingCount > 0 && (
+              <span className="bg-amber-400 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                {pendingCount}
+              </span>
+            )}
+          </button>
+        </div>
+
+        {/* ── RESCUES TAB ── */}
+        {mainTab === 'rescues' && (
+          <div className="space-y-3 pb-6">
+            {rescues.length === 0 ? (
+              <div className="bg-white rounded-2xl shadow-sm px-5 py-12 text-center">
+                <Building2 size={32} className="text-gray-300 mx-auto mb-3" />
+                <p className="text-sm font-semibold text-gray-700">No rescues yet</p>
+                <p className="text-xs text-gray-400 mt-1">Shelters that sign up will appear here.</p>
+              </div>
+            ) : (
+              rescues.map(rescue => (
+                <div key={rescue.id} className="bg-white rounded-2xl shadow-sm overflow-hidden">
+                  <div className="px-4 py-3">
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5 mb-0.5">
+                          <span className="text-sm font-bold text-gray-900 truncate">{rescue.name}</span>
+                          {rescue.verified && (
+                            <BadgeCheck size={14} className="text-green-500 flex-shrink-0" />
+                          )}
+                        </div>
+                        <p className="text-xs text-gray-400">{rescue.city}</p>
+                      </div>
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 ${
+                        rescue.verified ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
+                      }`}>
+                        {rescue.verified ? 'Verified' : 'Pending'}
+                      </span>
+                    </div>
+
+                    <p className="text-xs text-gray-500 font-mono mb-0.5">EIN: {rescue.ein}</p>
+                    {rescue.email && <p className="text-xs text-gray-400 mb-0.5">{rescue.email}</p>}
+                    {rescue.website && (
+                      <a href={rescue.website} target="_blank" rel="noopener noreferrer"
+                        className="text-xs text-blue-500 hover:underline">
+                        {rescue.website}
+                      </a>
+                    )}
+                    <p className="text-[10px] text-gray-300 mt-1">
+                      Submitted {new Date(rescue.created_at).toLocaleDateString()}
+                    </p>
+
+                    {!rescue.verified && (
+                      <div className="flex gap-2 mt-3">
+                        <button
+                          onClick={() => rejectRescue(rescue.id)}
+                          disabled={acting === rescue.id}
+                          className="flex-1 py-1.5 rounded-lg border border-red-200 text-xs font-semibold text-red-500 hover:bg-red-50 flex items-center justify-center gap-1"
+                        >
+                          {acting === rescue.id ? <Loader2 size={11} className="animate-spin" /> : <Trash2 size={11} />}
+                          Reject
+                        </button>
+                        <button
+                          onClick={() => verifyRescue(rescue.id)}
+                          disabled={acting === rescue.id}
+                          className="flex-1 py-1.5 rounded-lg text-white text-xs font-semibold flex items-center justify-center gap-1"
+                          style={{ backgroundColor: '#22c55e' }}
+                        >
+                          {acting === rescue.id ? <Loader2 size={11} className="animate-spin" /> : <BadgeCheck size={11} />}
+                          Verify
+                        </button>
+                      </div>
+                    )}
+
+                    {rescue.verified && (
+                      <div className="mt-2 flex items-center gap-1 text-xs text-green-600">
+                        <Check size={11} /> Verified shelter
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        )}
+
+        {/* ── REPORTS TAB ── */}
+        {mainTab === 'reports' && (
+        <>
         {/* Stats */}
         <div className="grid grid-cols-3 gap-2 mb-4">
           {(['all', 'pending', 'actioned'] as const).map(s => (
@@ -157,7 +308,7 @@ export default function AdminPage() {
         </div>
 
         {/* Reports list */}
-        <div className="space-y-3 pb-6">
+        <div className="space-y-3 pb-6" style={{ display: mainTab === 'reports' ? undefined : 'none' }}>
           {reports.length === 0 ? (
             <div className="bg-white rounded-2xl shadow-sm px-5 py-12 text-center">
               <Flag size={32} className="text-gray-300 mx-auto mb-3" />
@@ -254,6 +405,9 @@ export default function AdminPage() {
             ))
           )}
         </div>
+        </>
+        )}
+
       </div>
     </div>
   )

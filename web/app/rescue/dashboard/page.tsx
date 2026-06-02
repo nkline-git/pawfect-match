@@ -246,7 +246,7 @@ export default function RescueDashboardPage() {
             <span className="text-amber-500 mt-0.5">⏳</span>
             <div>
               <p className="text-sm font-semibold text-amber-800">Verification pending</p>
-              <p className="text-xs text-amber-600">Your listings are live but marked as unverified until we confirm your 501(c)(3) status.</p>
+              <p className="text-xs text-amber-600">Our team is reviewing your EIN and 501(c)(3) status. You'll receive a verified badge once approved. Your listings are visible in the meantime.</p>
             </div>
           </div>
         )}
