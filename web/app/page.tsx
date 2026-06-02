@@ -192,6 +192,7 @@ export default function BrowsePage() {
                 transform: `translateX(${swipeDx}px) rotate(${swipeDx * 0.04}deg)`,
                 transition: swipeDx === 0 ? 'transform 0.3s ease' : 'none',
                 willChange: 'transform',
+                touchAction: 'pan-y',
               }}
               onTouchStart={handleTouchStart}
               onTouchMove={handleTouchMove}
