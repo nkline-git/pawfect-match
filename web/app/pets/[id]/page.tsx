@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import {
   ArrowLeft, Heart, MapPin, ExternalLink, Phone, Globe,
-  Clock, DollarSign, Users, Check, Loader2,
+  Clock, DollarSign, Users, Check, Loader2, X, Send,
 } from 'lucide-react'
 import type { Pet } from '@/types'
 
@@ -46,8 +46,10 @@ export default function PetDetailPage() {
   const [pet, setPet]         = useState<PetWithRescue | null>(null)
   const [loading, setLoading] = useState(true)
   const [saved, setSaved]     = useState(false)
-  const [applying, setApplying] = useState(false)
-  const [applied, setApplied] = useState(false)
+  const [applying,       setApplying]       = useState(false)
+  const [applied,        setApplied]        = useState(false)
+  const [showApplyForm,  setShowApplyForm]  = useState(false)
+  const [applyMessage,   setApplyMessage]   = useState('')
 
   useEffect(() => {
     const load = async () => {
@@ -103,12 +105,14 @@ export default function PetDetailPage() {
 
     setApplying(true)
     await supabase.from('applications').insert({
-      user_id: user.id,
-      pet_id: id,
+      user_id:  user.id,
+      pet_id:   id,
       rescue_id: pet.rescue_id,
+      message:  applyMessage.trim() || null,
     })
     setApplying(false)
     setApplied(true)
+    setShowApplyForm(false)
   }
 
   if (loading) {
@@ -132,6 +136,7 @@ export default function PetDetailPage() {
   const feeDisplay = pet.fee != null ? `$${(pet.fee / 100).toFixed(0)} adoption fee` : 'Free / donation'
 
   return (
+    <>
     <div className="min-h-screen flex items-start justify-center py-4 px-4">
       <div className="w-full max-w-[390px]">
 
@@ -275,12 +280,11 @@ export default function PetDetailPage() {
 
         {/* Apply button */}
         <button
-          onClick={handleApply}
-          disabled={applying || applied}
-          className="w-full py-4 rounded-2xl text-white font-semibold text-base transition-all disabled:opacity-60 flex items-center justify-center gap-2 shadow-lg"
+          onClick={() => { if (!applied) setShowApplyForm(true) }}
+          disabled={applied}
+          className="w-full py-4 rounded-2xl text-white font-semibold text-base transition-all disabled:opacity-80 flex items-center justify-center gap-2 shadow-lg"
           style={{ backgroundColor: applied ? '#22c55e' : '#e05a4e' }}
         >
-          {applying && <Loader2 size={18} className="animate-spin" />}
           {applied ? '✓ Application sent!' : `Apply to adopt ${pet.name}`}
         </button>
         <p className="text-center text-xs text-white/60 mt-2 mb-6">
@@ -288,5 +292,70 @@ export default function PetDetailPage() {
         </p>
       </div>
     </div>
+
+    {/* ── Apply slide-up modal ── */}
+    {showApplyForm && (
+      <div
+        className="fixed inset-0 z-50 flex items-end justify-center px-4 pb-6"
+        style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
+        onClick={() => setShowApplyForm(false)}
+      >
+        <div
+          className="w-full max-w-[390px] bg-white rounded-2xl shadow-xl overflow-hidden"
+          onClick={e => e.stopPropagation()}
+        >
+          {/* Modal header */}
+          <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+            <div>
+              <h3 className="font-bold text-gray-900">Apply to adopt {pet.name}</h3>
+              <p className="text-xs text-gray-400 mt-0.5">{pet.rescue?.name}</p>
+            </div>
+            <button onClick={() => setShowApplyForm(false)} className="text-gray-400 hover:text-gray-600">
+              <X size={18} />
+            </button>
+          </div>
+
+          <div className="px-5 py-4">
+            {/* Pet summary */}
+            <div className="flex items-center gap-3 bg-gray-50 rounded-xl px-3 py-2.5 mb-4">
+              <span className="text-2xl">{SPECIES_EMOJI[pet.species] ?? '🐾'}</span>
+              <div>
+                <p className="text-sm font-semibold text-gray-900">{pet.name}</p>
+                <p className="text-xs text-gray-500">{[pet.breed, pet.age, pet.gender].filter(Boolean).join(' · ')}</p>
+              </div>
+            </div>
+
+            {/* Message */}
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">
+              Message to the rescue <span className="text-gray-400 font-normal">(optional)</span>
+            </label>
+            <textarea
+              value={applyMessage}
+              onChange={e => setApplyMessage(e.target.value)}
+              placeholder={`Tell ${pet.rescue?.name ?? 'the rescue'} a little about yourself — your home, lifestyle, experience with pets…`}
+              rows={4}
+              maxLength={500}
+              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none resize-none mb-1 placeholder:text-gray-400"
+              onFocus={e => e.target.style.borderColor = '#e05a4e'}
+              onBlur={e => e.target.style.borderColor = '#e5e7eb'}
+            />
+            <p className="text-[11px] text-gray-400 text-right mb-4">{applyMessage.length}/500</p>
+
+            <button
+              onClick={handleApply}
+              disabled={applying}
+              className="w-full py-3 rounded-xl text-white font-semibold flex items-center justify-center gap-2 disabled:opacity-50"
+              style={{ backgroundColor: '#e05a4e' }}
+            >
+              {applying
+                ? <><Loader2 size={16} className="animate-spin" /> Sending…</>
+                : <><Send size={15} /> Send application</>
+              }
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   )
 }

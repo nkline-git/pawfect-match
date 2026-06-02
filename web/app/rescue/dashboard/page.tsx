@@ -296,7 +296,12 @@ export default function RescueDashboardPage() {
                     <div className="flex-1 min-w-0">
                       <p className="font-semibold text-gray-900">{app.profile?.first_name ?? 'Someone'}</p>
                       <p className="text-xs text-gray-500">{app.profile?.city} · applied for <strong>{app.pet?.name}</strong></p>
-                      {app.profile?.bio && (
+                      {app.message && (
+                        <p className="text-xs text-gray-600 mt-1.5 bg-gray-50 rounded-lg px-2.5 py-1.5 line-clamp-3">
+                          "{app.message}"
+                        </p>
+                      )}
+                      {!app.message && app.profile?.bio && (
                         <p className="text-xs text-gray-400 mt-1 line-clamp-2">{app.profile.bio}</p>
                       )}
                     </div>
