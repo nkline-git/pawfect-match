@@ -1,8 +1,9 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { Star, ExternalLink, MapPin, Navigation, Loader2, Phone, Globe, ChevronDown, ChevronUp } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { Star, ExternalLink, MapPin, Loader2, Phone, Globe, ChevronDown, ChevronUp, Search, Navigation } from 'lucide-react'
 import BottomNav from '@/components/ui/BottomNav'
+import { createClient } from '@/lib/supabase/client'
 
 // ── Known big-box chains ───────────────────────────────────────────
 const CHAIN_NAMES = [
@@ -95,19 +96,56 @@ function fmt(cents: number) { return `$${(cents / 100).toFixed(2)}` }
 
 // ── Nearby stores section ──────────────────────────────────────────
 function NearbyStores() {
-  const [status,    setStatus]    = useState<'idle' | 'locating' | 'fetching' | 'done' | 'error'>('idle')
-  const [stores,    setStores]    = useState<Store[]>([])
-  const [errorMsg,  setErrorMsg]  = useState('')
-  const [showChains, setShowChains] = useState(false)
+  const supabase = createClient()
+  type Status = 'loading-profile' | 'input' | 'geocoding' | 'fetching' | 'done' | 'error'
+  const [status,       setStatus]       = useState<Status>('loading-profile')
+  const [stores,       setStores]       = useState<Store[]>([])
+  const [errorMsg,     setErrorMsg]     = useState('')
+  const [showChains,   setShowChains]   = useState(false)
+  const [cityInput,    setCityInput]    = useState('')
+  const [resolvedCity, setResolvedCity] = useState('')
+  const inputRef = useRef<HTMLInputElement>(null)
 
-  const locate = () => {
-    if (!navigator.geolocation) { setStatus('error'); setErrorMsg('Geolocation not supported by your browser.'); return }
-    setStatus('locating')
-    navigator.geolocation.getCurrentPosition(
-      pos => fetchStores(pos.coords.latitude, pos.coords.longitude),
-      () => { setStatus('error'); setErrorMsg('Location access denied. Enable it in your browser settings.') },
-      { timeout: 10000 }
-    )
+  // On mount: pull city from profile and auto-search
+  useEffect(() => {
+    const init = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        const { data: profile } = await supabase
+          .from('profiles').select('city').eq('id', user.id).single()
+        if (profile?.city) {
+          setCityInput(profile.city)
+          geocodeAndFetch(profile.city)
+          return
+        }
+      }
+      setStatus('input') // no profile city — show manual input
+    }
+    init()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const geocodeAndFetch = async (cityStr: string) => {
+    const trimmed = cityStr.trim()
+    if (!trimmed) return
+    setStatus('geocoding')
+    setResolvedCity(trimmed)
+    try {
+      const geoRes = await fetch(
+        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(trimmed)}&format=json&limit=1`,
+        { headers: { 'Accept-Language': 'en-US,en' } }
+      )
+      const geoJson = await geoRes.json()
+      if (!geoJson.length) {
+        setStatus('error')
+        setErrorMsg(`Couldn't find "${trimmed}". Try a different city or zip code.`)
+        return
+      }
+      await fetchStores(parseFloat(geoJson[0].lat), parseFloat(geoJson[0].lon))
+    } catch {
+      setStatus('error')
+      setErrorMsg('Could not look up that location. Check your connection and try again.')
+    }
   }
 
   const fetchStores = async (lat: number, lon: number) => {
@@ -116,7 +154,6 @@ function NearbyStores() {
       const query = `[out:json][timeout:25];(node["shop"="pet"](around:24000,${lat},${lon});way["shop"="pet"](around:24000,${lat},${lon}););out center;`
       const res  = await fetch('https://overpass-api.de/api/interpreter', { method: 'POST', body: query })
       const json = await res.json()
-
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const parsed: Store[] = (json.elements ?? []).map((el: any) => {
         const elLat = el.lat ?? el.center?.lat
@@ -125,19 +162,15 @@ function NearbyStores() {
         const name  = tags.name ?? tags['name:en'] ?? 'Pet Store'
         const parts = [tags['addr:housenumber'], tags['addr:street'], tags['addr:city']].filter(Boolean)
         return {
-          id:       el.id,
-          name,
-          lat:      elLat,
-          lon:      elLon,
+          id: el.id, name, lat: elLat, lon: elLon,
           distance: haversine(lat, lon, elLat, elLon),
-          phone:    tags.phone ?? tags['contact:phone'],
-          website:  tags.website ?? tags['contact:website'],
-          address:  parts.length ? parts.join(' ') : undefined,
-          chain:    isChain(name),
+          phone:   tags.phone ?? tags['contact:phone'],
+          website: tags.website ?? tags['contact:website'],
+          address: parts.length ? parts.join(' ') : undefined,
+          chain:   isChain(name),
         } as Store
-      }).filter((s: Store) => s.lat && s.name !== 'Pet Store' || s.lat)
+      }).filter((s: Store) => s.lat)
         .sort((a: Store, b: Store) => a.distance - b.distance)
-
       setStores(parsed)
       setStatus('done')
     } catch {
@@ -148,31 +181,59 @@ function NearbyStores() {
 
   const independents = stores.filter(s => !s.chain)
   const chains       = stores.filter(s => s.chain)
-  const hasStores    = stores.length > 0
 
-  if (status === 'idle') {
-    return (
+  // City input field (shown when no profile city or user wants to change)
+  const CitySearchBar = ({ label }: { label?: string }) => (
+    <div className="flex gap-2 mb-3">
+      <div className="flex-1 flex items-center gap-2 bg-white rounded-xl shadow-sm px-3 py-2.5 border border-gray-200">
+        <MapPin size={14} className="text-gray-400 flex-shrink-0" />
+        <input
+          ref={inputRef}
+          value={cityInput}
+          onChange={e => setCityInput(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && geocodeAndFetch(cityInput)}
+          placeholder="City or zip code…"
+          className="flex-1 text-sm outline-none text-gray-800 placeholder:text-gray-400 bg-transparent"
+        />
+      </div>
       <button
-        onClick={locate}
-        className="w-full flex items-center gap-2.5 px-4 py-3 rounded-2xl mb-3 text-white text-sm font-medium"
-        style={{ background: 'linear-gradient(135deg,#3b82f6,#1d4ed8)' }}
+        onClick={() => geocodeAndFetch(cityInput)}
+        disabled={!cityInput.trim()}
+        className="px-4 rounded-xl text-white text-sm font-semibold disabled:opacity-40 flex items-center gap-1.5"
+        style={{ backgroundColor: '#e05a4e' }}
       >
-        <Navigation size={16} />
-        <span>Find pet stores near me</span>
-        <span className="ml-auto text-white/70">→</span>
+        <Search size={14} />{label ?? 'Search'}
       </button>
+    </div>
+  )
+
+  if (status === 'loading-profile') {
+    return (
+      <div className="bg-white rounded-2xl shadow-sm px-4 py-4 mb-3 flex items-center gap-3">
+        <Loader2 size={16} className="animate-spin text-gray-400 flex-shrink-0" />
+        <p className="text-sm text-gray-500">Loading your location…</p>
+      </div>
     )
   }
 
-  if (status === 'locating' || status === 'fetching') {
+  if (status === 'input') {
+    return (
+      <div className="mb-3">
+        <p className="text-xs font-semibold text-gray-500 mb-1.5 px-1">🏪 Find pet stores near you</p>
+        <CitySearchBar label="Find stores" />
+      </div>
+    )
+  }
+
+  if (status === 'geocoding' || status === 'fetching') {
     return (
       <div className="bg-white rounded-2xl shadow-sm px-4 py-4 mb-3 flex items-center gap-3">
-        <Loader2 size={18} className="animate-spin flex-shrink-0" style={{ color: '#3b82f6' }} />
+        <Loader2 size={18} className="animate-spin flex-shrink-0" style={{ color: '#e05a4e' }} />
         <div>
           <p className="text-sm font-semibold text-gray-800">
-            {status === 'locating' ? 'Getting your location…' : 'Finding nearby stores…'}
+            {status === 'geocoding' ? `Looking up ${resolvedCity}…` : 'Finding nearby stores…'}
           </p>
-          <p className="text-xs text-gray-400">This only takes a moment</p>
+          <p className="text-xs text-gray-400">Just a moment</p>
         </div>
       </div>
     )
@@ -180,13 +241,15 @@ function NearbyStores() {
 
   if (status === 'error') {
     return (
-      <div className="bg-red-50 border border-red-200 rounded-2xl px-4 py-3 mb-3 flex items-center gap-2.5">
-        <MapPin size={16} className="text-red-400 flex-shrink-0" />
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-red-700">Could not get location</p>
-          <p className="text-xs text-red-500">{errorMsg}</p>
+      <div className="mb-3">
+        <div className="bg-red-50 border border-red-200 rounded-2xl px-4 py-3 mb-2 flex items-start gap-2.5">
+          <MapPin size={15} className="text-red-400 flex-shrink-0 mt-0.5" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-red-700">Location not found</p>
+            <p className="text-xs text-red-500">{errorMsg}</p>
+          </div>
         </div>
-        <button onClick={locate} className="text-xs text-red-600 font-semibold underline flex-shrink-0">Retry</button>
+        <CitySearchBar label="Try again" />
       </div>
     )
   }
@@ -198,14 +261,20 @@ function NearbyStores() {
       <div className="flex items-center justify-between mb-2 px-1">
         <p className="text-sm font-bold text-gray-800 flex items-center gap-1.5">
           <MapPin size={14} style={{ color: '#e05a4e' }} />
-          Pet Stores Near You
+          Near {resolvedCity}
         </p>
-        <span className="text-xs text-gray-400">{stores.length} found</span>
+        <button
+          onClick={() => { setStatus('input'); setStores([]); setTimeout(() => inputRef.current?.focus(), 50) }}
+          className="text-xs font-medium underline"
+          style={{ color: '#e05a4e' }}
+        >
+          Change city
+        </button>
       </div>
 
-      {!hasStores && (
-        <div className="bg-white rounded-2xl shadow-sm px-4 py-5 text-center text-sm text-gray-400">
-          No pet stores found within 15 miles. Try online options below.
+      {stores.length === 0 && (
+        <div className="bg-white rounded-2xl shadow-sm px-4 py-5 text-center text-sm text-gray-400 mb-2">
+          No pet stores found within 15 miles of {resolvedCity}.
         </div>
       )}
 
