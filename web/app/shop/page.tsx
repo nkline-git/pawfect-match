@@ -79,6 +79,27 @@ const PRODUCTS: Product[] = [
   { id:'16', category:'travel',   name:'Ruffwear Front Range Pack',    sub:'Dog Hiking Backpack',          price:5999, compare:6999, emoji:'🎒', brand:'Ruffwear',      rating:4.8, reviews:1204,  badge:'14% off',         url:'https://www.chewy.com/s?query=ruffwear+front+range+pack' },
 ]
 
+// ── Product photos: Unsplash (emoji fallback on load error) ────────
+const PRODUCT_PHOTOS: Record<string, string> = {
+  '1':  'https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=400&h=280&fit=crop&q=80', // dog at bowl
+  '2':  'https://images.unsplash.com/photo-1568640347023-a616a30bc3bd?w=400&h=280&fit=crop&q=80', // dog eating
+  '3':  'https://images.unsplash.com/photo-1589924691995-400dc9a3fb8e?w=400&h=280&fit=crop&q=80', // pet food
+  '4':  'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=400&h=280&fit=crop&q=80', // cat close-up
+  '5':  'https://images.unsplash.com/photo-1535930891776-0c2dfb7fda1a?w=400&h=280&fit=crop&q=80', // dog with toy
+  '6':  'https://images.unsplash.com/photo-1543466835-00a7907e9de1?w=400&h=280&fit=crop&q=80',    // golden retriever
+  '7':  'https://images.unsplash.com/photo-1548199973-03cce0bbc87b?w=400&h=280&fit=crop&q=80',    // two huskies
+  '8':  'https://images.unsplash.com/photo-1560743641-3914f2c45636?w=400&h=280&fit=crop&q=80',    // cat lying
+  '9':  'https://images.unsplash.com/photo-1583511655826-05700442b31b?w=400&h=280&fit=crop&q=80', // dog in bed
+  '10': 'https://images.unsplash.com/photo-1573246123716-6b1782bfc499?w=400&h=280&fit=crop&q=80', // sleeping cat
+  '11': 'https://images.unsplash.com/photo-1591946614720-90a587da4a36?w=400&h=280&fit=crop&q=80', // dog groomed
+  '12': 'https://images.unsplash.com/photo-1446071103084-c257b5f70672?w=400&h=280&fit=crop&q=80', // dog bath
+  '13': 'https://images.unsplash.com/photo-1576201836106-db1758fd1c97?w=400&h=280&fit=crop&q=80', // vet with dog
+  '14': 'https://images.unsplash.com/photo-1450778869180-41d0601e046e?w=400&h=280&fit=crop&q=80', // calm dogs
+  '15': 'https://images.unsplash.com/photo-1601758125946-6ec2ef64daf8?w=400&h=280&fit=crop&q=80', // dog in car
+  '16': 'https://images.unsplash.com/photo-1508068096726-f4c7c7d68696?w=400&h=280&fit=crop&q=80', // dog hiking
+}
+
+// ── Star rating ────────────────────────────────────────────────────
 function Stars({ rating }: { rating: number }) {
   return (
     <div className="flex items-center gap-0.5">
@@ -93,6 +114,156 @@ function Stars({ rating }: { rating: number }) {
 }
 
 function fmt(cents: number) { return `$${(cents / 100).toFixed(2)}` }
+
+// ── Product card ───────────────────────────────────────────────────
+function ProductCard({ p }: { p: Product }) {
+  const [imgOk, setImgOk] = useState(true)
+  const photo = PRODUCT_PHOTOS[p.id]
+
+  return (
+    <a
+      href={p.url}
+      target="_blank"
+      rel="noreferrer"
+      className="bg-white rounded-2xl shadow-sm overflow-hidden flex flex-col hover:shadow-md transition-shadow"
+    >
+      <div className="h-32 relative overflow-hidden bg-gray-50">
+        {photo && imgOk ? (
+          <img
+            src={photo}
+            alt={p.name}
+            className="w-full h-full object-cover"
+            loading="lazy"
+            onError={() => setImgOk(false)}
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center">
+            <span className="text-5xl">{p.emoji}</span>
+          </div>
+        )}
+        {p.badge && (
+          <span
+            className="absolute top-2 left-2 text-[10px] font-bold px-1.5 py-0.5 rounded-full text-white"
+            style={{ backgroundColor: p.badge.includes('%') ? '#22c55e' : '#e05a4e' }}
+          >
+            {p.badge}
+          </span>
+        )}
+      </div>
+      <div className="p-2.5 flex flex-col flex-1">
+        <p className="text-[10px] text-gray-400 mb-0.5">{p.brand}</p>
+        <p className="text-xs font-semibold text-gray-900 leading-tight line-clamp-2 mb-1">{p.name}</p>
+        <p className="text-[10px] text-gray-400 line-clamp-1 mb-1.5">{p.sub}</p>
+        <div className="flex items-center gap-1 mb-1.5">
+          <Stars rating={p.rating} />
+          <span className="text-[10px] text-gray-400">({p.reviews.toLocaleString()})</span>
+        </div>
+        <div className="mt-auto">
+          <div className="flex items-baseline gap-1.5">
+            <span className="text-sm font-bold text-gray-900">{fmt(p.price)}</span>
+            {p.compare && <span className="text-[10px] text-gray-400 line-through">{fmt(p.compare)}</span>}
+          </div>
+          <div
+            className="mt-1.5 w-full py-1.5 rounded-xl text-white text-[11px] font-semibold text-center flex items-center justify-center gap-1"
+            style={{ backgroundColor: '#e05a4e' }}
+          >
+            Shop on Chewy <ExternalLink size={9} />
+          </div>
+        </div>
+      </div>
+    </a>
+  )
+}
+
+// ── Store card ─────────────────────────────────────────────────────
+function StoreCard({ store }: { store: Store }) {
+  const [mapOk, setMapOk] = useState(true)
+  const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${store.lat},${store.lon}`
+  const mapUrl  = `https://staticmap.openstreetmap.de/staticmap.php?center=${store.lat},${store.lon}&zoom=15&size=390x120&markers=${store.lat},${store.lon},red-pushpin`
+  const hue     = store.name.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0) % 360
+  const initial = store.name.trim()[0]?.toUpperCase() ?? '?'
+
+  return (
+    <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+      {/* Map thumbnail */}
+      <div className="relative overflow-hidden" style={{ height: 100 }}>
+        {mapOk ? (
+          <img
+            src={mapUrl}
+            alt=""
+            className="w-full h-full object-cover"
+            loading="lazy"
+            onError={() => setMapOk(false)}
+          />
+        ) : (
+          <div
+            className="w-full h-full flex items-center justify-center"
+            style={{ background: `linear-gradient(135deg, hsl(${hue},35%,88%), hsl(${(hue+40)%360},35%,82%))` }}
+          >
+            <MapPin size={36} style={{ color: `hsl(${hue},45%,50%)`, opacity: 0.35 }} />
+          </div>
+        )}
+        {/* Bottom gradient for readability */}
+        <div className="absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-black/15 to-transparent pointer-events-none" />
+        {/* Badges */}
+        {!store.chain && (
+          <span className="absolute top-2 left-2 text-[10px] font-bold bg-green-500 text-white px-1.5 py-0.5 rounded-full shadow-sm">
+            Local
+          </span>
+        )}
+        <span className="absolute top-2 right-2 text-xs font-bold bg-white/90 backdrop-blur-sm text-blue-600 px-2 py-0.5 rounded-full shadow-sm">
+          {fmtMiles(store.distance)}
+        </span>
+      </div>
+
+      {/* Store info */}
+      <div className="px-3 pt-2.5 pb-3">
+        <div className="flex items-center gap-2.5 mb-2.5">
+          <div
+            className="w-9 h-9 rounded-xl flex items-center justify-center text-white text-base font-bold flex-shrink-0 shadow-sm"
+            style={{ backgroundColor: `hsl(${hue},50%,45%)` }}
+          >
+            {initial}
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-bold text-gray-900 truncate">{store.name}</p>
+            {store.address && <p className="text-xs text-gray-400 truncate">{store.address}</p>}
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <a
+            href={mapsUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex-1 py-1.5 rounded-lg text-white text-xs font-semibold text-center flex items-center justify-center gap-1"
+            style={{ backgroundColor: '#3b82f6' }}
+          >
+            <Navigation size={11} /> Directions
+          </a>
+          {store.phone && (
+            <a
+              href={`tel:${store.phone}`}
+              className="flex-1 py-1.5 rounded-lg border border-gray-200 text-xs font-semibold text-gray-700 text-center flex items-center justify-center gap-1"
+            >
+              <Phone size={11} /> Call
+            </a>
+          )}
+          {store.website && (
+            <a
+              href={store.website.startsWith('http') ? store.website : `https://${store.website}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex-1 py-1.5 rounded-lg border border-gray-200 text-xs font-semibold text-gray-700 text-center flex items-center justify-center gap-1"
+            >
+              <Globe size={11} /> Website
+            </a>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
 
 // ── Nearby stores section ──────────────────────────────────────────
 function NearbyStores() {
@@ -317,68 +488,17 @@ function NearbyStores() {
   )
 }
 
-function StoreCard({ store }: { store: Store }) {
-  const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${store.lat},${store.lon}`
-
-  return (
-    <div className="bg-white rounded-2xl shadow-sm px-4 py-3">
-      <div className="flex items-start justify-between gap-2 mb-1">
-        <div className="min-w-0">
-          <p className="text-sm font-bold text-gray-900 truncate">{store.name}</p>
-          {store.address && <p className="text-xs text-gray-400 truncate">{store.address}</p>}
-        </div>
-        <div className="flex flex-col items-end flex-shrink-0 gap-1">
-          <span className="text-xs font-semibold" style={{ color: '#3b82f6' }}>{fmtMiles(store.distance)}</span>
-          {!store.chain && (
-            <span className="text-[10px] font-bold text-green-700 bg-green-100 px-1.5 py-0.5 rounded-full">Local</span>
-          )}
-        </div>
-      </div>
-
-      <div className="flex items-center gap-2 mt-2">
-        <a
-          href={mapsUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex-1 py-1.5 rounded-lg text-white text-xs font-semibold text-center flex items-center justify-center gap-1"
-          style={{ backgroundColor: '#3b82f6' }}
-        >
-          <Navigation size={11} /> Directions
-        </a>
-        {store.phone && (
-          <a
-            href={`tel:${store.phone}`}
-            className="flex-1 py-1.5 rounded-lg border border-gray-200 text-xs font-semibold text-gray-700 text-center flex items-center justify-center gap-1"
-          >
-            <Phone size={11} /> Call
-          </a>
-        )}
-        {store.website && (
-          <a
-            href={store.website.startsWith('http') ? store.website : `https://${store.website}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex-1 py-1.5 rounded-lg border border-gray-200 text-xs font-semibold text-gray-700 text-center flex items-center justify-center gap-1"
-          >
-            <Globe size={11} /> Website
-          </a>
-        )}
-      </div>
-    </div>
-  )
-}
-
 // ── Main page ──────────────────────────────────────────────────────
 export default function ShopPage() {
   const [cat, setCat] = useState('all')
   const products = cat === 'all' ? PRODUCTS : PRODUCTS.filter(p => p.category === cat)
 
   return (
-    <div className="min-h-screen flex items-start justify-center py-4 px-4">
-      <div className="w-full max-w-[390px] flex flex-col" style={{ minHeight: 'calc(100vh - 2rem)' }}>
+    <div className="h-dvh flex items-start justify-center px-3 py-2 overflow-hidden">
+      <div className="w-full max-w-[390px] h-full flex flex-col overflow-hidden">
 
         {/* Header */}
-        <header className="flex items-center justify-between px-4 py-3 bg-white rounded-2xl shadow-sm mb-3">
+        <header className="flex items-center justify-between px-4 py-3 bg-white rounded-2xl shadow-sm mb-3 flex-shrink-0">
           <div className="flex items-center gap-1.5">
             <span className="text-lg">🛍️</span>
             <span className="text-xl font-bold">
@@ -389,84 +509,50 @@ export default function ShopPage() {
           <span className="text-xs font-medium text-gray-400 bg-gray-100 px-2 py-1 rounded-full">via Chewy</span>
         </header>
 
-        {/* Nearby stores */}
-        <NearbyStores />
+        {/* Scrollable content */}
+        <div className="flex-1 overflow-y-auto pb-2">
 
-        {/* Discount banner */}
-        <div
-          className="rounded-2xl p-4 mb-3 flex items-center gap-3"
-          style={{ background: 'linear-gradient(135deg,#e05a4e,#c44b40)' }}
-        >
-          <span className="text-4xl">🐾</span>
-          <div className="text-white">
-            <p className="font-bold text-sm">New adopter discount</p>
-            <p className="text-xs opacity-80">20% off your first order with code <strong>PAWFECT20</strong></p>
+          {/* Nearby stores */}
+          <NearbyStores />
+
+          {/* Discount banner */}
+          <div
+            className="rounded-2xl p-4 mb-3 flex items-center gap-3"
+            style={{ background: 'linear-gradient(135deg,#e05a4e,#c44b40)' }}
+          >
+            <span className="text-4xl">🐾</span>
+            <div className="text-white">
+              <p className="font-bold text-sm">New adopter discount</p>
+              <p className="text-xs opacity-80">20% off your first order with code <strong>PAWFECT20</strong></p>
+            </div>
           </div>
-        </div>
 
-        {/* Category filter */}
-        <div className="flex gap-2 mb-3 overflow-x-auto scrollbar-none px-1">
-          {CATEGORIES.map(c => (
-            <button
-              key={c.value}
-              onClick={() => setCat(c.value)}
-              className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap border transition-all flex-shrink-0 ${
-                cat === c.value
-                  ? 'text-white border-transparent'
-                  : 'bg-white text-gray-600 border-gray-200'
-              }`}
-              style={cat === c.value ? { backgroundColor: '#e05a4e', borderColor: '#e05a4e' } : {}}
-            >
-              <span>{c.icon}</span>{c.label}
-            </button>
-          ))}
-        </div>
+          {/* Category filter */}
+          <div className="flex gap-2 mb-3 overflow-x-auto scrollbar-none px-1">
+            {CATEGORIES.map(c => (
+              <button
+                key={c.value}
+                onClick={() => setCat(c.value)}
+                className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap border transition-all flex-shrink-0 ${
+                  cat === c.value
+                    ? 'text-white border-transparent'
+                    : 'bg-white text-gray-600 border-gray-200'
+                }`}
+                style={cat === c.value ? { backgroundColor: '#e05a4e', borderColor: '#e05a4e' } : {}}
+              >
+                <span>{c.icon}</span>{c.label}
+              </button>
+            ))}
+          </div>
 
-        {/* Product grid */}
-        <div className="flex-1 grid grid-cols-2 gap-3 pb-4">
-          {products.map(p => (
-            <a
-              key={p.id}
-              href={p.url}
-              target="_blank"
-              rel="noreferrer"
-              className="bg-white rounded-2xl shadow-sm overflow-hidden flex flex-col hover:shadow-md transition-shadow"
-            >
-              <div className="h-28 flex items-center justify-center bg-gray-50 relative">
-                <span className="text-5xl">{p.emoji}</span>
-                {p.badge && (
-                  <span
-                    className="absolute top-2 left-2 text-[10px] font-bold px-1.5 py-0.5 rounded-full text-white"
-                    style={{ backgroundColor: p.badge.includes('%') ? '#22c55e' : '#e05a4e' }}
-                  >
-                    {p.badge}
-                  </span>
-                )}
-              </div>
-              <div className="p-2.5 flex flex-col flex-1">
-                <p className="text-[10px] text-gray-400 mb-0.5">{p.brand}</p>
-                <p className="text-xs font-semibold text-gray-900 leading-tight line-clamp-2 mb-1">{p.name}</p>
-                <p className="text-[10px] text-gray-400 line-clamp-1 mb-1.5">{p.sub}</p>
-                <div className="flex items-center gap-1 mb-1.5">
-                  <Stars rating={p.rating} />
-                  <span className="text-[10px] text-gray-400">({p.reviews.toLocaleString()})</span>
-                </div>
-                <div className="mt-auto">
-                  <div className="flex items-baseline gap-1.5">
-                    <span className="text-sm font-bold text-gray-900">{fmt(p.price)}</span>
-                    {p.compare && <span className="text-[10px] text-gray-400 line-through">{fmt(p.compare)}</span>}
-                  </div>
-                  <div
-                    className="mt-1.5 w-full py-1.5 rounded-xl text-white text-[11px] font-semibold text-center flex items-center justify-center gap-1"
-                    style={{ backgroundColor: '#e05a4e' }}
-                  >
-                    Shop on Chewy <ExternalLink size={9} />
-                  </div>
-                </div>
-              </div>
-            </a>
-          ))}
-        </div>
+          {/* Product grid */}
+          <div className="grid grid-cols-2 gap-3 pb-2">
+            {products.map(p => (
+              <ProductCard key={p.id} p={p} />
+            ))}
+          </div>
+
+        </div>{/* end scrollable */}
 
         <BottomNav />
       </div>
