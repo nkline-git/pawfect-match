@@ -7,9 +7,21 @@ import { useRescue } from '@/hooks/useRescue'
 import { usePets } from '@/hooks/usePets'
 import {
   PlusCircle, Loader2, Check, X, LogOut,
-  Users, Heart, Home, Bell,
+  Users, Heart, Home, Bell, UserCog, ExternalLink,
 } from 'lucide-react'
+import Link from 'next/link'
 import type { Pet, PetSpecies } from '@/types'
+
+const LOGO_OPTIONS = ['🏠', '🐾', '🐕', '🐱', '🐰', '🦮', '🐕‍🦺', '🏡', '💛', '🌟']
+const BANNER_GRADIENTS = [
+  { label: 'Ocean',   value: 'linear-gradient(135deg,#1A4A9C,#2D7DD2)' },
+  { label: 'Coral',   value: 'linear-gradient(135deg,#e05a4e,#c44b40)' },
+  { label: 'Forest',  value: 'linear-gradient(135deg,#059669,#10b981)' },
+  { label: 'Purple',  value: 'linear-gradient(135deg,#7c3aed,#a855f7)' },
+  { label: 'Sunset',  value: 'linear-gradient(135deg,#f59e0b,#ef4444)' },
+  { label: 'Slate',   value: 'linear-gradient(135deg,#374151,#6b7280)' },
+]
+const ANIMAL_TYPES = ['Dogs', 'Cats', 'Rabbits', 'Birds', 'Reptiles', 'Small Animals', 'Farm Animals']
 
 type Application = {
   id: string
@@ -61,11 +73,11 @@ const EMPTY_PET: NewPet = {
 export default function RescueDashboardPage() {
   const router   = useRouter()
   const supabase = createClient()
-  const { rescue, loading: rescueLoading } = useRescue()
+  const { rescue, loading: rescueLoading, updateRescue } = useRescue()
   const { pets, loading: petsLoading, refetch } = usePets({ rescueId: rescue?.id })
 
   const [authed, setAuthed]     = useState<boolean | null>(null)
-  const [tab, setTab]           = useState<'listings' | 'applications'>('listings')
+  const [tab, setTab]           = useState<'listings' | 'applications' | 'profile'>('listings')
   const [showForm, setShowForm] = useState(false)
   const [form, setForm]         = useState<NewPet>({ ...EMPTY_PET })
   const [saving, setSaving]     = useState(false)
@@ -73,12 +85,47 @@ export default function RescueDashboardPage() {
   const [applications, setApplications] = useState<Application[]>([])
   const [appsLoading, setAppsLoading]   = useState(false)
 
+  // Profile edit state
+  const [pLogo,        setPLogo]        = useState('🏠')
+  const [pBanner,      setPBanner]      = useState(BANNER_GRADIENTS[0].value)
+  const [pName,        setPName]        = useState('')
+  const [pCity,        setPCity]        = useState('')
+  const [pMission,     setPMission]     = useState('')
+  const [pPhone,       setPPhone]       = useState('')
+  const [pEmail,       setPEmail]       = useState('')
+  const [pWebsite,     setPWebsite]     = useState('')
+  const [pHours,       setPHours]       = useState('')
+  const [pFeeRange,    setPFeeRange]    = useState('')
+  const [pAnimalTypes, setPAnimalTypes] = useState<string[]>([])
+  const [pReqNotes,    setPReqNotes]    = useState('')
+  const [pSaving,      setPSaving]      = useState(false)
+  const [pSaved,       setPSaved]       = useState(false)
+  const [pError,       setPError]       = useState<string | null>(null)
+
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
       if (!data.user) router.replace('/login')
       else setAuthed(true)
     })
   }, [supabase, router])
+
+  // Populate profile form when rescue loads
+  useEffect(() => {
+    if (rescue) {
+      setPLogo(rescue.logo)
+      setPBanner(rescue.banner_gradient ?? BANNER_GRADIENTS[0].value)
+      setPName(rescue.name)
+      setPCity(rescue.city)
+      setPMission(rescue.mission ?? '')
+      setPPhone(rescue.phone ?? '')
+      setPEmail(rescue.email ?? '')
+      setPWebsite(rescue.website ?? '')
+      setPHours(rescue.hours ?? '')
+      setPFeeRange(rescue.fee_range ?? '')
+      setPAnimalTypes(rescue.animal_types ?? [])
+      setPReqNotes(rescue.requirement_notes ?? '')
+    }
+  }, [rescue])
 
   // Load applications when tab switches or rescue loads
   useEffect(() => {
@@ -99,6 +146,30 @@ export default function RescueDashboardPage() {
   const updateAppStatus = async (appId: string, status: string) => {
     await supabase.from('applications').update({ status }).eq('id', appId)
     setApplications(prev => prev.map(a => a.id === appId ? { ...a, status } : a))
+  }
+
+  const handleProfileSave = async () => {
+    if (!pName.trim() || !pCity.trim()) { setPError('Name and city are required.'); return }
+    setPSaving(true)
+    setPError(null)
+    const { error: err } = await updateRescue({
+      logo:              pLogo,
+      banner_gradient:   pBanner,
+      name:              pName.trim(),
+      city:              pCity.trim(),
+      mission:           pMission.trim() || null,
+      phone:             pPhone.trim() || null,
+      email:             pEmail.trim() || null,
+      website:           pWebsite.trim() || null,
+      hours:             pHours.trim() || null,
+      fee_range:         pFeeRange.trim() || null,
+      animal_types:      pAnimalTypes,
+      requirement_notes: pReqNotes.trim() || null,
+    })
+    setPSaving(false)
+    if (err) { setPError(err); return }
+    setPSaved(true)
+    setTimeout(() => setPSaved(false), 3000)
   }
 
   const setField = <K extends keyof NewPet>(key: K, val: NewPet[K]) =>
@@ -214,7 +285,9 @@ export default function RescueDashboardPage() {
             <span className="text-2xl">{rescue.logo}</span>
             <div>
               <h1 className="text-white font-bold leading-tight">{rescue.name}</h1>
-              <p className="text-white/60 text-xs">{rescue.city}</p>
+              <Link href={`/rescues/${rescue.id}`} className="text-white/60 text-xs flex items-center gap-1 hover:text-white/80">
+                {rescue.city} <ExternalLink size={10} />
+              </Link>
             </div>
           </div>
           <button
@@ -252,10 +325,10 @@ export default function RescueDashboardPage() {
         )}
 
         {/* Tabs */}
-        <div className="flex bg-white rounded-2xl shadow-sm mb-4 p-1">
+        <div className="flex bg-white rounded-2xl shadow-sm mb-4 p-1 gap-1">
           <button
             onClick={() => setTab('listings')}
-            className={`flex-1 py-2 rounded-xl text-sm font-semibold transition-all ${
+            className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-all ${
               tab === 'listings' ? 'text-white' : 'text-gray-500 hover:text-gray-700'
             }`}
             style={tab === 'listings' ? { backgroundColor: '#e05a4e' } : {}}
@@ -264,13 +337,23 @@ export default function RescueDashboardPage() {
           </button>
           <button
             onClick={() => setTab('applications')}
-            className={`flex-1 py-2 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-1.5 ${
+            className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-1 ${
               tab === 'applications' ? 'text-white' : 'text-gray-500 hover:text-gray-700'
             }`}
             style={tab === 'applications' ? { backgroundColor: '#e05a4e' } : {}}
           >
-            <Bell size={13} />
-            Applications
+            <Bell size={12} />
+            Apps
+          </button>
+          <button
+            onClick={() => setTab('profile')}
+            className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-1 ${
+              tab === 'profile' ? 'text-white' : 'text-gray-500 hover:text-gray-700'
+            }`}
+            style={tab === 'profile' ? { backgroundColor: '#e05a4e' } : {}}
+          >
+            <UserCog size={12} />
+            Profile
           </button>
         </div>
 
@@ -569,6 +652,194 @@ export default function RescueDashboardPage() {
                 Add listing
               </button>
             </div>
+          </div>
+        )}
+
+        {/* ── Profile edit tab ── */}
+        {tab === 'profile' && (
+          <div className="bg-white rounded-2xl shadow-lg p-5 space-y-4 mb-6">
+            <h2 className="font-bold text-gray-900">Edit public profile</h2>
+
+            {/* Banner preview */}
+            <div className="rounded-xl overflow-hidden border border-gray-100">
+              <div className="h-14" style={{ background: pBanner }} />
+              <div className="bg-gray-50 px-3 pb-3 pt-0">
+                <div className="flex items-end gap-2 -mt-5 mb-1">
+                  <div className="w-10 h-10 rounded-xl bg-white shadow-sm flex items-center justify-center text-xl border border-gray-100">
+                    {pLogo}
+                  </div>
+                  <p className="pb-0.5 text-xs font-bold text-gray-800">{pName || 'Rescue name'}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Banner gradient */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Banner color</label>
+              <div className="flex gap-2">
+                {BANNER_GRADIENTS.map(g => (
+                  <button
+                    key={g.value}
+                    onClick={() => setPBanner(g.value)}
+                    className={`w-8 h-8 rounded-lg transition-all ${
+                      pBanner === g.value ? 'ring-2 ring-offset-1 ring-[#e05a4e] scale-110' : ''
+                    }`}
+                    style={{ background: g.value }}
+                    title={g.label}
+                  />
+                ))}
+              </div>
+            </div>
+
+            {/* Logo */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Logo emoji</label>
+              <div className="flex flex-wrap gap-2">
+                {LOGO_OPTIONS.map(l => (
+                  <button
+                    key={l}
+                    onClick={() => setPLogo(l)}
+                    className={`w-9 h-9 rounded-full text-lg flex items-center justify-center border-2 transition-all ${
+                      pLogo === l ? 'border-[#e05a4e] bg-red-50 scale-110' : 'border-transparent bg-gray-100 hover:bg-gray-200'
+                    }`}
+                  >
+                    {l}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Name */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Rescue name *</label>
+              <input value={pName} onChange={e => setPName(e.target.value)}
+                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none transition-all"
+                onFocus={e => e.target.style.borderColor = '#e05a4e'}
+                onBlur={e => e.target.style.borderColor = '#e5e7eb'}
+              />
+            </div>
+
+            {/* City */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">City *</label>
+              <input value={pCity} onChange={e => setPCity(e.target.value)}
+                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none transition-all"
+                onFocus={e => e.target.style.borderColor = '#e05a4e'}
+                onBlur={e => e.target.style.borderColor = '#e5e7eb'}
+              />
+            </div>
+
+            {/* Mission */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Mission / About</label>
+              <textarea value={pMission} onChange={e => setPMission(e.target.value)}
+                placeholder="Saving one paw at a time…"
+                rows={2}
+                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none transition-all placeholder:text-gray-400 resize-none"
+                onFocus={e => e.target.style.borderColor = '#e05a4e'}
+                onBlur={e => e.target.style.borderColor = '#e5e7eb'}
+              />
+            </div>
+
+            {/* Phone + Email */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Phone</label>
+                <input type="tel" value={pPhone} onChange={e => setPPhone(e.target.value)}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-3 text-sm outline-none transition-all"
+                  onFocus={e => e.target.style.borderColor = '#e05a4e'}
+                  onBlur={e => e.target.style.borderColor = '#e5e7eb'}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Email</label>
+                <input type="email" value={pEmail} onChange={e => setPEmail(e.target.value)}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-3 text-sm outline-none transition-all"
+                  onFocus={e => e.target.style.borderColor = '#e05a4e'}
+                  onBlur={e => e.target.style.borderColor = '#e5e7eb'}
+                />
+              </div>
+            </div>
+
+            {/* Website + Hours */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Website</label>
+                <input type="url" value={pWebsite} onChange={e => setPWebsite(e.target.value)}
+                  placeholder="https://…"
+                  className="w-full border border-gray-200 rounded-xl px-3 py-3 text-sm outline-none transition-all placeholder:text-gray-400"
+                  onFocus={e => e.target.style.borderColor = '#e05a4e'}
+                  onBlur={e => e.target.style.borderColor = '#e5e7eb'}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Hours</label>
+                <input value={pHours} onChange={e => setPHours(e.target.value)}
+                  placeholder="Mon–Sat 10–5"
+                  className="w-full border border-gray-200 rounded-xl px-3 py-3 text-sm outline-none transition-all placeholder:text-gray-400"
+                  onFocus={e => e.target.style.borderColor = '#e05a4e'}
+                  onBlur={e => e.target.style.borderColor = '#e5e7eb'}
+                />
+              </div>
+            </div>
+
+            {/* Fee range */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Adoption fee range</label>
+              <input value={pFeeRange} onChange={e => setPFeeRange(e.target.value)}
+                placeholder="$50–$200"
+                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none transition-all placeholder:text-gray-400"
+                onFocus={e => e.target.style.borderColor = '#e05a4e'}
+                onBlur={e => e.target.style.borderColor = '#e5e7eb'}
+              />
+            </div>
+
+            {/* Animal types */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Animals you rescue</label>
+              <div className="flex flex-wrap gap-2">
+                {ANIMAL_TYPES.map(t => (
+                  <button key={t}
+                    onClick={() => setPAnimalTypes(prev => prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t])}
+                    className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
+                      pAnimalTypes.includes(t) ? 'text-white border-transparent' : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-gray-300'
+                    }`}
+                    style={pAnimalTypes.includes(t) ? { backgroundColor: '#e05a4e', borderColor: '#e05a4e' } : {}}
+                  >
+                    {pAnimalTypes.includes(t) && <Check size={11} />}
+                    {t}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Requirement notes */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Adoption requirements <span className="text-gray-400 font-normal">(optional)</span></label>
+              <textarea value={pReqNotes} onChange={e => setPReqNotes(e.target.value)}
+                placeholder="e.g. Application required, home visit for large dogs…"
+                rows={2}
+                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none transition-all placeholder:text-gray-400 resize-none"
+                onFocus={e => e.target.style.borderColor = '#e05a4e'}
+                onBlur={e => e.target.style.borderColor = '#e5e7eb'}
+              />
+            </div>
+
+            {pError && (
+              <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl px-4 py-3">
+                {pError}
+              </div>
+            )}
+
+            <button
+              onClick={handleProfileSave}
+              disabled={pSaving}
+              className="w-full py-3 rounded-xl text-white text-sm font-semibold transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+              style={{ backgroundColor: pSaved ? '#22c55e' : '#e05a4e' }}
+            >
+              {pSaving && <Loader2 size={16} className="animate-spin" />}
+              {pSaved ? '✓ Saved!' : 'Save changes'}
+            </button>
           </div>
         )}
 

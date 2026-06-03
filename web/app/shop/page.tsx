@@ -265,6 +265,99 @@ function StoreCard({ store }: { store: Store }) {
   )
 }
 
+// ── Partner stores (registered on Pawfect Match) ──────────────────
+function PartnerStores() {
+  const supabase = createClient()
+  type PSStore = { id: string; name: string; city: string; logo: string; cover_color: string; specialties: string[]; hours: string | null; verified: boolean }
+  const [stores,   setStores]   = useState<PSStore[]>([])
+  const [loading,  setLoading]  = useState(true)
+  const [expanded, setExpanded] = useState(false)
+
+  useEffect(() => {
+    supabase
+      .from('pet_stores')
+      .select('id, name, city, logo, cover_color, specialties, hours, verified')
+      .order('verified', { ascending: false })
+      .order('created_at', { ascending: false })
+      .limit(20)
+      .then(({ data }) => {
+        setStores((data ?? []) as PSStore[])
+        setLoading(false)
+      })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Always show the "list your store" CTA, even if empty
+  return (
+    <div className="mb-3">
+      <div className="flex items-center justify-between mb-2 px-1">
+        <p className="text-sm font-bold text-gray-800 flex items-center gap-1.5">
+          <span>🏪</span> Partner stores
+        </p>
+        {stores.length > 3 && (
+          <button
+            onClick={() => setExpanded(v => !v)}
+            className="text-xs font-medium underline"
+            style={{ color: '#e05a4e' }}
+          >
+            {expanded ? 'Show less' : `See all ${stores.length}`}
+          </button>
+        )}
+      </div>
+
+      {loading ? (
+        <div className="bg-white rounded-2xl shadow-sm px-4 py-3 flex items-center gap-2">
+          <Loader2 size={14} className="animate-spin text-gray-300" />
+          <span className="text-sm text-gray-400">Loading…</span>
+        </div>
+      ) : stores.length === 0 ? null : (
+        <div className="space-y-2 mb-2">
+          {(expanded ? stores : stores.slice(0, 3)).map(s => (
+            <a
+              key={s.id}
+              href={`/stores/${s.id}`}
+              className="flex items-center gap-3 bg-white rounded-2xl shadow-sm overflow-hidden hover:shadow-md transition-shadow"
+            >
+              <div className="w-14 h-14 flex-shrink-0 flex items-center justify-center text-2xl" style={{ background: s.cover_color }}>
+                <span className="drop-shadow-sm">{s.logo}</span>
+              </div>
+              <div className="flex-1 min-w-0 py-2 pr-3">
+                <div className="flex items-center gap-1.5 mb-0.5">
+                  <p className="text-sm font-bold text-gray-900 truncate">{s.name}</p>
+                  {s.verified && <span className="text-[10px] text-emerald-600">✓</span>}
+                </div>
+                <p className="text-xs text-gray-400 truncate">{s.city}</p>
+                {s.specialties.length > 0 && (
+                  <p className="text-[11px] text-gray-500 truncate mt-0.5">
+                    {s.specialties.slice(0, 3).join(' · ')}
+                  </p>
+                )}
+              </div>
+              <ExternalLink size={13} className="text-gray-300 mr-3 flex-shrink-0" />
+            </a>
+          ))}
+        </div>
+      )}
+
+      {/* CTA for store owners */}
+      <a
+        href="/stores/register"
+        className="flex items-center gap-2 bg-white rounded-2xl px-4 py-3 shadow-sm border border-dashed border-gray-200 hover:border-[#e05a4e] transition-colors group"
+      >
+        <span className="text-2xl">🏪</span>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold text-gray-800 group-hover:text-[#e05a4e] transition-colors">
+            Own a pet store? List it free →
+          </p>
+          <p className="text-xs text-gray-400">Get discovered by local pet owners</p>
+        </div>
+      </a>
+
+      <div className="h-px bg-gray-200 mt-3 mb-1" />
+    </div>
+  )
+}
+
 // ── Nearby stores section ──────────────────────────────────────────
 function NearbyStores() {
   const supabase = createClient()
@@ -512,7 +605,10 @@ export default function ShopPage() {
         {/* Scrollable content */}
         <div className="flex-1 overflow-y-auto pb-2">
 
-          {/* Nearby stores */}
+          {/* Partner stores registered on Pawfect Match */}
+          <PartnerStores />
+
+          {/* Nearby stores from OpenStreetMap */}
           <NearbyStores />
 
           {/* Discount banner */}

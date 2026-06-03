@@ -166,6 +166,28 @@ export interface Report {
   updated_at: string
 }
 
+// ── Pet Store ─────────────────────────────────────────────────────
+export interface PetStore {
+  id: string
+  user_id: string
+  name: string
+  city: string
+  address: string | null
+  phone: string | null
+  email: string | null
+  website: string | null
+  description: string | null
+  logo: string
+  cover_color: string
+  specialties: string[]
+  hours: string | null
+  instagram: string | null
+  facebook: string | null
+  verified: boolean
+  created_at: string
+  updated_at: string
+}
+
 // ── API helpers ──────────────────────────────────────────────────
 export interface ApiResponse<T> {
   data: T | null
