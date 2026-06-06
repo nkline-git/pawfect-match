@@ -81,7 +81,9 @@ function mapAnimal(animal: any, included: any[]) {
     gender:      attr.sex         ?? 'Unknown',
     size:        sizeLabel(attr.sizeCurrent),
     description: attr.descriptionText ?? attr.description ?? null,
-    photo:       attr.pictureThumbnailUrl ?? null,
+    photo:       attr.pictureThumbnailUrl
+                   ? (attr.pictureThumbnailUrl as string).replace('?width=100', '?width=800')
+                   : null,
     url:         attr.url ?? 'https://www.rescuegroups.org',
     city,
     orgName,
