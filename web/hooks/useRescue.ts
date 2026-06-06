@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { Rescue } from '@/types'
 
@@ -8,7 +8,8 @@ export function useRescue() {
   const [rescue, setRescue]   = useState<Rescue | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError]     = useState<string | null>(null)
-  const supabase = createClient()
+  const supabaseRef = useRef(createClient())
+  const supabase = supabaseRef.current
 
   const fetchRescue = useCallback(async () => {
     setLoading(true)
@@ -24,7 +25,7 @@ export function useRescue() {
     if (error && error.code !== 'PGRST116') setError(error.message)
     setRescue(data)
     setLoading(false)
-  }, [supabase])
+  }, [])
 
   useEffect(() => { fetchRescue() }, [fetchRescue])
 
