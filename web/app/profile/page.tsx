@@ -31,11 +31,12 @@ export default function ProfilePage() {
   const [saveError, setSaveError] = useState<string | null>(null)
 
   // form state
-  const [firstName, setFirstName] = useState('')
-  const [city, setCity]           = useState('')
-  const [bio, setBio]             = useState('')
-  const [avatar, setAvatar]       = useState('🙂')
-  const [lifestyle, setLifestyle] = useState<string[]>([])
+  const [firstName, setFirstName]       = useState('')
+  const [city, setCity]                 = useState('')
+  const [bio, setBio]                   = useState('')
+  const [avatar, setAvatar]             = useState('🙂')
+  const [lifestyle, setLifestyle]       = useState<string[]>([])
+  const [searchRadius, setSearchRadius] = useState(100)
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
@@ -55,6 +56,7 @@ export default function ProfilePage() {
       setBio(profile.bio ?? '')
       setAvatar(profile.avatar)
       setLifestyle(profile.lifestyle)
+      setSearchRadius(profile.notification_prefs?.search_radius ?? 100)
     }
   }, [profile])
 
@@ -77,6 +79,10 @@ export default function ProfilePage() {
       bio: bio.trim() || null,
       avatar,
       lifestyle,
+      notification_prefs: {
+        ...(profile?.notification_prefs ?? { matches: true, events: true, community: false, deals: true }),
+        search_radius: searchRadius,
+      },
     })
     setSaving(false)
     if (error) { setSaveError(error); return }
@@ -161,6 +167,26 @@ export default function ProfilePage() {
                   onFocus={e => e.target.style.borderColor = '#e05a4e'}
                   onBlur={e => e.target.style.borderColor = '#e5e7eb'}
                 />
+              </div>
+
+              {/* Search radius */}
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  Search radius — <span style={{ color: '#e05a4e' }}>{searchRadius} miles</span>
+                </label>
+                <input
+                  type="range"
+                  min={10}
+                  max={250}
+                  step={10}
+                  value={searchRadius}
+                  onChange={e => setSearchRadius(Number(e.target.value))}
+                  className="w-full accent-[#e05a4e]"
+                />
+                <div className="flex justify-between text-xs text-gray-400 mt-1">
+                  <span>10 mi</span>
+                  <span>250 mi</span>
+                </div>
               </div>
 
               {/* Bio */}

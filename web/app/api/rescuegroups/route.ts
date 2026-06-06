@@ -6,8 +6,7 @@ import { NextResponse } from 'next/server'
 // org's lat/lon that comes back in the `included` sideloads.
 
 const RG_BASE    = 'https://api.rescuegroups.org/v5/public'
-const RADIUS_MI  = 100   // miles — increase if too few results in rural areas
-const FETCH_SIZE = 200   // fetch more than needed so filtering leaves enough
+const FETCH_SIZE = 200   // fetch more than needed so distance filtering leaves enough
 
 // Map our filter tab value → RescueGroups URL path segment
 const RG_SPECIES: Record<string, string> = {
@@ -113,7 +112,8 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const location = searchParams.get('location') ?? ''
   const type     = searchParams.get('type')     ?? ''
-  const limit    = parseInt(searchParams.get('limit') ?? '20', 10)
+  const limit    = parseInt(searchParams.get('limit')  ?? '20',  10)
+  const radius   = parseInt(searchParams.get('radius') ?? '100', 10)
 
   if (!location) {
     return NextResponse.json({ error: 'location param required' }, { status: 400 })
@@ -169,11 +169,7 @@ export async function GET(request: Request) {
       },
       // Still send filterRadius — may help once RescueGroups fixes their API
       body: JSON.stringify({
-        filterRadius: {
-          lat:   userCoords.lat,
-          lon:   userCoords.lon,
-          miles: RADIUS_MI,
-        },
+        filterRadius: { lat: userCoords.lat, lon: userCoords.lon, miles: radius },
       }),
     })
 
@@ -195,7 +191,7 @@ export async function GET(request: Request) {
     const nearby = all
       .filter((a: ReturnType<typeof mapAnimal>) => {
         if (a._lat == null || a._lon == null) return false
-        return distanceMiles(userCoords!.lat, userCoords!.lon, a._lat, a._lon) <= RADIUS_MI
+        return distanceMiles(userCoords!.lat, userCoords!.lon, a._lat, a._lon) <= radius
       })
       .slice(0, limit)
       // Strip internal coords before sending to client

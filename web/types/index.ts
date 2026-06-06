@@ -32,6 +32,7 @@ export interface NotificationPrefs {
   events: boolean
   community: boolean
   deals: boolean
+  search_radius?: number   // miles; default 100
 }
 
 // ── Rescue / Shelter ─────────────────────────────────────────────
