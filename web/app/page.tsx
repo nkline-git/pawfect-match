@@ -122,7 +122,7 @@ export default function BrowsePage() {
     const params = new URLSearchParams({ location: city, limit: '20' })
     if (pfFilter) params.set('type', pfFilter)
 
-    fetch(`/api/petfinder?${params.toString()}`)
+    fetch(`/api/rescuegroups?${params.toString()}`)
       .then(r => r.json())
       .then((data: { animals?: PfPet[]; setup?: boolean; error?: string }) => {
         if (data.setup) { setPfSetupMsg(true); return }
@@ -261,7 +261,7 @@ export default function BrowsePage() {
             }`}
             style={isPf ? { backgroundColor: '#3b82f6', borderColor: '#3b82f6' } : {}}
           >
-            <Globe size={13} /> Petfinder
+            <Globe size={13} /> RescueGroups
           </button>
         </div>
 
@@ -313,11 +313,10 @@ export default function BrowsePage() {
           ) : isPf && pfSetupMsg ? (
             <div className="flex-1 min-h-0 bg-white rounded-2xl shadow-lg flex flex-col items-center justify-center py-8 px-8 text-center">
               <span className="text-5xl mb-4">🔑</span>
-              <h3 className="text-lg font-bold text-gray-800 mb-2">Petfinder not configured</h3>
+              <h3 className="text-lg font-bold text-gray-800 mb-2">RescueGroups not configured</h3>
               <p className="text-sm text-gray-500">
-                Add <code className="bg-gray-100 px-1.5 py-0.5 rounded text-xs">PETFINDER_API_KEY</code> and{' '}
-                <code className="bg-gray-100 px-1.5 py-0.5 rounded text-xs">PETFINDER_SECRET</code>{' '}
-                to your environment variables to enable Petfinder browsing.
+                Add <code className="bg-gray-100 px-1.5 py-0.5 rounded text-xs">RESCUEGROUPS_API_KEY</code>{' '}
+                to your environment variables to enable RescueGroups browsing.
               </p>
             </div>
 
@@ -490,7 +489,7 @@ export default function BrowsePage() {
                 <div className="absolute top-3 right-3 z-10">
                   <span className="flex items-center gap-1 text-white text-[10px] font-semibold px-2 py-0.5 rounded-full"
                     style={{ backgroundColor: '#3b82f6' }}>
-                    via Petfinder
+                    via RescueGroups
                   </span>
                 </div>
                 {pfPet.photo ? (
@@ -548,7 +547,7 @@ export default function BrowsePage() {
                   </button>
                 </div>
                 <div className="flex justify-center text-[11px] text-gray-400 pb-1">
-                  <span>Like → opens Petfinder to start adoption</span>
+                  <span>Like → opens RescueGroups to start adoption</span>
                 </div>
               </div>
             </div>
