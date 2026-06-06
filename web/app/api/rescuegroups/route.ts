@@ -6,16 +6,11 @@ import { NextResponse } from 'next/server'
 // org's lat/lon that comes back in the `included` sideloads.
 
 const RG_BASE    = 'https://api.rescuegroups.org/v5/public'
-const FETCH_SIZE = 200   // fetch more than needed so distance filtering leaves enough
-
-// Map our filter tab value → RescueGroups URL path segment
-const RG_SPECIES: Record<string, string> = {
-  Dog:             'dogs',
-  Cat:             'cats',
-  Rabbit:          'rabbits',
-  Bird:            'birds',
-  'Small & Furry': 'small-furry',
-}
+// Species-specific URL paths (/dogs/, /cats/) reject POST requests.
+// We fetch 2 pages of 250 from the base endpoint (RG max is 250/page)
+// then filter by distance AND species client-side.
+const PAGE_SIZE  = 250
+const PAGES      = 4     // 4 × 250 = 1000 animals scanned per request
 
 // Geocode a city name or zip → { lat, lon } using OpenStreetMap Nominatim
 async function geocode(location: string): Promise<{ lat: number; lon: number } | null> {
@@ -145,53 +140,67 @@ export async function GET(request: Request) {
       )
     }
 
-    // Fetch a large batch so we have enough after distance filtering
-    const speciesSegment = type && RG_SPECIES[type] ? `${RG_SPECIES[type]}/` : ''
-    const endpoint = `${RG_BASE}/animals/search/available/${speciesSegment}`
-
-    const params = new URLSearchParams({
-      limit:             String(FETCH_SIZE),
-      page:              '1',
-      include:           'orgs,locations,species',
-      'fields[animals]': [
-        'name', 'ageGroup', 'ageString', 'sex',
-        'breedPrimary', 'breedString', 'sizeCurrent',
-        'pictureThumbnailUrl', 'url',
-        'description', 'descriptionText',
-      ].join(','),
+    // Species URL paths (/dogs/ etc.) reject POST — always use base endpoint.
+    // Fetch PAGES pages of PAGE_SIZE in parallel (RescueGroups max = 250/page).
+    // Then filter by distance AND species client-side.
+    const endpoint = `${RG_BASE}/animals/search/available/`
+    const fields   = [
+      'name', 'ageGroup', 'ageString', 'sex',
+      'breedPrimary', 'breedString', 'sizeCurrent',
+      'pictureThumbnailUrl', 'url', 'descriptionText',
+    ].join(',')
+    const reqBody  = JSON.stringify({
+      filterRadius: { coordinates: `${userCoords.lat},${userCoords.lon}`, miles: radius },
     })
-
-    const res = await fetch(`${endpoint}?${params}`, {
-      method:  'POST',
-      headers: {
-        'Content-Type': 'application/vnd.api+json',
-        'Authorization': apiKey,
-      },
-      // Still send filterRadius — may help once RescueGroups fixes their API
-      body: JSON.stringify({
-        filterRadius: { lat: userCoords.lat, lon: userCoords.lon, miles: radius },
-      }),
-    })
-
-    if (!res.ok) {
-      return NextResponse.json(
-        { error: `RescueGroups API error ${res.status}` },
-        { status: res.status }
-      )
+    const reqHeaders = {
+      'Content-Type': 'application/vnd.api+json',
+      'Authorization': apiKey,
     }
 
-    const json = await res.json()
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const included: any[] = json.included ?? []
+    // Fetch pages in parallel
+    const pageResponses = await Promise.all(
+      Array.from({ length: PAGES }, (_, i) => {
+        const p = new URLSearchParams({
+          limit:             String(PAGE_SIZE),
+          page:              String(i + 1),
+          include:           'orgs,locations,species',
+          'fields[animals]': fields,
+        })
+        return fetch(`${endpoint}?${p}`, {
+          method: 'POST', headers: reqHeaders, body: reqBody,
+        })
+      })
+    )
 
-    // Map all animals, then filter by actual distance using org lat/lon
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const all = (json.data ?? []).map((a: any) => mapAnimal(a, included))
+    let allData: any[]     = []
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let allIncluded: any[] = []
+
+    for (const res of pageResponses) {
+      if (!res.ok) {
+        if (allData.length === 0) {
+          const errText = await res.text()
+          console.error('RescueGroups error:', errText)
+          return NextResponse.json({ error: `RescueGroups API error ${res.status}` }, { status: res.status })
+        }
+        break // subsequent pages failing is non-fatal
+      }
+      const json   = await res.json()
+      allData      = allData.concat(json.data ?? [])
+      allIncluded  = allIncluded.concat(json.included ?? [])
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const all = allData.map((a: any) => mapAnimal(a, allIncluded))
 
     const nearby = all
       .filter((a: ReturnType<typeof mapAnimal>) => {
         if (a._lat == null || a._lon == null) return false
-        return distanceMiles(userCoords!.lat, userCoords!.lon, a._lat, a._lon) <= radius
+        if (distanceMiles(userCoords!.lat, userCoords!.lon, a._lat, a._lon) > radius) return false
+        // Species filter client-side (species URL paths don't support POST)
+        if (type && a.type.toLowerCase() !== type.toLowerCase()) return false
+        return true
       })
       .slice(0, limit)
       // Strip internal coords before sending to client
@@ -199,7 +208,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json({
       animals: nearby,
-      pagination: { ...json.meta, countReturned: nearby.length },
+      pagination: { countReturned: nearby.length },
     })
   } catch (err) {
     console.error('RescueGroups route error:', err)
