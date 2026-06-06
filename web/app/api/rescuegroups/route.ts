@@ -35,6 +35,15 @@ async function geocode(location: string): Promise<{ lat: number; lon: number } |
   }
 }
 
+// sizeCurrent comes back as a float (weight in lbs) — convert to label
+function sizeLabel(lbs: number | null | undefined): string | null {
+  if (lbs == null) return null
+  if (lbs < 10)  return 'Small'
+  if (lbs < 26)  return 'Medium'
+  if (lbs < 51)  return 'Large'
+  return 'XL'
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function mapAnimal(animal: any, included: any[]) {
   const attr = animal.attributes ?? {}
@@ -56,14 +65,21 @@ function mapAnimal(animal: any, included: any[]) {
     loc?.attributes?.state ?? org?.attributes?.state,
   ].filter(Boolean).join(', ') || 'Nearby'
 
+  // Resolve species name from included[]
+  const spRel = animal.relationships?.species?.data
+  const spId  = Array.isArray(spRel) ? spRel[0]?.id : spRel?.id
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const sp    = included.find((i: any) => i.type === 'species' && i.id === spId)
+  const type  = sp?.attributes?.singular ?? attr.species ?? 'Other'
+
   return {
     id:          String(animal.id),
     name:        (attr.name ?? 'Unknown').trim(),
-    type:        attr.species ?? 'Other',
+    type,
     breed:       attr.breedString ?? attr.breedPrimary ?? null,
     age:         attr.ageString   ?? attr.ageGroup     ?? null,
     gender:      attr.sex         ?? 'Unknown',
-    size:        attr.sizeCurrent ?? attr.sizeGroup    ?? null,
+    size:        sizeLabel(attr.sizeCurrent),
     description: attr.descriptionText ?? attr.description ?? null,
     photo:       attr.pictureThumbnailUrl ?? null,
     url:         attr.url ?? 'https://www.rescuegroups.org',
@@ -117,13 +133,12 @@ export async function GET(request: Request) {
     const params = new URLSearchParams({
       limit,
       page,
-      sort:            '+distance',
-      include:         'orgs,locations',
+      include:           'orgs,locations,species',
       'fields[animals]': [
         'name', 'ageGroup', 'ageString', 'sex',
         'breedPrimary', 'breedString', 'sizeCurrent',
         'pictureThumbnailUrl', 'url',
-        'description', 'descriptionText', 'species',
+        'description', 'descriptionText',
       ].join(','),
     })
 
