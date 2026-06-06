@@ -1,12 +1,13 @@
 import { NextResponse } from 'next/server'
 
 // ── RescueGroups v5 API ──────────────────────────────────────────────
-// https://api.rescuegroups.org/v5/public/docs
-// Auth: Authorization header with API key (no token exchange needed)
-// Set RESCUEGROUPS_API_KEY in .env.local once you receive your key from:
-// https://rescuegroups.org/services/adoptable-pet-data-api/
+// Note: the API's filterRadius param is broken server-side (ignored).
+// We work around it by pulling a larger batch and filtering by the
+// org's lat/lon that comes back in the `included` sideloads.
 
-const RG_BASE = 'https://api.rescuegroups.org/v5/public'
+const RG_BASE    = 'https://api.rescuegroups.org/v5/public'
+const RADIUS_MI  = 100   // miles — increase if too few results in rural areas
+const FETCH_SIZE = 200   // fetch more than needed so filtering leaves enough
 
 // Map our filter tab value → RescueGroups URL path segment
 const RG_SPECIES: Record<string, string> = {
@@ -17,8 +18,7 @@ const RG_SPECIES: Record<string, string> = {
   'Small & Furry': 'small-furry',
 }
 
-// Geocode a city/zip string → lat/lon using OpenStreetMap Nominatim
-// (free, no key required, ~100ms overhead)
+// Geocode a city name or zip → { lat, lon } using OpenStreetMap Nominatim
 async function geocode(location: string): Promise<{ lat: number; lon: number } | null> {
   try {
     const params = new URLSearchParams({ q: location, format: 'json', limit: '1' })
@@ -35,12 +35,25 @@ async function geocode(location: string): Promise<{ lat: number; lon: number } |
   }
 }
 
-// sizeCurrent comes back as a float (weight in lbs) — convert to label
+// Haversine distance in miles between two lat/lon points
+function distanceMiles(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 3958.8
+  const dLat = (lat2 - lat1) * (Math.PI / 180)
+  const dLon = (lon2 - lon1) * (Math.PI / 180)
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1 * (Math.PI / 180)) *
+    Math.cos(lat2 * (Math.PI / 180)) *
+    Math.sin(dLon / 2) ** 2
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+}
+
+// sizeCurrent is a float (weight in lbs) — convert to human-readable label
 function sizeLabel(lbs: number | null | undefined): string | null {
   if (lbs == null) return null
-  if (lbs < 10)  return 'Small'
-  if (lbs < 26)  return 'Medium'
-  if (lbs < 51)  return 'Large'
+  if (lbs < 10) return 'Small'
+  if (lbs < 26) return 'Medium'
+  if (lbs < 51) return 'Large'
   return 'XL'
 }
 
@@ -49,11 +62,13 @@ function mapAnimal(animal: any, included: any[]) {
   const attr = animal.attributes ?? {}
 
   // Resolve org from included[]
-  const orgRel = animal.relationships?.orgs?.data
-  const orgId  = Array.isArray(orgRel) ? orgRel[0]?.id : orgRel?.id
+  const orgRel  = animal.relationships?.orgs?.data
+  const orgId   = Array.isArray(orgRel) ? orgRel[0]?.id : orgRel?.id
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const org    = included.find((i: any) => i.type === 'orgs' && i.id === orgId)
+  const org     = included.find((i: any) => i.type === 'orgs' && i.id === orgId)
   const orgName = org?.attributes?.name ?? 'Nearby Rescue'
+  const orgLat: number | null = org?.attributes?.lat ?? null
+  const orgLon: number | null = org?.attributes?.lon ?? null
 
   // Resolve location from included[]
   const locRel = animal.relationships?.locations?.data
@@ -88,6 +103,9 @@ function mapAnimal(animal: any, included: any[]) {
     city,
     orgName,
     tags:        [] as string[],
+    // Internal — used for distance filtering, stripped before response
+    _lat: orgLat,
+    _lon: orgLon,
   }
 }
 
@@ -95,8 +113,7 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const location = searchParams.get('location') ?? ''
   const type     = searchParams.get('type')     ?? ''
-  const limit    = searchParams.get('limit')    ?? '20'
-  const page     = searchParams.get('page')     ?? '1'
+  const limit    = parseInt(searchParams.get('limit') ?? '20', 10)
 
   if (!location) {
     return NextResponse.json({ error: 'location param required' }, { status: 400 })
@@ -111,30 +128,30 @@ export async function GET(request: Request) {
   }
 
   try {
-    // Build filterRadius — zip codes go straight through; city names get geocoded
+    // Geocode the user's location so we can distance-filter results
     const isZip = /^\d{5}(-\d{4})?$/.test(location.trim())
-    let filterRadius: Record<string, unknown>
+    let userCoords: { lat: number; lon: number } | null = null
 
     if (isZip) {
-      filterRadius = { postalcode: location.trim(), miles: 50 }
+      userCoords = await geocode(location.trim())
     } else {
-      const coords = await geocode(location)
-      if (!coords) {
-        return NextResponse.json(
-          { error: `Could not geocode location: ${location}`, animals: [] },
-          { status: 422 }
-        )
-      }
-      filterRadius = { coordinates: `${coords.lat},${coords.lon}`, miles: 50 }
+      userCoords = await geocode(location)
     }
 
-    // Species-specific path segment if a type filter was requested
+    if (!userCoords) {
+      return NextResponse.json(
+        { error: `Could not geocode location: ${location}`, animals: [] },
+        { status: 422 }
+      )
+    }
+
+    // Fetch a large batch so we have enough after distance filtering
     const speciesSegment = type && RG_SPECIES[type] ? `${RG_SPECIES[type]}/` : ''
     const endpoint = `${RG_BASE}/animals/search/available/${speciesSegment}`
 
     const params = new URLSearchParams({
-      limit,
-      page,
+      limit:             String(FETCH_SIZE),
+      page:              '1',
       include:           'orgs,locations,species',
       'fields[animals]': [
         'name', 'ageGroup', 'ageString', 'sex',
@@ -150,7 +167,14 @@ export async function GET(request: Request) {
         'Content-Type': 'application/vnd.api+json',
         'Authorization': apiKey,
       },
-      body: JSON.stringify({ filterRadius }),
+      // Still send filterRadius — may help once RescueGroups fixes their API
+      body: JSON.stringify({
+        filterRadius: {
+          lat:   userCoords.lat,
+          lon:   userCoords.lon,
+          miles: RADIUS_MI,
+        },
+      }),
     })
 
     if (!res.ok) {
@@ -163,12 +187,23 @@ export async function GET(request: Request) {
     const json = await res.json()
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const included: any[] = json.included ?? []
+
+    // Map all animals, then filter by actual distance using org lat/lon
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const animals = (json.data ?? []).map((a: any) => mapAnimal(a, included))
+    const all = (json.data ?? []).map((a: any) => mapAnimal(a, included))
+
+    const nearby = all
+      .filter((a: ReturnType<typeof mapAnimal>) => {
+        if (a._lat == null || a._lon == null) return false
+        return distanceMiles(userCoords!.lat, userCoords!.lon, a._lat, a._lon) <= RADIUS_MI
+      })
+      .slice(0, limit)
+      // Strip internal coords before sending to client
+      .map(({ _lat: _l, _lon: _o, ...rest }: ReturnType<typeof mapAnimal>) => rest)
 
     return NextResponse.json({
-      animals,
-      pagination: json.meta ?? {},
+      animals: nearby,
+      pagination: { ...json.meta, countReturned: nearby.length },
     })
   } catch (err) {
     console.error('RescueGroups route error:', err)
