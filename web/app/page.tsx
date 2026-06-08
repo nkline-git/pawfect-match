@@ -446,7 +446,7 @@ export default function BrowsePage() {
                     if (e.key === 'Enter') saveGuestCity(locInputVal)
                     if (e.key === 'Escape') setShowLocInput(false)
                   }}
-                  placeholder="City, State — e.g. Austin, TX"
+                  placeholder="City, State or zip — e.g. Austin, TX or 92101"
                   autoFocus
                   className="flex-1 text-sm text-gray-800 outline-none placeholder:text-gray-400 bg-transparent"
                 />

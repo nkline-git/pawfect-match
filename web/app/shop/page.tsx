@@ -344,6 +344,19 @@ function PartnerStores() {
   )
 }
 
+const LOCATION_KEY = 'pawfect_city'
+
+function readSavedLocation(): string {
+  if (typeof window === 'undefined') return ''
+  return localStorage.getItem(LOCATION_KEY) ?? ''
+}
+
+function writeSavedLocation(city: string) {
+  if (typeof window === 'undefined') return
+  if (city.trim()) localStorage.setItem(LOCATION_KEY, city.trim())
+  else localStorage.removeItem(LOCATION_KEY)
+}
+
 // ── Nearby stores section ──────────────────────────────────────────
 function NearbyStores() {
   const supabase = createClient()
@@ -356,9 +369,17 @@ function NearbyStores() {
   const [resolvedCity, setResolvedCity] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
 
-  // On mount: pull city from profile and auto-search
+  // On mount: check localStorage first, then fall back to profile city
   useEffect(() => {
     const init = async () => {
+      // 1. Already-saved location (set from home page or previous shop search)
+      const saved = readSavedLocation()
+      if (saved) {
+        setCityInput(saved)
+        geocodeAndFetch(saved)
+        return
+      }
+      // 2. Profile city for logged-in users
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {
         const { data: profile } = await supabase
@@ -369,7 +390,7 @@ function NearbyStores() {
           return
         }
       }
-      setStatus('input') // no profile city — show manual input
+      setStatus('input') // no location anywhere — show manual input
     }
     init()
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -381,16 +402,26 @@ function NearbyStores() {
     setStatus('geocoding')
     setResolvedCity(trimmed)
     try {
+      const isZip = /^\d{5}(-\d{4})?$/.test(trimmed)
+      const params = new URLSearchParams({
+        q:            trimmed,
+        format:       'json',
+        limit:        '1',
+        countrycodes: 'us',
+        ...(isZip ? { postalcode: trimmed, country: 'US' } : {}),
+      })
       const geoRes = await fetch(
-        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(trimmed)}&format=json&limit=1`,
-        { headers: { 'Accept-Language': 'en-US,en' } }
+        `https://nominatim.openstreetmap.org/search?${params}`,
+        { headers: { 'Accept-Language': 'en-US,en', 'User-Agent': 'PawfectMatch/1.0' } }
       )
       const geoJson = await geoRes.json()
       if (!geoJson.length) {
         setStatus('error')
-        setErrorMsg(`Couldn't find "${trimmed}". Try a different city or zip code.`)
+        setErrorMsg(`Couldn't find "${trimmed}". Try "City, State" or a 5-digit zip code.`)
         return
       }
+      // Save to shared location storage so home page + RescueGroups search stays in sync
+      writeSavedLocation(trimmed)
       await fetchStores(parseFloat(geoJson[0].lat), parseFloat(geoJson[0].lon))
     } catch {
       setStatus('error')
@@ -442,7 +473,7 @@ function NearbyStores() {
           value={cityInput}
           onChange={e => setCityInput(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && geocodeAndFetch(cityInput)}
-          placeholder="City or zip code…"
+          placeholder="City, State or zip code…"
           className="flex-1 text-sm outline-none text-gray-800 placeholder:text-gray-400 bg-transparent"
         />
       </div>

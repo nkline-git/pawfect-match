@@ -15,7 +15,14 @@ const PAGES      = 4     // 4 × 250 = 1000 animals scanned per request
 // Geocode a city name or zip → { lat, lon } using OpenStreetMap Nominatim
 async function geocode(location: string): Promise<{ lat: number; lon: number } | null> {
   try {
-    const params = new URLSearchParams({ q: location, format: 'json', limit: '1' })
+    const isZip = /^\d{5}(-\d{4})?$/.test(location.trim())
+    const params = new URLSearchParams({
+      q:            location,
+      format:       'json',
+      limit:        '1',
+      countrycodes: 'us',           // constrain to US for reliable zip lookups
+      ...(isZip ? { postalcode: location.trim(), country: 'US' } : {}),
+    })
     const res = await fetch(
       `https://nominatim.openstreetmap.org/search?${params}`,
       { headers: { 'User-Agent': 'PawfectMatch/1.0 (pet-adoption-app)' } }
@@ -124,14 +131,7 @@ export async function GET(request: Request) {
 
   try {
     // Geocode the user's location so we can distance-filter results
-    const isZip = /^\d{5}(-\d{4})?$/.test(location.trim())
-    let userCoords: { lat: number; lon: number } | null = null
-
-    if (isZip) {
-      userCoords = await geocode(location.trim())
-    } else {
-      userCoords = await geocode(location)
-    }
+    const userCoords = await geocode(location.trim())
 
     if (!userCoords) {
       return NextResponse.json(
