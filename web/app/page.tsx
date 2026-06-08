@@ -314,13 +314,18 @@ export default function BrowsePage() {
   const prefs  = profile?.preferences ?? null
   const radius = profile?.notification_prefs?.search_radius ?? 100
 
-  // Effective search location: manual guest city > profile city > US-wide
-  const searchCity   = guestCity || profile?.city || 'Wichita, KS'
-  const searchRadius = guestCity
-    ? 500                    // reasonable radius for a manually typed city
-    : profile?.city
-      ? radius               // logged-in user's saved preference
-      : 2000                 // guest fallback: show everything
+  // Effective search location: manual override > profile city > US-wide fallback
+  const searchCity = guestCity || profile?.city || 'Wichita, KS'
+
+  // Radius priority:
+  //   1. Logged-in user → always use their profile slider (even if guestCity is set)
+  //   2. Guest with a typed city → 500 mi
+  //   3. Complete guest with no city → US-wide 2000 mi
+  const searchRadius = profile
+    ? radius               // profile slider value is always respected for logged-in users
+    : guestCity
+      ? 500                // guest manually typed a city
+      : 2000               // no location at all — show everything
 
   const saveGuestCity = (city: string) => {
     const trimmed = city.trim()
@@ -501,10 +506,8 @@ export default function BrowsePage() {
                     ? 'All locations'
                     : searchCity}
                 </span>
-                {profile?.city && searchCity === profile.city && (
-                  <span className="text-white/40">· within {radius} mi</span>
-                )}
-                {guestCity && (
+                {/* Single radius badge — only when we have a real location */}
+                {(profile?.city || guestCity) && (
                   <span className="text-white/40">· within {searchRadius} mi</span>
                 )}
                 <Pencil size={10} className="ml-0.5 opacity-60 group-hover:opacity-100 transition-opacity" />
