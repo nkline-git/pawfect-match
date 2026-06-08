@@ -88,6 +88,31 @@ function mapAnimal(animal: any, included: any[]) {
   const sp    = included.find((i: any) => i.type === 'species' && i.id === spId)
   const type  = sp?.attributes?.singular ?? attr.species ?? 'Other'
 
+  // Resolve multiple photos from pictures relationship
+  const picRels = animal.relationships?.pictures?.data ?? []
+  const picIds  = (Array.isArray(picRels) ? picRels : [picRels]).map((p: any) => p?.id).filter(Boolean)
+  const photos: string[] = picIds
+    .slice(0, 6) // cap at 6 photos per animal to keep response lean
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    .map((id: string) => included.find((i: any) => i.type === 'pictures' && i.id === id))
+    .filter(Boolean)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    .map((pic: any) => pic.attributes?.urlFullsize ?? pic.attributes?.original ?? null)
+    .filter(Boolean)
+
+  // Fall back to the thumbnail (upscaled) if no pictures relationship data
+  const thumbUrl: string | null = attr.pictureThumbnailUrl
+    ? (attr.pictureThumbnailUrl as string).replace('?width=100', '?width=800')
+    : null
+  const allPhotos = photos.length > 0 ? photos : (thumbUrl ? [thumbUrl] : [])
+
+  // The rescue's own website (separate from the RescueGroups.org listing)
+  const orgUrl: string | null =
+    org?.attributes?.rescueUrl     ??
+    org?.attributes?.website       ??
+    org?.attributes?.websiteUrl    ??
+    null
+
   return {
     id:          String(animal.id),
     name:        (attr.name ?? 'Unknown').trim(),
@@ -97,10 +122,10 @@ function mapAnimal(animal: any, included: any[]) {
     gender:      attr.sex         ?? 'Unknown',
     size:        sizeLabel(attr.sizeCurrent),
     description: attr.descriptionText ?? attr.description ?? null,
-    photo:       attr.pictureThumbnailUrl
-                   ? (attr.pictureThumbnailUrl as string).replace('?width=100', '?width=800')
-                   : null,
+    photo:       allPhotos[0] ?? null,
+    photos:      allPhotos,
     url:         attr.url ?? 'https://www.rescuegroups.org',
+    orgUrl,
     city,
     orgName,
     tags:        [] as string[],
@@ -149,6 +174,7 @@ export async function GET(request: Request) {
       'breedPrimary', 'breedString', 'sizeCurrent',
       'pictureThumbnailUrl', 'url', 'descriptionText',
     ].join(',')
+    const orgFields = 'name,city,state,lat,lon,rescueUrl,website,websiteUrl'
     const reqBody  = JSON.stringify({
       filterRadius: { coordinates: `${userCoords.lat},${userCoords.lon}`, miles: radius },
     })
@@ -161,10 +187,12 @@ export async function GET(request: Request) {
     const pageResponses = await Promise.all(
       Array.from({ length: PAGES }, (_, i) => {
         const p = new URLSearchParams({
-          limit:             String(PAGE_SIZE),
-          page:              String(i + 1),
-          include:           'orgs,locations,species',
-          'fields[animals]': fields,
+          limit:               String(PAGE_SIZE),
+          page:                String(i + 1),
+          include:             'orgs,locations,species,pictures',
+          'fields[animals]':   fields,
+          'fields[orgs]':      orgFields,
+          'fields[pictures]':  'urlFullsize,original',
         })
         return fetch(`${endpoint}?${p}`, {
           method: 'POST', headers: reqHeaders, body: reqBody,

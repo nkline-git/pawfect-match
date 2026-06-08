@@ -23,7 +23,8 @@ interface UnifiedPet {
   description: string | null
   photo: string | null
   photos: string[]
-  url: string
+  url: string        // RescueGroups listing URL (for RG pets) or /pets/:id (local)
+  orgUrl: string | null  // rescue's own website (if known)
   city: string
   orgName: string
   tags: string[]
@@ -62,6 +63,7 @@ function localPetToUnified(pet: Pet): UnifiedPet {
     photo:       pet.photos[0] ?? null,
     photos:      pet.photos ?? [],
     url:         `/pets/${pet.id}`,
+    orgUrl:      null,
     city:        pet.rescue?.city ?? 'Nearby',
     orgName:     pet.rescue?.name ?? 'Local Rescue',
     tags:        pet.traits,
@@ -240,16 +242,41 @@ function AnimalDetailSheet({
             )}
 
             {/* CTA */}
-            <a
-              href={animal.url}
-              target={isExternal ? '_blank' : undefined}
-              rel={isExternal ? 'noreferrer' : undefined}
-              className="flex items-center justify-center gap-2 w-full py-3.5 rounded-2xl text-white font-semibold shadow"
-              style={{ backgroundColor: '#e05a4e' }}
-            >
-              {isExternal ? 'Start adoption on RescueGroups' : 'Full profile & apply'}
-              <ExternalLink size={14} />
-            </a>
+            {animal.isLocal ? (
+              <a
+                href={animal.url}
+                className="flex items-center justify-center gap-2 w-full py-3.5 rounded-2xl text-white font-semibold shadow"
+                style={{ backgroundColor: '#e05a4e' }}
+              >
+                Full profile &amp; apply
+                <ExternalLink size={14} />
+              </a>
+            ) : (
+              <div className="flex flex-col gap-2">
+                {animal.orgUrl && (
+                  <a
+                    href={animal.orgUrl.startsWith('http') ? animal.orgUrl : `https://${animal.orgUrl}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex items-center justify-center gap-2 w-full py-3.5 rounded-2xl text-white font-semibold shadow"
+                    style={{ backgroundColor: '#e05a4e' }}
+                  >
+                    Visit {animal.orgName}'s website
+                    <ExternalLink size={14} />
+                  </a>
+                )}
+                <a
+                  href={animal.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className={`flex items-center justify-center gap-2 w-full py-3 rounded-2xl font-semibold shadow text-sm ${animal.orgUrl ? 'border border-gray-200 text-gray-700 bg-white' : 'text-white'}`}
+                  style={!animal.orgUrl ? { backgroundColor: '#e05a4e' } : {}}
+                >
+                  View on RescueGroups.org
+                  <ExternalLink size={13} />
+                </a>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -336,7 +363,9 @@ export default function BrowsePage() {
         } else {
           const rgPets = (data.animals ?? []).map(a => ({
             ...a,
-            photos: a.photo ? [a.photo] : [],
+            // API now returns photos[] directly; fall back to single photo
+            photos:  Array.isArray(a.photos) && a.photos.length > 0 ? a.photos : (a.photo ? [a.photo] : []),
+            orgUrl:  a.orgUrl ?? null,
             isLocal: false,
           }))
           setAnimals([...localUnified, ...rgPets])
@@ -740,16 +769,39 @@ export default function BrowsePage() {
               </ol>
 
               <div className="flex flex-col gap-2">
-                <a
-                  href={matchedPet.url}
-                  target={!matchedPet.url.startsWith('/') ? '_blank' : undefined}
-                  rel={!matchedPet.url.startsWith('/') ? 'noreferrer' : undefined}
-                  className="block py-3 rounded-xl text-white font-semibold text-sm text-center"
-                  style={{ backgroundColor: '#e05a4e' }}
-                  onClick={() => setMatchedPet(null)}
-                >
-                  View {matchedPet.name}'s profile →
-                </a>
+                {/* Primary CTA — rescue's own website if available, else in-app profile */}
+                {matchedPet.isLocal ? (
+                  <a
+                    href={matchedPet.url}
+                    className="block py-3 rounded-xl text-white font-semibold text-sm text-center"
+                    style={{ backgroundColor: '#e05a4e' }}
+                    onClick={() => setMatchedPet(null)}
+                  >
+                    View {matchedPet.name}'s profile &amp; apply →
+                  </a>
+                ) : matchedPet.orgUrl ? (
+                  <a
+                    href={matchedPet.orgUrl.startsWith('http') ? matchedPet.orgUrl : `https://${matchedPet.orgUrl}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="block py-3 rounded-xl text-white font-semibold text-sm text-center"
+                    style={{ backgroundColor: '#e05a4e' }}
+                    onClick={() => setMatchedPet(null)}
+                  >
+                    Visit {matchedPet.orgName}'s website →
+                  </a>
+                ) : (
+                  <a
+                    href={matchedPet.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="block py-3 rounded-xl text-white font-semibold text-sm text-center"
+                    style={{ backgroundColor: '#e05a4e' }}
+                    onClick={() => setMatchedPet(null)}
+                  >
+                    View {matchedPet.name} on RescueGroups →
+                  </a>
+                )}
                 <button
                   onClick={() => setMatchedPet(null)}
                   className="py-3 rounded-xl text-sm font-semibold text-gray-500 border border-gray-200 hover:bg-gray-50 transition-colors"
