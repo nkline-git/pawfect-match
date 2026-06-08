@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useRescue } from '@/hooks/useRescue'
@@ -71,8 +71,9 @@ const EMPTY_PET: NewPet = {
 }
 
 export default function RescueDashboardPage() {
-  const router   = useRouter()
-  const supabase = createClient()
+  const router        = useRouter()
+  const supabaseRef   = useRef(createClient())
+  const supabase      = supabaseRef.current
   const { rescue, loading: rescueLoading, updateRescue } = useRescue()
   const { pets, loading: petsLoading, refetch } = usePets({ rescueId: rescue?.id })
 
@@ -107,7 +108,8 @@ export default function RescueDashboardPage() {
       if (!data.user) router.replace('/login')
       else setAuthed(true)
     })
-  }, [supabase, router])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // Populate profile form when rescue loads
   useEffect(() => {
@@ -276,8 +278,8 @@ export default function RescueDashboardPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-start justify-center py-4 px-4">
-      <div className="w-full max-w-[390px]">
+    <div className="h-dvh flex items-start justify-center px-3 py-2 overflow-hidden">
+      <div className="w-full max-w-[390px] h-full flex flex-col overflow-hidden">
 
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
@@ -356,6 +358,9 @@ export default function RescueDashboardPage() {
             Profile
           </button>
         </div>
+
+        {/* Scrollable tab content */}
+        <div className="flex-1 overflow-y-auto pb-2">
 
         {/* Applications panel */}
         {tab === 'applications' && (
@@ -889,6 +894,8 @@ export default function RescueDashboardPage() {
             ))
           )}
         </div>}
+
+        </div>{/* end scrollable */}
       </div>
     </div>
   )

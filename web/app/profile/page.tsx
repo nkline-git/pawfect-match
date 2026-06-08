@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useProfile } from '@/hooks/useProfile'
@@ -22,7 +22,8 @@ const LIFESTYLE_OPTIONS = [
 
 export default function ProfilePage() {
   const router  = useRouter()
-  const supabase = createClient()
+  const supabaseRef = useRef(createClient())
+  const supabase    = supabaseRef.current
   const { profile, loading, updateProfile } = useProfile()
 
   const [authed, setAuthed]     = useState<boolean | null>(null)
@@ -46,7 +47,8 @@ export default function ProfilePage() {
         setAuthed(true)
       }
     })
-  }, [supabase, router])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // Populate form when profile loads
   useEffect(() => {

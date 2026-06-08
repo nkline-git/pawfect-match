@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import {
@@ -37,11 +37,11 @@ type PetWithRescue = Pet & {
 }
 
 export default function PetDetailPage() {
-  const params = useParams()
-  const router = useRouter()
-  const id     = params.id as string
-
-  const supabase = createClient()
+  const params        = useParams()
+  const router        = useRouter()
+  const id            = params.id as string
+  const supabaseRef   = useRef(createClient())
+  const supabase      = supabaseRef.current
 
   const [pet, setPet]         = useState<PetWithRescue | null>(null)
   const [loading, setLoading] = useState(true)
@@ -83,7 +83,8 @@ export default function PetDetailPage() {
       }
     }
     load()
-  }, [id, supabase])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id])
 
   const toggleSave = async () => {
     const { data: { user } } = await supabase.auth.getUser()
