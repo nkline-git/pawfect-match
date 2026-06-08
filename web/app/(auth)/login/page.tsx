@@ -202,16 +202,34 @@ export default function LoginPage() {
           </button>
         </p>
 
-        {/* Rescue portal link */}
-        <div className="mt-6 pt-5 border-t border-gray-100 text-center">
-          <p className="text-xs text-gray-400">Are you a rescue or shelter?</p>
-          <a
-            href="/rescue/verify"
-            className="text-xs font-medium hover:underline mt-0.5 inline-block"
-            style={{ color: '#e05a4e' }}
-          >
-            Set up your rescue portal →
-          </a>
+        {/* Business sign-up section */}
+        <div className="mt-6 pt-5 border-t border-gray-100">
+          <p className="text-xs text-gray-400 text-center mb-3">Are you a business?</p>
+          <div className="grid grid-cols-2 gap-2">
+            {/* Rescue / shelter */}
+            <a
+              href="/rescue/verify"
+              className="flex flex-col items-center gap-1.5 px-3 py-3 rounded-xl border border-gray-200 hover:border-[#e05a4e] hover:bg-red-50 transition-all group text-center"
+            >
+              <span className="text-xl">🐾</span>
+              <p className="text-xs font-semibold text-gray-700 group-hover:text-[#e05a4e] transition-colors leading-tight">
+                Rescue or shelter
+              </p>
+              <p className="text-[10px] text-gray-400 leading-tight">Set up your portal →</p>
+            </a>
+
+            {/* Local pet shop */}
+            <a
+              href="/stores/register"
+              className="flex flex-col items-center gap-1.5 px-3 py-3 rounded-xl border border-gray-200 hover:border-[#e05a4e] hover:bg-red-50 transition-all group text-center"
+            >
+              <span className="text-xl">🏪</span>
+              <p className="text-xs font-semibold text-gray-700 group-hover:text-[#e05a4e] transition-colors leading-tight">
+                Local pet shop
+              </p>
+              <p className="text-[10px] text-gray-400 leading-tight">Sign up free →</p>
+            </a>
+          </div>
         </div>
       </div>
 

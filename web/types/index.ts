@@ -1,6 +1,7 @@
 // ── Pet preferences (from onboarding quiz) ───────────────────────
 export interface PetPreferences {
   species:         string[]        // e.g. ['dog','cat']
+  breeds:          string[]        // e.g. ['Golden Retriever','Tabby']
   size:            string[]        // e.g. ['Small','Medium']
   age:             string[]        // e.g. ['Young','Adult']
   energy:          string[]        // e.g. ['Medium','High']

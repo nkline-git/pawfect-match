@@ -339,21 +339,7 @@ function PartnerStores() {
         </div>
       )}
 
-      {/* CTA for store owners */}
-      <a
-        href="/stores/register"
-        className="flex items-center gap-2 bg-white rounded-2xl px-4 py-3 shadow-sm border border-dashed border-gray-200 hover:border-[#e05a4e] transition-colors group"
-      >
-        <span className="text-2xl">🏪</span>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-gray-800 group-hover:text-[#e05a4e] transition-colors">
-            Own a pet store? List it free →
-          </p>
-          <p className="text-xs text-gray-400">Get discovered by local pet owners</p>
-        </div>
-      </a>
-
-      <div className="h-px bg-gray-200 mt-3 mb-1" />
+      <div className="h-px bg-gray-200 mt-1 mb-1" />
     </div>
   )
 }

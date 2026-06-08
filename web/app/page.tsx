@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import {
   Bell, User, X, RotateCcw, Heart,
   MapPin, ExternalLink, SlidersHorizontal,
-  ChevronDown, Globe,
+  ChevronDown, Globe, ChevronLeft, ChevronRight, Pencil, Search,
 } from 'lucide-react'
 import { usePets, useSavedPets } from '@/hooks/usePets'
 import { useProfile } from '@/hooks/useProfile'
@@ -22,6 +22,7 @@ interface UnifiedPet {
   size: string | null
   description: string | null
   photo: string | null
+  photos: string[]
   url: string
   city: string
   orgName: string
@@ -34,6 +35,11 @@ function applyPreferences(pets: Pet[], prefs: PetPreferences | null): Pet[] {
   if (!prefs) return pets
   return pets.filter(p => {
     if (prefs.species.length > 0 && !prefs.species.includes(p.species)) return false
+    // Breed: case-insensitive partial match (e.g. "Poodle" matches "Poodle Mix")
+    if (prefs.breeds && prefs.breeds.length > 0 && p.breed) {
+      const breedLower = p.breed.toLowerCase()
+      if (!prefs.breeds.some(b => breedLower.includes(b.toLowerCase()) || b.toLowerCase().includes(breedLower))) return false
+    }
     if (prefs.size.length > 0 && p.size && !prefs.size.includes(p.size)) return false
     if (prefs.energy.length > 0 && p.energy && !prefs.energy.includes(p.energy)) return false
     if (prefs.good_with_kids === true && !p.good_with.includes('Kids')) return false
@@ -54,6 +60,7 @@ function localPetToUnified(pet: Pet): UnifiedPet {
     size:        pet.size,
     description: pet.description,
     photo:       pet.photos[0] ?? null,
+    photos:      pet.photos ?? [],
     url:         `/pets/${pet.id}`,
     city:        pet.rescue?.city ?? 'Nearby',
     orgName:     pet.rescue?.name ?? 'Local Rescue',
@@ -105,6 +112,11 @@ function AnimalDetailSheet({
   animal: UnifiedPet
   onClose: () => void
 }) {
+  const [photoIdx, setPhotoIdx] = useState(0)
+  // Build gallery: prefer photos array, fall back to single photo
+  const photos = animal.photos && animal.photos.length > 0
+    ? animal.photos
+    : animal.photo ? [animal.photo] : []
   const bg = SPECIES_BG[animal.type] ?? SPECIES_BG.other
   const isExternal = !animal.url.startsWith('/')
 
@@ -116,17 +128,50 @@ function AnimalDetailSheet({
         style={{ maxHeight: '92dvh' }}
         onClick={e => e.stopPropagation()}
       >
-        {/* Photo */}
+        {/* Photo gallery */}
         <div className="relative h-60 flex items-center justify-center" style={{ background: bg }}>
-          {animal.photo ? (
-            <img src={animal.photo} alt={animal.name} className="w-full h-full object-cover" />
+          {photos.length > 0 ? (
+            <img src={photos[photoIdx]} alt={animal.name} className="w-full h-full object-cover" />
           ) : (
             <span className="text-[90px]">🐾</span>
           )}
+
+          {/* Prev / next arrows */}
+          {photos.length > 1 && photoIdx > 0 && (
+            <button
+              onClick={e => { e.stopPropagation(); setPhotoIdx(i => i - 1) }}
+              className="absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/40 flex items-center justify-center text-white z-10"
+            >
+              <ChevronLeft size={16} />
+            </button>
+          )}
+          {photos.length > 1 && photoIdx < photos.length - 1 && (
+            <button
+              onClick={e => { e.stopPropagation(); setPhotoIdx(i => i + 1) }}
+              className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/40 flex items-center justify-center text-white z-10"
+            >
+              <ChevronRight size={16} />
+            </button>
+          )}
+
+          {/* Photo dots */}
+          {photos.length > 1 && (
+            <div className="absolute bottom-10 left-1/2 -translate-x-1/2 flex gap-1.5 z-10">
+              {photos.map((_, i) => (
+                <button
+                  key={i}
+                  onClick={e => { e.stopPropagation(); setPhotoIdx(i) }}
+                  className="w-1.5 h-1.5 rounded-full transition-all"
+                  style={{ backgroundColor: i === photoIdx ? 'white' : 'rgba(255,255,255,0.45)' }}
+                />
+              ))}
+            </div>
+          )}
+
           {/* Close */}
           <button
             onClick={onClose}
-            className="absolute top-4 right-4 w-8 h-8 rounded-full bg-black/40 flex items-center justify-center text-white"
+            className="absolute top-4 right-4 w-8 h-8 rounded-full bg-black/40 flex items-center justify-center text-white z-10"
           >
             <X size={16} />
           </button>
@@ -134,7 +179,7 @@ function AnimalDetailSheet({
           <div className="absolute top-2.5 left-1/2 -translate-x-1/2 w-10 h-1 rounded-full bg-white/60" />
           {/* Source badge */}
           {!animal.isLocal && (
-            <div className="absolute top-4 left-4">
+            <div className="absolute top-4 left-4 z-10">
               <span className="flex items-center gap-1 text-white text-[10px] font-semibold px-2 py-0.5 rounded-full"
                 style={{ backgroundColor: '#3b82f6' }}>
                 <Globe size={9} /> RescueGroups
@@ -142,9 +187,18 @@ function AnimalDetailSheet({
             </div>
           )}
           {animal.isLocal && (
-            <div className="absolute top-4 left-4">
+            <div className="absolute top-4 left-4 z-10">
               <span className="flex items-center gap-1 bg-white/80 text-gray-700 text-[10px] font-semibold px-2 py-0.5 rounded-full">
                 🐾 Local rescue
+              </span>
+            </div>
+          )}
+
+          {/* Photo counter (top-right when > 1 photo) */}
+          {photos.length > 1 && (
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10">
+              <span className="text-white/80 text-[10px] font-semibold bg-black/30 px-2 py-0.5 rounded-full">
+                {photoIdx + 1} / {photos.length}
               </span>
             </div>
           )}
@@ -211,6 +265,15 @@ export default function BrowsePage() {
   const [rgLoading,     setRgLoading]     = useState(false)
   const [idx,           setIdx]           = useState(0)
   const [selected,      setSelected]      = useState<UnifiedPet | null>(null)
+  const [matchedPet,    setMatchedPet]    = useState<UnifiedPet | null>(null)
+
+  // Location state — persisted in localStorage for guests
+  const [guestCity,    setGuestCity]    = useState<string>(() => {
+    if (typeof window !== 'undefined') return localStorage.getItem('pawfect_city') ?? ''
+    return ''
+  })
+  const [showLocInput, setShowLocInput] = useState(false)
+  const [locInputVal,  setLocInputVal]  = useState('')
 
   // Swipe state
   const [swipeDx,  setSwipeDx]  = useState(0)
@@ -223,6 +286,24 @@ export default function BrowsePage() {
 
   const prefs  = profile?.preferences ?? null
   const radius = profile?.notification_prefs?.search_radius ?? 100
+
+  // Effective search location: manual guest city > profile city > US-wide
+  const searchCity   = guestCity || profile?.city || 'Wichita, KS'
+  const searchRadius = guestCity
+    ? 500                    // reasonable radius for a manually typed city
+    : profile?.city
+      ? radius               // logged-in user's saved preference
+      : 2000                 // guest fallback: show everything
+
+  const saveGuestCity = (city: string) => {
+    const trimmed = city.trim()
+    setGuestCity(trimmed)
+    if (typeof window !== 'undefined') {
+      if (trimmed) localStorage.setItem('pawfect_city', trimmed)
+      else localStorage.removeItem('pawfect_city')
+    }
+    setShowLocInput(false)
+  }
 
   // ── Build unified animal list ─────────────────────────────────────
   useEffect(() => {
@@ -238,16 +319,12 @@ export default function BrowsePage() {
 
     const localUnified = filteredLocal.map(localPetToUnified)
 
-    // Fetch RescueGroups — use profile city if set, otherwise do a US-wide search
-    // with a large radius so guests see animals without needing an account.
-    const city = profile?.city || 'Wichita, KS'
-    const effectiveRadius = profile?.city ? radius : 2000
-
+    // Fetch RescueGroups using the effective search city/radius
     setRgLoading(true)
     const params = new URLSearchParams({
-      location: city,
+      location: searchCity,
       limit:    '20',
-      radius:   String(effectiveRadius),
+      radius:   String(searchRadius),
     })
     if (speciesFilter) params.set('type', speciesFilter)
 
@@ -257,7 +334,11 @@ export default function BrowsePage() {
         if (data.setup) {
           setAnimals(localUnified)
         } else {
-          const rgPets = (data.animals ?? []).map(a => ({ ...a, isLocal: false }))
+          const rgPets = (data.animals ?? []).map(a => ({
+            ...a,
+            photos: a.photo ? [a.photo] : [],
+            isLocal: false,
+          }))
           setAnimals([...localUnified, ...rgPets])
         }
         setIdx(0)
@@ -265,7 +346,7 @@ export default function BrowsePage() {
       .catch(() => { setAnimals(localUnified); setIdx(0) })
       .finally(() => setRgLoading(false))
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pets, speciesFilter, prefActive, profile?.city, radius])
+  }, [pets, speciesFilter, prefActive, searchCity, searchRadius])
 
   const isLoading = localLoading || rgLoading || profileLoading
   const pet = animals[idx] ?? null
@@ -273,7 +354,9 @@ export default function BrowsePage() {
   // ── Actions ───────────────────────────────────────────────────────
   const handlePass = () => setIdx(i => Math.min(i + 1, animals.length))
   const handleLike = () => {
-    if (pet?.isLocal) toggleSave(pet.id)
+    if (!pet) return
+    if (pet.isLocal) toggleSave(pet.id)
+    setMatchedPet(pet)
     setIdx(i => Math.min(i + 1, animals.length))
   }
   const handleUndo = () => setIdx(i => Math.max(i - 1, 0))
@@ -350,15 +433,55 @@ export default function BrowsePage() {
             </a>
           )}
 
-          {/* Location + radius indicator */}
-          {profile?.city && (
-            <div className="flex items-center gap-1.5 px-1 mb-2 text-white/70 text-xs">
-              <MapPin size={11} />
-              <span>{profile.city}</span>
-              <span className="text-white/40">·</span>
-              <span>within {radius} mi</span>
-            </div>
-          )}
+          {/* Location bar — always visible, editable */}
+          <div className="px-1 mb-2">
+            {showLocInput ? (
+              <div className="bg-white rounded-xl shadow-md px-3 py-2 flex items-center gap-2">
+                <MapPin size={13} className="text-gray-400 flex-shrink-0" />
+                <input
+                  type="text"
+                  value={locInputVal}
+                  onChange={e => setLocInputVal(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') saveGuestCity(locInputVal)
+                    if (e.key === 'Escape') setShowLocInput(false)
+                  }}
+                  placeholder="City, State — e.g. Austin, TX"
+                  autoFocus
+                  className="flex-1 text-sm text-gray-800 outline-none placeholder:text-gray-400 bg-transparent"
+                />
+                <button
+                  onClick={() => saveGuestCity(locInputVal)}
+                  className="w-7 h-7 rounded-full flex items-center justify-center text-white flex-shrink-0"
+                  style={{ backgroundColor: '#e05a4e' }}
+                >
+                  <Search size={13} />
+                </button>
+                <button onClick={() => setShowLocInput(false)} className="text-gray-400 hover:text-gray-600 flex-shrink-0">
+                  <X size={15} />
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => { setLocInputVal(guestCity || profile?.city || ''); setShowLocInput(true) }}
+                className="flex items-center gap-1.5 text-white/70 text-xs hover:text-white/90 transition-colors group"
+              >
+                <MapPin size={11} />
+                <span>
+                  {searchCity === 'Wichita, KS' && !guestCity && !profile?.city
+                    ? 'All locations'
+                    : searchCity}
+                </span>
+                {profile?.city && searchCity === profile.city && (
+                  <span className="text-white/40">· within {radius} mi</span>
+                )}
+                {guestCity && (
+                  <span className="text-white/40">· within {searchRadius} mi</span>
+                )}
+                <Pencil size={10} className="ml-0.5 opacity-60 group-hover:opacity-100 transition-opacity" />
+              </button>
+            )}
+          </div>
 
           {/* Species filter tabs */}
           <div className="flex gap-2 px-1 mb-3 overflow-x-auto scrollbar-none">
@@ -559,6 +682,85 @@ export default function BrowsePage() {
 
       {/* Detail sheet */}
       {selected && <AnimalDetailSheet animal={selected} onClose={() => setSelected(null)} />}
+
+      {/* ── Match celebration overlay ── */}
+      {matchedPet && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center px-6"
+          style={{ backgroundColor: 'rgba(0,0,0,0.72)' }}
+          onClick={() => setMatchedPet(null)}
+        >
+          <div
+            className="bg-white rounded-3xl shadow-2xl overflow-hidden w-full max-w-[340px]"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Pet photo strip */}
+            {(matchedPet.photos?.[0] || matchedPet.photo) && (
+              <div
+                className="h-44 overflow-hidden"
+                style={{ background: SPECIES_BG[matchedPet.type] ?? SPECIES_BG.other }}
+              >
+                <img
+                  src={matchedPet.photos?.[0] ?? matchedPet.photo!}
+                  alt={matchedPet.name}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            )}
+
+            <div className="px-6 pt-5 pb-6 text-center">
+              <div className="text-4xl mb-2">🐾</div>
+              <h2 className="text-xl font-bold text-gray-900 mb-1">
+                {matchedPet.name} is so excited to meet you!
+              </h2>
+              <p className="text-sm text-gray-400 mb-5">Here's how to make it official:</p>
+
+              <ol className="text-sm text-gray-600 text-left space-y-3 mb-6">
+                <li className="flex gap-3 items-start">
+                  <span
+                    className="w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold text-white flex-shrink-0 mt-0.5"
+                    style={{ backgroundColor: '#e05a4e' }}
+                  >1</span>
+                  <span>Check out {matchedPet.name}'s full profile and adoption details</span>
+                </li>
+                <li className="flex gap-3 items-start">
+                  <span
+                    className="w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold text-white flex-shrink-0 mt-0.5"
+                    style={{ backgroundColor: '#e05a4e' }}
+                  >2</span>
+                  <span>Fill out an adoption application with {matchedPet.orgName}</span>
+                </li>
+                <li className="flex gap-3 items-start">
+                  <span
+                    className="w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold text-white flex-shrink-0 mt-0.5"
+                    style={{ backgroundColor: '#e05a4e' }}
+                  >3</span>
+                  <span>The rescue reviews your app and reaches out to schedule a meet!</span>
+                </li>
+              </ol>
+
+              <div className="flex flex-col gap-2">
+                <a
+                  href={matchedPet.url}
+                  target={!matchedPet.url.startsWith('/') ? '_blank' : undefined}
+                  rel={!matchedPet.url.startsWith('/') ? 'noreferrer' : undefined}
+                  className="block py-3 rounded-xl text-white font-semibold text-sm text-center"
+                  style={{ backgroundColor: '#e05a4e' }}
+                  onClick={() => setMatchedPet(null)}
+                >
+                  View {matchedPet.name}'s profile →
+                </a>
+                <button
+                  onClick={() => setMatchedPet(null)}
+                  className="py-3 rounded-xl text-sm font-semibold text-gray-500 border border-gray-200 hover:bg-gray-50 transition-colors"
+                >
+                  Keep browsing
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   )
 }

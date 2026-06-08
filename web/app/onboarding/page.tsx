@@ -103,6 +103,7 @@ export default function OnboardingPage() {
 
     const prefs: PetPreferences = {
       species,
+      breeds:         [],   // set per-breed preferences in profile settings
       size,
       age:            [],   // age filter not in quiz — feed shows all ages
       energy,

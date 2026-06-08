@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useProfile } from '@/hooks/useProfile'
-import { Loader2, ArrowLeft, Check, SlidersHorizontal, Shield } from 'lucide-react'
+import { Loader2, ArrowLeft, Check, SlidersHorizontal, Shield, X, Plus } from 'lucide-react'
 import BottomNav from '@/components/ui/BottomNav'
 
 const AVATARS = ['🙂', '😎', '🤗', '🧑', '👩', '👨', '🧔', '👱', '🙋', '🐾']
@@ -18,6 +18,16 @@ const LIFESTYLE_OPTIONS = [
   'Have other pets',
   'Large yard',
   'Apartment',
+]
+
+const POPULAR_BREEDS = [
+  // Dogs
+  'Golden Retriever', 'Labrador', 'German Shepherd', 'French Bulldog',
+  'Bulldog', 'Beagle', 'Husky', 'Poodle', 'Chihuahua', 'Dachshund',
+  'Border Collie', 'Shih Tzu', 'Corgi', 'Poodle Mix', 'Shepherd Mix',
+  // Cats
+  'Tabby', 'Siamese', 'Maine Coon', 'Persian', 'Ragdoll',
+  'Bengal', 'British Shorthair', 'Domestic Shorthair', 'Domestic Longhair',
 ]
 
 export default function ProfilePage() {
@@ -38,6 +48,8 @@ export default function ProfilePage() {
   const [avatar, setAvatar]             = useState('🙂')
   const [lifestyle, setLifestyle]       = useState<string[]>([])
   const [searchRadius, setSearchRadius] = useState(100)
+  const [breeds, setBreeds]             = useState<string[]>([])
+  const [breedInput, setBreedInput]     = useState('')
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
@@ -59,6 +71,7 @@ export default function ProfilePage() {
       setAvatar(profile.avatar)
       setLifestyle(profile.lifestyle)
       setSearchRadius(profile.notification_prefs?.search_radius ?? 100)
+      setBreeds(profile.preferences?.breeds ?? [])
     }
   }, [profile])
 
@@ -66,6 +79,19 @@ export default function ProfilePage() {
     setLifestyle(prev =>
       prev.includes(item) ? prev.filter(x => x !== item) : [...prev, item]
     )
+
+  const addBreed = (breed: string) => {
+    const trimmed = breed.trim()
+    if (!trimmed) return
+    // Normalise casing: capitalise each word
+    const normalised = trimmed.replace(/\b\w/g, c => c.toUpperCase())
+    if (breeds.some(b => b.toLowerCase() === normalised.toLowerCase())) return
+    setBreeds(prev => [...prev, normalised])
+    setBreedInput('')
+  }
+
+  const removeBreed = (breed: string) =>
+    setBreeds(prev => prev.filter(b => b !== breed))
 
   const handleSave = async () => {
     if (!firstName.trim() || !city.trim()) {
@@ -85,6 +111,12 @@ export default function ProfilePage() {
         ...(profile?.notification_prefs ?? { matches: true, events: true, community: false, deals: true }),
         search_radius: searchRadius,
       },
+      // Merge breeds into existing preferences without clobbering other fields
+      preferences: profile?.preferences
+        ? { ...profile.preferences, breeds }
+        : breeds.length > 0
+          ? { species: [], breeds, size: [], age: [], energy: [], good_with_kids: null, good_with_dogs: null, good_with_cats: null, housing: null }
+          : null,
     })
     setSaving(false)
     if (error) { setSaveError(error); return }
@@ -179,7 +211,7 @@ export default function ProfilePage() {
                 <input
                   type="range"
                   min={10}
-                  max={250}
+                  max={500}
                   step={10}
                   value={searchRadius}
                   onChange={e => setSearchRadius(Number(e.target.value))}
@@ -187,7 +219,74 @@ export default function ProfilePage() {
                 />
                 <div className="flex justify-between text-xs text-gray-400 mt-1">
                   <span>10 mi</span>
-                  <span>250 mi</span>
+                  <span>500 mi</span>
+                </div>
+              </div>
+
+              {/* Breed preferences */}
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  Breed preferences <span className="text-gray-400 font-normal">(optional)</span>
+                </label>
+
+                {/* Selected breeds */}
+                {breeds.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mb-2">
+                    {breeds.map(b => (
+                      <span
+                        key={b}
+                        className="flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full text-white"
+                        style={{ backgroundColor: '#e05a4e' }}
+                      >
+                        {b}
+                        <button
+                          type="button"
+                          onClick={() => removeBreed(b)}
+                          className="opacity-70 hover:opacity-100 transition-opacity"
+                        >
+                          <X size={11} />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                {/* Text input */}
+                <div className="flex gap-2 mb-2">
+                  <input
+                    type="text"
+                    value={breedInput}
+                    onChange={e => setBreedInput(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addBreed(breedInput) } }}
+                    placeholder="Type a breed and press Enter…"
+                    className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none transition-all placeholder:text-gray-400"
+                    onFocus={e => e.target.style.borderColor = '#e05a4e'}
+                    onBlur={e => e.target.style.borderColor = '#e5e7eb'}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => addBreed(breedInput)}
+                    disabled={!breedInput.trim()}
+                    className="w-9 h-9 rounded-xl flex items-center justify-center text-white flex-shrink-0 disabled:opacity-40 transition-opacity"
+                    style={{ backgroundColor: '#e05a4e' }}
+                  >
+                    <Plus size={16} />
+                  </button>
+                </div>
+
+                {/* Quick-select popular breeds */}
+                <p className="text-[11px] text-gray-400 mb-1.5">Popular breeds:</p>
+                <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
+                  {POPULAR_BREEDS.filter(b => !breeds.includes(b)).map(b => (
+                    <button
+                      key={b}
+                      type="button"
+                      onClick={() => addBreed(b)}
+                      className="text-xs px-2.5 py-1 rounded-full border border-gray-200 bg-gray-50 text-gray-600 hover:border-gray-300 hover:bg-gray-100 transition-all whitespace-nowrap"
+                    >
+                      + {b}
+                    </button>
+                  ))}
                 </div>
               </div>
 
@@ -297,6 +396,7 @@ export default function ProfilePage() {
                   <p className="text-xs text-gray-500 leading-relaxed">
                     {[
                       profile!.preferences.species.length > 0 && profile!.preferences.species.join(', '),
+                      profile!.preferences.breeds && profile!.preferences.breeds.length > 0 && profile!.preferences.breeds.join(', '),
                       profile!.preferences.size.length > 0 && profile!.preferences.size.join(' / '),
                       profile!.preferences.energy.length > 0 && profile!.preferences.energy.join(' / ') + ' energy',
                     ].filter(Boolean).join(' · ') || 'Open to all'}
