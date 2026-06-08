@@ -88,25 +88,17 @@ function mapAnimal(animal: any, included: any[]) {
   const sp    = included.find((i: any) => i.type === 'species' && i.id === spId)
   const type  = sp?.attributes?.singular ?? attr.species ?? 'Other'
 
-  // Resolve multiple photos from pictures relationship
-  const picRels = animal.relationships?.pictures?.data ?? []
-  const picIds  = (Array.isArray(picRels) ? picRels : [picRels]).map((p: any) => p?.id).filter(Boolean)
-  const photos: string[] = picIds
-    .slice(0, 6) // cap at 6 photos per animal to keep response lean
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .map((id: string) => included.find((i: any) => i.type === 'pictures' && i.id === id))
-    .filter(Boolean)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .map((pic: any) => pic.attributes?.urlFullsize ?? pic.attributes?.original ?? null)
-    .filter(Boolean)
-
-  // Fall back to the thumbnail (upscaled) if no pictures relationship data
+  // Build photo list — use thumbnail (upscaled) as the primary image.
+  // We don't request the pictures relationship separately because the search
+  // endpoint's included[] becomes enormous at 1000 animals and field name
+  // support varies. Thumbnail is reliable; local DB pets have full galleries.
   const thumbUrl: string | null = attr.pictureThumbnailUrl
     ? (attr.pictureThumbnailUrl as string).replace('?width=100', '?width=800')
     : null
-  const allPhotos = photos.length > 0 ? photos : (thumbUrl ? [thumbUrl] : [])
+  const photos: string[] = thumbUrl ? [thumbUrl] : []
 
-  // The rescue's own website (separate from the RescueGroups.org listing)
+  // The rescue's own website — read from whatever org fields the API returns
+  // (we don't restrict fields[orgs] so all org attributes come back)
   const orgUrl: string | null =
     org?.attributes?.rescueUrl     ??
     org?.attributes?.website       ??
@@ -122,8 +114,8 @@ function mapAnimal(animal: any, included: any[]) {
     gender:      attr.sex         ?? 'Unknown',
     size:        sizeLabel(attr.sizeCurrent),
     description: attr.descriptionText ?? attr.description ?? null,
-    photo:       allPhotos[0] ?? null,
-    photos:      allPhotos,
+    photo:       thumbUrl,
+    photos,
     url:         attr.url ?? 'https://www.rescuegroups.org',
     orgUrl,
     city,
@@ -174,7 +166,6 @@ export async function GET(request: Request) {
       'breedPrimary', 'breedString', 'sizeCurrent',
       'pictureThumbnailUrl', 'url', 'descriptionText',
     ].join(',')
-    const orgFields = 'name,city,state,lat,lon,rescueUrl,website,websiteUrl'
     const reqBody  = JSON.stringify({
       filterRadius: { coordinates: `${userCoords.lat},${userCoords.lon}`, miles: radius },
     })
@@ -187,12 +178,13 @@ export async function GET(request: Request) {
     const pageResponses = await Promise.all(
       Array.from({ length: PAGES }, (_, i) => {
         const p = new URLSearchParams({
-          limit:               String(PAGE_SIZE),
-          page:                String(i + 1),
-          include:             'orgs,locations,species,pictures',
-          'fields[animals]':   fields,
-          'fields[orgs]':      orgFields,
-          'fields[pictures]':  'urlFullsize,original',
+          limit:             String(PAGE_SIZE),
+          page:              String(i + 1),
+          include:           'orgs,locations,species',
+          'fields[animals]': fields,
+          // Note: don't restrict fields[orgs] — we need lat/lon for distance
+          // filtering and want rescueUrl/website for the org link. Let the API
+          // return all org fields (the default).
         })
         return fetch(`${endpoint}?${p}`, {
           method: 'POST', headers: reqHeaders, body: reqBody,
