@@ -238,13 +238,9 @@ export default function BrowsePage() {
 
     const localUnified = filteredLocal.map(localPetToUnified)
 
-    // Fetch RescueGroups if we have a city
-    const city = profile?.city
-    if (!city) {
-      setAnimals(localUnified)
-      setIdx(0)
-      return
-    }
+    // Fetch RescueGroups — use profile city if set, otherwise try browser geolocation,
+    // then fall back to a broad US search so guests see animals too.
+    const city = profile?.city || 'United States'
 
     setRgLoading(true)
     const params = new URLSearchParams({
