@@ -206,7 +206,7 @@ function AnimalDetailSheet({
 // ── Main page ─────────────────────────────────────────────────────────
 export default function BrowsePage() {
   const [speciesFilter, setSpeciesFilter] = useState('')
-  const [prefActive,    setPrefActive]    = useState(true)
+  const [prefActive,    setPrefActive]    = useState(false)
   const [animals,       setAnimals]       = useState<UnifiedPet[]>([])
   const [rgLoading,     setRgLoading]     = useState(false)
   const [idx,           setIdx]           = useState(0)
@@ -238,15 +238,16 @@ export default function BrowsePage() {
 
     const localUnified = filteredLocal.map(localPetToUnified)
 
-    // Fetch RescueGroups — use profile city if set, otherwise try browser geolocation,
-    // then fall back to a broad US search so guests see animals too.
-    const city = profile?.city || 'United States'
+    // Fetch RescueGroups — use profile city if set, otherwise do a US-wide search
+    // with a large radius so guests see animals without needing an account.
+    const city = profile?.city || 'Wichita, KS'
+    const effectiveRadius = profile?.city ? radius : 2000
 
     setRgLoading(true)
     const params = new URLSearchParams({
       location: city,
       limit:    '20',
-      radius:   String(radius),
+      radius:   String(effectiveRadius),
     })
     if (speciesFilter) params.set('type', speciesFilter)
 
@@ -520,38 +521,32 @@ export default function BrowsePage() {
               <div className="flex-1 min-h-0 bg-white rounded-2xl shadow-lg flex flex-col items-center justify-center py-8 px-8 text-center">
                 <span className="text-6xl mb-4">🐾</span>
                 <h3 className="text-lg font-bold text-gray-800 mb-2">
-                  {prefActive && prefs && animals.length === 0
+                  {animals.length === 0 && prefActive && prefs
                     ? 'No matches for your preferences'
-                    : !profile?.city
-                    ? 'Set your city to find nearby pets'
                     : "You've seen them all!"}
                 </h3>
                 <p className="text-sm text-gray-500 mb-6">
-                  {!profile?.city
-                    ? 'Add your city in your profile to see adoptable animals near you.'
-                    : 'Check back soon for new arrivals.'}
+                  Check back soon — new animals are added daily.
                 </p>
                 <div className="flex flex-col gap-2 w-full">
-                  {!profile?.city ? (
-                    <a href="/profile"
-                      className="px-5 py-2.5 rounded-full text-white text-sm font-semibold text-center"
-                      style={{ backgroundColor: '#e05a4e' }}>
-                      Go to Profile
-                    </a>
-                  ) : (
-                    <button
-                      onClick={() => setIdx(0)}
-                      className="px-5 py-2.5 rounded-full text-white text-sm font-semibold"
-                      style={{ backgroundColor: '#e05a4e' }}
-                    >
-                      Start over
-                    </button>
-                  )}
+                  <button
+                    onClick={() => setIdx(0)}
+                    className="px-5 py-2.5 rounded-full text-white text-sm font-semibold"
+                    style={{ backgroundColor: '#e05a4e' }}
+                  >
+                    Start over
+                  </button>
                   {prefActive && prefs && (
                     <button onClick={() => setPrefActive(false)}
                       className="px-5 py-2.5 rounded-full text-sm font-semibold border border-gray-200 text-gray-600 hover:bg-gray-50">
                       Show all pets
                     </button>
+                  )}
+                  {!profile && (
+                    <a href="/login"
+                      className="px-5 py-2.5 rounded-full text-sm font-semibold border border-gray-200 text-gray-600 hover:bg-gray-50 text-center">
+                      Sign in to set your location &amp; preferences
+                    </a>
                   )}
                 </div>
               </div>
