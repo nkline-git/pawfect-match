@@ -105,6 +105,18 @@ function mapAnimal(animal: any, included: any[]) {
     org?.attributes?.websiteUrl    ??
     null
 
+  // Contact info — used so the app can offer email/phone CTAs without linking
+  // to rescuegroups.org when the rescue hasn't set up their own website
+  const orgEmail: string | null =
+    org?.attributes?.email        ??
+    org?.attributes?.emailAddress ??
+    null
+
+  const orgPhone: string | null =
+    org?.attributes?.phone        ??
+    org?.attributes?.phoneNumber  ??
+    null
+
   return {
     id:          String(animal.id),
     name:        (attr.name ?? 'Unknown').trim(),
@@ -116,8 +128,10 @@ function mapAnimal(animal: any, included: any[]) {
     description: attr.descriptionText ?? attr.description ?? null,
     photo:       thumbUrl,
     photos,
-    url:         attr.url ?? 'https://www.rescuegroups.org',
+    url:      attr.url ?? `https://www.rescuegroups.org/animals/detail/?AnimalID=${animal.id}`,
     orgUrl,
+    orgEmail,
+    orgPhone,
     city,
     orgName,
     tags:        [] as string[],

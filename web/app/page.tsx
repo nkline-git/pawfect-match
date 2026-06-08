@@ -23,8 +23,10 @@ interface UnifiedPet {
   description: string | null
   photo: string | null
   photos: string[]
-  url: string        // RescueGroups listing URL (for RG pets) or /pets/:id (local)
-  orgUrl: string | null  // rescue's own website (if known)
+  url: string           // RescueGroups listing URL (for RG pets) or /pets/:id (local)
+  orgUrl: string | null   // rescue's own website (if known)
+  orgEmail: string | null // rescue contact email (if known)
+  orgPhone: string | null // rescue contact phone (if known)
   city: string
   orgName: string
   tags: string[]
@@ -64,6 +66,8 @@ function localPetToUnified(pet: Pet): UnifiedPet {
     photos:      pet.photos ?? [],
     url:         `/pets/${pet.id}`,
     orgUrl:      null,
+    orgEmail:    null,
+    orgPhone:    null,
     city:        pet.rescue?.city ?? 'Nearby',
     orgName:     pet.rescue?.name ?? 'Local Rescue',
     tags:        pet.traits,
@@ -114,13 +118,34 @@ function AnimalDetailSheet({
   animal: UnifiedPet
   onClose: () => void
 }) {
-  const [photoIdx, setPhotoIdx] = useState(0)
-  // Build gallery: prefer photos array, fall back to single photo
-  const photos = animal.photos && animal.photos.length > 0
+  const [photoIdx,      setPhotoIdx]      = useState(0)
+  const [extraPhotos,   setExtraPhotos]   = useState<string[]>([])
+  const [photosLoading, setPhotosLoading] = useState(false)
+
+  // Lazy-load all photos for RescueGroups animals when the sheet opens
+  useEffect(() => {
+    if (animal.isLocal) return
+    setPhotosLoading(true)
+    fetch(`/api/rescuegroups/animal/${animal.id}`)
+      .then(r => r.json())
+      .then((data: { photos?: string[] }) => {
+        if (Array.isArray(data.photos) && data.photos.length > 0) {
+          setExtraPhotos(data.photos)
+        }
+      })
+      .catch(() => {})
+      .finally(() => setPhotosLoading(false))
+  }, [animal.id, animal.isLocal])
+
+  // Gallery: use lazy-loaded extras if available, else fall back to existing data
+  const basePhotos = animal.photos.length > 0
     ? animal.photos
     : animal.photo ? [animal.photo] : []
+  const photos = extraPhotos.length > 0 ? extraPhotos : basePhotos
+  // Keep current photo index in bounds when photos arrive
+  const safeIdx = Math.min(photoIdx, Math.max(0, photos.length - 1))
+
   const bg = SPECIES_BG[animal.type] ?? SPECIES_BG.other
-  const isExternal = !animal.url.startsWith('/')
 
   return (
     <div className="fixed inset-0 z-50 flex items-end" onClick={onClose}>
@@ -133,23 +158,30 @@ function AnimalDetailSheet({
         {/* Photo gallery */}
         <div className="relative h-60 flex items-center justify-center" style={{ background: bg }}>
           {photos.length > 0 ? (
-            <img src={photos[photoIdx]} alt={animal.name} className="w-full h-full object-cover" />
+            <img src={photos[safeIdx]} alt={animal.name} className="w-full h-full object-cover" />
           ) : (
             <span className="text-[90px]">🐾</span>
           )}
 
+          {/* Photos loading spinner — shows while we're fetching all photos */}
+          {photosLoading && (
+            <div className="absolute bottom-3 right-3 z-10 flex items-center gap-1 bg-black/40 rounded-full px-2 py-1">
+              <span className="text-white text-[10px] animate-pulse">📷 loading photos…</span>
+            </div>
+          )}
+
           {/* Prev / next arrows */}
-          {photos.length > 1 && photoIdx > 0 && (
+          {photos.length > 1 && safeIdx > 0 && (
             <button
-              onClick={e => { e.stopPropagation(); setPhotoIdx(i => i - 1) }}
+              onClick={e => { e.stopPropagation(); setPhotoIdx(i => Math.max(0, i - 1)) }}
               className="absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/40 flex items-center justify-center text-white z-10"
             >
               <ChevronLeft size={16} />
             </button>
           )}
-          {photos.length > 1 && photoIdx < photos.length - 1 && (
+          {photos.length > 1 && safeIdx < photos.length - 1 && (
             <button
-              onClick={e => { e.stopPropagation(); setPhotoIdx(i => i + 1) }}
+              onClick={e => { e.stopPropagation(); setPhotoIdx(i => Math.min(photos.length - 1, i + 1)) }}
               className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/40 flex items-center justify-center text-white z-10"
             >
               <ChevronRight size={16} />
@@ -164,7 +196,7 @@ function AnimalDetailSheet({
                   key={i}
                   onClick={e => { e.stopPropagation(); setPhotoIdx(i) }}
                   className="w-1.5 h-1.5 rounded-full transition-all"
-                  style={{ backgroundColor: i === photoIdx ? 'white' : 'rgba(255,255,255,0.45)' }}
+                  style={{ backgroundColor: i === safeIdx ? 'white' : 'rgba(255,255,255,0.45)' }}
                 />
               ))}
             </div>
@@ -196,11 +228,11 @@ function AnimalDetailSheet({
             </div>
           )}
 
-          {/* Photo counter (top-right when > 1 photo) */}
+          {/* Photo counter */}
           {photos.length > 1 && (
             <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10">
               <span className="text-white/80 text-[10px] font-semibold bg-black/30 px-2 py-0.5 rounded-full">
-                {photoIdx + 1} / {photos.length}
+                {safeIdx + 1} / {photos.length}
               </span>
             </div>
           )}
@@ -253,6 +285,7 @@ function AnimalDetailSheet({
               </a>
             ) : (
               <div className="flex flex-col gap-2">
+                {/* Rescue's own website — primary CTA */}
                 {animal.orgUrl && (
                   <a
                     href={animal.orgUrl.startsWith('http') ? animal.orgUrl : `https://${animal.orgUrl}`}
@@ -261,20 +294,38 @@ function AnimalDetailSheet({
                     className="flex items-center justify-center gap-2 w-full py-3.5 rounded-2xl text-white font-semibold shadow"
                     style={{ backgroundColor: '#e05a4e' }}
                   >
-                    Visit {animal.orgName}'s website
+                    Visit {animal.orgName}&apos;s website
                     <ExternalLink size={14} />
                   </a>
                 )}
-                <a
-                  href={animal.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className={`flex items-center justify-center gap-2 w-full py-3 rounded-2xl font-semibold shadow text-sm ${animal.orgUrl ? 'border border-gray-200 text-gray-700 bg-white' : 'text-white'}`}
-                  style={!animal.orgUrl ? { backgroundColor: '#e05a4e' } : {}}
-                >
-                  View on RescueGroups.org
-                  <ExternalLink size={13} />
-                </a>
+                {/* Email the rescue directly */}
+                {animal.orgEmail && (
+                  <a
+                    href={`mailto:${animal.orgEmail}?subject=Interested in adopting ${animal.name}`}
+                    className={`flex items-center justify-center gap-2 w-full py-3.5 rounded-2xl font-semibold shadow ${!animal.orgUrl ? 'text-white' : 'border border-gray-200 text-gray-700 bg-white'}`}
+                    style={!animal.orgUrl ? { backgroundColor: '#e05a4e' } : {}}
+                  >
+                    Email {animal.orgName}
+                    <ExternalLink size={14} />
+                  </a>
+                )}
+                {/* Phone the rescue */}
+                {animal.orgPhone && (
+                  <a
+                    href={`tel:${animal.orgPhone}`}
+                    className={`flex items-center justify-center gap-2 w-full py-3.5 rounded-2xl font-semibold shadow ${!animal.orgUrl && !animal.orgEmail ? 'text-white' : 'border border-gray-200 text-gray-700 bg-white'}`}
+                    style={!animal.orgUrl && !animal.orgEmail ? { backgroundColor: '#e05a4e' } : {}}
+                  >
+                    Call {animal.orgName}
+                  </a>
+                )}
+                {/* No contact info at all — helpful nudge */}
+                {!animal.orgUrl && !animal.orgEmail && !animal.orgPhone && (
+                  <div className="text-center py-3 px-4 bg-gray-50 rounded-2xl">
+                    <p className="text-sm text-gray-600 font-medium">{animal.orgName}</p>
+                    <p className="text-xs text-gray-400 mt-0.5">{animal.city} · Contact them to inquire about {animal.name}</p>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -286,13 +337,17 @@ function AnimalDetailSheet({
 
 // ── Main page ─────────────────────────────────────────────────────────
 export default function BrowsePage() {
-  const [speciesFilter, setSpeciesFilter] = useState('')
-  const [prefActive,    setPrefActive]    = useState(false)
-  const [animals,       setAnimals]       = useState<UnifiedPet[]>([])
-  const [rgLoading,     setRgLoading]     = useState(false)
-  const [idx,           setIdx]           = useState(0)
-  const [selected,      setSelected]      = useState<UnifiedPet | null>(null)
-  const [matchedPet,    setMatchedPet]    = useState<UnifiedPet | null>(null)
+  const [speciesFilter,    setSpeciesFilter]    = useState('')
+  const [prefActive,       setPrefActive]       = useState(false)
+  const [animals,          setAnimals]          = useState<UnifiedPet[]>([])
+  const [rgLoading,        setRgLoading]        = useState(false)
+  const [idx,              setIdx]              = useState(0)
+  const [selected,         setSelected]         = useState<UnifiedPet | null>(null)
+  const [matchedPet,       setMatchedPet]       = useState<UnifiedPet | null>(null)
+  // Expand-radius state — when user exhausts all visible pets, offer to widen search
+  const [hasExpanded,      setHasExpanded]      = useState(false)
+  const [expandLoading,    setExpandLoading]    = useState(false)
+  const [expandedToRadius, setExpandedToRadius] = useState<number | null>(null)
 
   // Location state — persisted in localStorage for guests
   const [guestCity,    setGuestCity]    = useState<string>(() => {
@@ -337,6 +392,44 @@ export default function BrowsePage() {
     setShowLocInput(false)
   }
 
+  // ── Expand-radius search ─────────────────────────────────────────
+  const expandSearch = async () => {
+    const newRadius = Math.min(searchRadius + 50, 500)
+    setExpandLoading(true)
+    try {
+      const p = new URLSearchParams({
+        location: searchCity,
+        limit:    '20',
+        radius:   String(newRadius),
+      })
+      if (speciesFilter) p.set('type', speciesFilter)
+
+      const res  = await fetch(`/api/rescuegroups?${p}`)
+      const data = await res.json()
+
+      if (!data.error) {
+        const existingIds = new Set(animals.map(a => a.id))
+        const newPets = (data.animals ?? [])
+          .filter((a: UnifiedPet) => !existingIds.has(a.id))
+          .map((a: UnifiedPet) => ({
+            ...a,
+            photos:   Array.isArray(a.photos) && a.photos.length > 0 ? a.photos : (a.photo ? [a.photo] : []),
+            orgUrl:   a.orgUrl   ?? null,
+            orgEmail: a.orgEmail ?? null,
+            orgPhone: a.orgPhone ?? null,
+            isLocal:  false,
+          }))
+        setAnimals(prev => [...prev, ...newPets])
+      }
+      setExpandedToRadius(newRadius)
+      setHasExpanded(true)
+    } catch {
+      // silently fall back — just mark as expanded so the button goes away
+      setHasExpanded(true)
+    }
+    setExpandLoading(false)
+  }
+
   // ── Build unified animal list ─────────────────────────────────────
   useEffect(() => {
     // Filter & convert local DB pets
@@ -350,6 +443,10 @@ export default function BrowsePage() {
       : baseLocal
 
     const localUnified = filteredLocal.map(localPetToUnified)
+
+    // Reset expand state on fresh searches
+    setHasExpanded(false)
+    setExpandedToRadius(null)
 
     // Fetch RescueGroups using the effective search city/radius
     setRgLoading(true)
@@ -369,9 +466,11 @@ export default function BrowsePage() {
           const rgPets = (data.animals ?? []).map(a => ({
             ...a,
             // API now returns photos[] directly; fall back to single photo
-            photos:  Array.isArray(a.photos) && a.photos.length > 0 ? a.photos : (a.photo ? [a.photo] : []),
-            orgUrl:  a.orgUrl ?? null,
-            isLocal: false,
+            photos:    Array.isArray(a.photos) && a.photos.length > 0 ? a.photos : (a.photo ? [a.photo] : []),
+            orgUrl:    a.orgUrl    ?? null,
+            orgEmail:  a.orgEmail  ?? null,
+            orgPhone:  a.orgPhone  ?? null,
+            isLocal:   false,
           }))
           setAnimals([...localUnified, ...rgPets])
         }
@@ -678,19 +777,39 @@ export default function BrowsePage() {
                 <h3 className="text-lg font-bold text-gray-800 mb-2">
                   {animals.length === 0 && prefActive && prefs
                     ? 'No matches for your preferences'
-                    : "You've seen them all!"}
+                    : hasExpanded
+                    ? `You've seen all pets within ${expandedToRadius ?? searchRadius} miles!`
+                    : "You've seen all the pets near you!"}
                 </h3>
                 <p className="text-sm text-gray-500 mb-6">
-                  Check back soon — new animals are added daily.
+                  {!hasExpanded && searchRadius + 50 <= 500
+                    ? `Want to see more? We can look up to ${searchRadius + 50} miles away.`
+                    : 'Check back soon — new animals are added daily.'}
                 </p>
+
                 <div className="flex flex-col gap-2 w-full">
+                  {/* Expand radius — show when not yet expanded and there's room */}
+                  {!hasExpanded && searchRadius + 50 <= 500 && (
+                    <button
+                      onClick={expandSearch}
+                      disabled={expandLoading}
+                      className="px-5 py-3 rounded-full text-white text-sm font-semibold flex items-center justify-center gap-2 disabled:opacity-60"
+                      style={{ backgroundColor: '#e05a4e' }}
+                    >
+                      {expandLoading
+                        ? <><span className="animate-spin">⏳</span> Searching further…</>
+                        : `Show pets within ${searchRadius + 50} miles →`}
+                    </button>
+                  )}
+
                   <button
                     onClick={() => setIdx(0)}
-                    className="px-5 py-2.5 rounded-full text-white text-sm font-semibold"
-                    style={{ backgroundColor: '#e05a4e' }}
+                    className={`px-5 py-2.5 rounded-full text-sm font-semibold ${!hasExpanded && searchRadius + 50 <= 500 ? 'border border-gray-200 text-gray-600 hover:bg-gray-50' : 'text-white'}`}
+                    style={!hasExpanded && searchRadius + 50 <= 500 ? {} : { backgroundColor: '#e05a4e' }}
                   >
                     Start over
                   </button>
+
                   {prefActive && prefs && (
                     <button onClick={() => setPrefActive(false)}
                       className="px-5 py-2.5 rounded-full text-sm font-semibold border border-gray-200 text-gray-600 hover:bg-gray-50">
@@ -772,7 +891,7 @@ export default function BrowsePage() {
               </ol>
 
               <div className="flex flex-col gap-2">
-                {/* Primary CTA — rescue's own website if available, else in-app profile */}
+                {/* Primary CTA — rescue's own website > email > phone > message */}
                 {matchedPet.isLocal ? (
                   <a
                     href={matchedPet.url}
@@ -780,7 +899,7 @@ export default function BrowsePage() {
                     style={{ backgroundColor: '#e05a4e' }}
                     onClick={() => setMatchedPet(null)}
                   >
-                    View {matchedPet.name}'s profile &amp; apply →
+                    View {matchedPet.name}&apos;s profile &amp; apply →
                   </a>
                 ) : matchedPet.orgUrl ? (
                   <a
@@ -791,19 +910,33 @@ export default function BrowsePage() {
                     style={{ backgroundColor: '#e05a4e' }}
                     onClick={() => setMatchedPet(null)}
                   >
-                    Visit {matchedPet.orgName}'s website →
+                    Visit {matchedPet.orgName}&apos;s website →
                   </a>
-                ) : (
+                ) : matchedPet.orgEmail ? (
                   <a
-                    href={matchedPet.url}
-                    target="_blank"
-                    rel="noreferrer"
+                    href={`mailto:${matchedPet.orgEmail}?subject=Interested in adopting ${matchedPet.name}`}
                     className="block py-3 rounded-xl text-white font-semibold text-sm text-center"
                     style={{ backgroundColor: '#e05a4e' }}
                     onClick={() => setMatchedPet(null)}
                   >
-                    View {matchedPet.name} on RescueGroups →
+                    Email {matchedPet.orgName} →
                   </a>
+                ) : matchedPet.orgPhone ? (
+                  <a
+                    href={`tel:${matchedPet.orgPhone}`}
+                    className="block py-3 rounded-xl text-white font-semibold text-sm text-center"
+                    style={{ backgroundColor: '#e05a4e' }}
+                    onClick={() => setMatchedPet(null)}
+                  >
+                    Call {matchedPet.orgName} →
+                  </a>
+                ) : (
+                  <div
+                    className="py-3 px-4 rounded-xl text-center bg-gray-50 border border-gray-200"
+                  >
+                    <p className="text-sm font-semibold text-gray-700">{matchedPet.orgName}</p>
+                    <p className="text-xs text-gray-400 mt-0.5">Contact them directly to start the adoption for {matchedPet.name}</p>
+                  </div>
                 )}
                 <button
                   onClick={() => setMatchedPet(null)}
