@@ -285,8 +285,7 @@ function AnimalDetailSheet({
               </a>
             ) : (
               <div className="flex flex-col gap-2">
-                {/* Rescue's own website — primary CTA */}
-                {animal.orgUrl && (
+                {animal.orgUrl ? (
                   <a
                     href={animal.orgUrl.startsWith('http') ? animal.orgUrl : `https://${animal.orgUrl}`}
                     target="_blank"
@@ -297,33 +296,10 @@ function AnimalDetailSheet({
                     Visit {animal.orgName}&apos;s website
                     <ExternalLink size={14} />
                   </a>
-                )}
-                {/* Email the rescue directly */}
-                {animal.orgEmail && (
-                  <a
-                    href={`mailto:${animal.orgEmail}?subject=Interested in adopting ${animal.name}`}
-                    className={`flex items-center justify-center gap-2 w-full py-3.5 rounded-2xl font-semibold shadow ${!animal.orgUrl ? 'text-white' : 'border border-gray-200 text-gray-700 bg-white'}`}
-                    style={!animal.orgUrl ? { backgroundColor: '#e05a4e' } : {}}
-                  >
-                    Email {animal.orgName}
-                    <ExternalLink size={14} />
-                  </a>
-                )}
-                {/* Phone the rescue */}
-                {animal.orgPhone && (
-                  <a
-                    href={`tel:${animal.orgPhone}`}
-                    className={`flex items-center justify-center gap-2 w-full py-3.5 rounded-2xl font-semibold shadow ${!animal.orgUrl && !animal.orgEmail ? 'text-white' : 'border border-gray-200 text-gray-700 bg-white'}`}
-                    style={!animal.orgUrl && !animal.orgEmail ? { backgroundColor: '#e05a4e' } : {}}
-                  >
-                    Call {animal.orgName}
-                  </a>
-                )}
-                {/* No contact info at all — helpful nudge */}
-                {!animal.orgUrl && !animal.orgEmail && !animal.orgPhone && (
+                ) : (
                   <div className="text-center py-3 px-4 bg-gray-50 rounded-2xl">
                     <p className="text-sm text-gray-600 font-medium">{animal.orgName}</p>
-                    <p className="text-xs text-gray-400 mt-0.5">{animal.city} · Contact them to inquire about {animal.name}</p>
+                    <p className="text-xs text-gray-400 mt-0.5">{animal.city} · Contact them directly to inquire about {animal.name}</p>
                   </div>
                 )}
               </div>
@@ -891,7 +867,7 @@ export default function BrowsePage() {
               </ol>
 
               <div className="flex flex-col gap-2">
-                {/* Primary CTA — rescue's own website > email > phone > message */}
+                {/* Primary CTA */}
                 {matchedPet.isLocal ? (
                   <a
                     href={matchedPet.url}
@@ -912,28 +888,8 @@ export default function BrowsePage() {
                   >
                     Visit {matchedPet.orgName}&apos;s website →
                   </a>
-                ) : matchedPet.orgEmail ? (
-                  <a
-                    href={`mailto:${matchedPet.orgEmail}?subject=Interested in adopting ${matchedPet.name}`}
-                    className="block py-3 rounded-xl text-white font-semibold text-sm text-center"
-                    style={{ backgroundColor: '#e05a4e' }}
-                    onClick={() => setMatchedPet(null)}
-                  >
-                    Email {matchedPet.orgName} →
-                  </a>
-                ) : matchedPet.orgPhone ? (
-                  <a
-                    href={`tel:${matchedPet.orgPhone}`}
-                    className="block py-3 rounded-xl text-white font-semibold text-sm text-center"
-                    style={{ backgroundColor: '#e05a4e' }}
-                    onClick={() => setMatchedPet(null)}
-                  >
-                    Call {matchedPet.orgName} →
-                  </a>
                 ) : (
-                  <div
-                    className="py-3 px-4 rounded-xl text-center bg-gray-50 border border-gray-200"
-                  >
+                  <div className="py-3 px-4 rounded-xl text-center bg-gray-50 border border-gray-200">
                     <p className="text-sm font-semibold text-gray-700">{matchedPet.orgName}</p>
                     <p className="text-xs text-gray-400 mt-0.5">Contact them directly to start the adoption for {matchedPet.name}</p>
                   </div>
