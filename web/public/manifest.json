@@ -1,0 +1,14 @@
+{
+  "name": "Pawfect Match",
+  "short_name": "Pawfect",
+  "description": "Swipe to find rescue animals near you. Match with dogs, cats, and more.",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#c4b5a2",
+  "theme_color": "#e05a4e",
+  "categories": ["lifestyle", "social"],
+  "icons": [
+    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

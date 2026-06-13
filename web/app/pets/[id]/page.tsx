@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import {
   ArrowLeft, Heart, MapPin, ExternalLink, Phone, Globe,
   Clock, DollarSign, Users, Check, Loader2, X, Send,
+  ChevronLeft, ChevronRight,
 } from 'lucide-react'
 import type { Pet } from '@/types'
 
@@ -46,6 +47,7 @@ export default function PetDetailPage() {
   const [pet, setPet]         = useState<PetWithRescue | null>(null)
   const [loading, setLoading] = useState(true)
   const [saved, setSaved]     = useState(false)
+  const [photoIdx, setPhotoIdx] = useState(0)
   const [applying,       setApplying]       = useState(false)
   const [applied,        setApplied]        = useState(false)
   const [showApplyForm,  setShowApplyForm]  = useState(false)
@@ -161,25 +163,74 @@ export default function PetDetailPage() {
         {/* Main card */}
         <div className="bg-white rounded-2xl shadow-lg overflow-hidden mb-4">
 
-          {/* Photo */}
-          <div
-            className="relative flex items-center justify-center overflow-hidden"
-            style={{ height: 300, background: SPECIES_BG[pet.species] ?? SPECIES_BG.other }}
-          >
-            {pet.photos.length > 0 ? (
-              <img src={pet.photos[0]} alt={pet.name} className="w-full h-full object-cover" />
-            ) : (
-              <span className="text-[120px] select-none drop-shadow-sm">
-                {SPECIES_EMOJI[pet.species] ?? '🐾'}
-              </span>
-            )}
-            <div className="absolute bottom-3 left-3">
-              <span className="flex items-center gap-1 bg-white/80 backdrop-blur-sm text-gray-600 text-xs px-2 py-1 rounded-full">
-                <MapPin size={10} />
-                {pet.rescue?.city ?? '—'}
-              </span>
-            </div>
-          </div>
+          {/* Photo gallery */}
+          {(() => {
+            const photos = pet.photos ?? []
+            const safeIdx = Math.min(photoIdx, Math.max(0, photos.length - 1))
+            return (
+              <div
+                className="relative flex items-center justify-center overflow-hidden"
+                style={{ height: 300, background: SPECIES_BG[pet.species] ?? SPECIES_BG.other }}
+              >
+                {photos.length > 0 ? (
+                  <img src={photos[safeIdx]} alt={pet.name} className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-[120px] select-none drop-shadow-sm">
+                    {SPECIES_EMOJI[pet.species] ?? '🐾'}
+                  </span>
+                )}
+
+                {/* Prev arrow */}
+                {photos.length > 1 && safeIdx > 0 && (
+                  <button
+                    onClick={() => setPhotoIdx(i => i - 1)}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/40 flex items-center justify-center text-white z-10"
+                  >
+                    <ChevronLeft size={16} />
+                  </button>
+                )}
+                {/* Next arrow */}
+                {photos.length > 1 && safeIdx < photos.length - 1 && (
+                  <button
+                    onClick={() => setPhotoIdx(i => i + 1)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/40 flex items-center justify-center text-white z-10"
+                  >
+                    <ChevronRight size={16} />
+                  </button>
+                )}
+
+                {/* Dots */}
+                {photos.length > 1 && (
+                  <div className="absolute bottom-10 left-1/2 -translate-x-1/2 flex gap-1.5 z-10">
+                    {photos.map((_, i) => (
+                      <button
+                        key={i}
+                        onClick={() => setPhotoIdx(i)}
+                        className="w-1.5 h-1.5 rounded-full transition-all"
+                        style={{ backgroundColor: i === safeIdx ? 'white' : 'rgba(255,255,255,0.45)' }}
+                      />
+                    ))}
+                  </div>
+                )}
+
+                {/* Counter */}
+                {photos.length > 1 && (
+                  <div className="absolute top-3 right-3 z-10">
+                    <span className="text-white text-[10px] font-semibold bg-black/40 px-2 py-0.5 rounded-full">
+                      {safeIdx + 1}/{photos.length}
+                    </span>
+                  </div>
+                )}
+
+                <div className="absolute bottom-3 left-3">
+                  <span className="flex items-center gap-1 bg-white/80 backdrop-blur-sm text-gray-600 text-xs px-2 py-1 rounded-full">
+                    <MapPin size={10} />
+                    {pet.rescue?.city ?? '—'}
+                  </span>
+                </div>
+              </div>
+            )
+          })()}
 
           {/* Details */}
           <div className="px-5 py-4">

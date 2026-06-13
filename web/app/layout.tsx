@@ -1,12 +1,64 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' })
 
+// ── Viewport (theme-color lives here in Next.js 15+) ──────────────
+export const viewport: Viewport = {
+  themeColor:     '#e05a4e',
+  width:          'device-width',
+  initialScale:   1,
+  maximumScale:   1,   // prevent user-scaling — mobile app feel
+  userScalable:   false,
+}
+
+// ── Rich metadata ──────────────────────────────────────────────────
 export const metadata: Metadata = {
-  title: 'Pawfect Match',
-  description: 'Find your perfect pet match',
+  title: {
+    default:  'Pawfect Match — Find Your Perfect Rescue Pet',
+    template: '%s | Pawfect Match',
+  },
+  description:
+    'Swipe to match with rescue animals near you. Connect with local shelters and find your perfect pet — dogs, cats, rabbits, and more.',
+  keywords: [
+    'pet adoption', 'rescue animals', 'adopt a dog', 'adopt a cat',
+    'animal shelter', 'pet finder', 'rescue pets nearby',
+  ],
+  applicationName: 'Pawfect Match',
+
+  // ── Icons ─────────────────────────────────────────────────────────
+  icons: {
+    icon:      [{ url: '/favicon.svg', type: 'image/svg+xml' }],
+    shortcut:  '/favicon.svg',
+    apple:     [{ url: '/favicon.svg', type: 'image/svg+xml' }],
+  },
+
+  // ── PWA manifest ──────────────────────────────────────────────────
+  manifest: '/manifest.json',
+
+  // ── Apple PWA ─────────────────────────────────────────────────────
+  appleWebApp: {
+    capable:         true,
+    title:           'Pawfect Match',
+    statusBarStyle:  'default',
+  },
+
+  // ── Open Graph ────────────────────────────────────────────────────
+  openGraph: {
+    type:        'website',
+    siteName:    'Pawfect Match',
+    title:       'Pawfect Match — Find Your Perfect Rescue Pet',
+    description: 'Swipe to match with rescue animals near you. Connect with local shelters.',
+    locale:      'en_US',
+  },
+
+  // ── Twitter / X card ──────────────────────────────────────────────
+  twitter: {
+    card:        'summary',
+    title:       'Pawfect Match',
+    description: 'Swipe to find your perfect rescue pet 🐾',
+  },
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
