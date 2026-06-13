@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import {
-  Bell, User, X, RotateCcw, Heart,
+  Bookmark, User, X, RotateCcw, Heart,
   MapPin, ExternalLink, SlidersHorizontal,
   ChevronDown, Globe, ChevronLeft, ChevronRight, Pencil, Search,
 } from 'lucide-react'
@@ -325,6 +325,11 @@ export default function BrowsePage() {
   const [expandLoading,    setExpandLoading]    = useState(false)
   const [expandedToRadius, setExpandedToRadius] = useState<number | null>(null)
 
+  // Card photo cycling — fetches all photos per animal and lets the user tap to cycle
+  const [cardPhotoIdx,     setCardPhotoIdx]     = useState(0)
+  const [cardPhotosCache,  setCardPhotosCache]  = useState<Record<string, string[]>>({})
+  const touchMovedRef = useRef(false)
+
   // Location state — persisted in localStorage for guests
   const [guestCity,    setGuestCity]    = useState<string>(() => {
     if (typeof window !== 'undefined') return localStorage.getItem('pawfect_city') ?? ''
@@ -460,6 +465,33 @@ export default function BrowsePage() {
   const isLoading = localLoading || rgLoading || profileLoading
   const pet = animals[idx] ?? null
 
+  // ── Card photo fetching ───────────────────────────────────────────
+  // Whenever the active card changes, reset the photo index and pre-fetch
+  // all photos for RG animals so tapping the photo cycles through them.
+  useEffect(() => {
+    setCardPhotoIdx(0)
+    if (!pet || pet.isLocal) return
+    if (cardPhotosCache[pet.id]) return  // already cached — nothing to do
+    fetch(`/api/rescuegroups/animal/${pet.id}`)
+      .then(r => r.json())
+      .then((data: { photos?: string[] }) => {
+        if (Array.isArray(data.photos) && data.photos.length > 0) {
+          setCardPhotosCache(prev => ({ ...prev, [pet.id]: data.photos! }))
+        }
+      })
+      .catch(() => {})
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pet?.id])
+
+  // Photos available on the current card (fetched set, or existing single thumbnail)
+  const cardPhotos: string[] = pet
+    ? pet.isLocal
+      ? (pet.photos.length > 0 ? pet.photos : (pet.photo ? [pet.photo] : []))
+      : (cardPhotosCache[pet.id] ?? (pet.photos.length > 0 ? pet.photos : (pet.photo ? [pet.photo] : [])))
+    : []
+  const safeCardIdx     = Math.min(cardPhotoIdx, Math.max(0, cardPhotos.length - 1))
+  const currentCardPhoto = cardPhotos[safeCardIdx] ?? null
+
   // ── Actions ───────────────────────────────────────────────────────
   const handlePass = () => setIdx(i => Math.min(i + 1, animals.length))
   const handleLike = () => {
@@ -474,9 +506,12 @@ export default function BrowsePage() {
   const SWIPE_THRESHOLD = 80
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartX.current = e.touches[0].clientX
+    touchMovedRef.current = false
   }
   const handleTouchMove = (e: React.TouchEvent) => {
-    setSwipeDx(e.touches[0].clientX - touchStartX.current)
+    const dx = e.touches[0].clientX - touchStartX.current
+    setSwipeDx(dx)
+    if (Math.abs(dx) > 10) touchMovedRef.current = true  // mark as swipe, not tap
   }
   const handleTouchEnd = () => {
     if (swipeDx > SWIPE_THRESHOLD) {
@@ -521,7 +556,7 @@ export default function BrowsePage() {
                 </button>
               )}
               <a href="/saved" className="text-gray-400 hover:text-gray-600">
-                <Bell size={20} />
+                <Bookmark size={20} />
               </a>
               <a href="/profile" className="text-gray-400 hover:text-gray-600">
                 <User size={20} />
@@ -663,10 +698,17 @@ export default function BrowsePage() {
                   </div>
                 )}
 
-                {/* Photo */}
+                {/* Photo — tap to cycle through all photos */}
                 <div
                   className="relative flex items-center justify-center overflow-hidden flex-1 min-h-0"
-                  style={{ minHeight: 160, background: SPECIES_BG[pet.type] ?? SPECIES_BG.other }}
+                  style={{ minHeight: 160, background: SPECIES_BG[pet.type] ?? SPECIES_BG.other, cursor: cardPhotos.length > 1 ? 'pointer' : 'default' }}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    // Only cycle on a tap (not after a swipe gesture)
+                    if (!touchMovedRef.current && cardPhotos.length > 1) {
+                      setCardPhotoIdx(i => (i + 1) % cardPhotos.length)
+                    }
+                  }}
                 >
                   {/* Org badge */}
                   <div className="absolute top-3 left-3 z-10">
@@ -676,10 +718,19 @@ export default function BrowsePage() {
                     </span>
                   </div>
 
-                  {pet.photo ? (
-                    <img src={pet.photo} alt={pet.name} className="w-full h-full object-cover" />
+                  {currentCardPhoto ? (
+                    <img src={currentCardPhoto} alt={pet.name} className="w-full h-full object-cover" />
                   ) : (
                     <span className="text-[100px] select-none drop-shadow-sm">🐾</span>
+                  )}
+
+                  {/* Photo counter — shown when multiple photos are available */}
+                  {cardPhotos.length > 1 && (
+                    <div className="absolute top-3 right-3 z-10">
+                      <span className="text-white text-[10px] font-semibold bg-black/40 px-2 py-0.5 rounded-full">
+                        {safeCardIdx + 1}/{cardPhotos.length}
+                      </span>
+                    </div>
                   )}
 
                   {/* Location */}

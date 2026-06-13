@@ -1,24 +1,13 @@
 {
   "permissions": {
+    "defaultMode": "bypassPermissions",
     "allow": [
-      "Bash(npm run *)",
-      "Bash(npm install *)",
-      "Bash(npm install)",
-      "Bash(npm run dev)",
-      "Bash(npm run build)",
-      "Bash(npm run lint)",
-      "Bash(npm run test *)",
-      "Bash(npx supabase *)",
-      "Bash(npx tsx *)",
-      "Bash(npx ts-node *)",
-      "Bash(npx next *)",
-      "Bash(git status)",
-      "Bash(git diff *)",
-      "Bash(git diff)",
-      "Bash(git add *)",
-      "Bash(git commit *)",
-      "Bash(git log *)",
-      "Bash(git log)"
+      "Bash(*)",
+      "Read(*)",
+      "Write(*)",
+      "Edit(*)",
+      "Glob(*)",
+      "Grep(*)"
     ]
   }
 }

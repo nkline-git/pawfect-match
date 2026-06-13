@@ -1,0 +1,14 @@
+User-agent: *
+Allow: /
+
+# Block auth/private routes
+Disallow: /api/
+Disallow: /admin
+Disallow: /rescue/dashboard
+Disallow: /stores/dashboard
+Disallow: /onboarding
+Disallow: /profile
+Disallow: /saved
+Disallow: /update-password
+
+Sitemap: https://pawfect-match.vercel.app/sitemap.xml
