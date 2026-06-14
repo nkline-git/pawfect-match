@@ -190,6 +190,25 @@ export interface PetStore {
   updated_at: string
 }
 
+// ── Saved RescueGroups animal (persisted to localStorage) ────────
+// Mirrors the key fields of UnifiedPet from app/page.tsx so the Saved
+// page can render liked RG animals without a DB table.
+export interface SavedRGAnimal {
+  id:       string
+  name:     string
+  type:     string
+  breed:    string | null
+  age:      string | null
+  gender:   string
+  photo:    string | null
+  orgName:  string
+  orgUrl:   string | null
+  city:     string
+  savedAt:  string          // ISO timestamp
+}
+
+export const RG_SAVED_KEY = 'pawfect_saved_rg'
+
 // ── API helpers ──────────────────────────────────────────────────
 export interface ApiResponse<T> {
   data: T | null

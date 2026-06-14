@@ -9,7 +9,8 @@ import {
 import { usePets, useSavedPets } from '@/hooks/usePets'
 import { useProfile } from '@/hooks/useProfile'
 import BottomNav from '@/components/ui/BottomNav'
-import type { PetSpecies, PetPreferences, Pet } from '@/types'
+import type { PetSpecies, PetPreferences, Pet, SavedRGAnimal } from '@/types'
+import { RG_SAVED_KEY } from '@/types'
 
 // ── Unified animal shape (local DB pets + RescueGroups animals) ──────
 interface UnifiedPet {
@@ -496,7 +497,32 @@ export default function BrowsePage() {
   const handlePass = () => setIdx(i => Math.min(i + 1, animals.length))
   const handleLike = () => {
     if (!pet) return
-    if (pet.isLocal) toggleSave(pet.id)
+    if (pet.isLocal) {
+      toggleSave(pet.id)
+    } else {
+      // Save RG animal to localStorage so it shows on the Saved page
+      try {
+        const existing: SavedRGAnimal[] = JSON.parse(
+          localStorage.getItem(RG_SAVED_KEY) ?? '[]'
+        )
+        if (!existing.some(a => a.id === pet.id)) {
+          const entry: SavedRGAnimal = {
+            id:      pet.id,
+            name:    pet.name,
+            type:    pet.type,
+            breed:   pet.breed,
+            age:     pet.age,
+            gender:  pet.gender,
+            photo:   pet.photo,
+            orgName: pet.orgName,
+            orgUrl:  pet.orgUrl,
+            city:    pet.city,
+            savedAt: new Date().toISOString(),
+          }
+          localStorage.setItem(RG_SAVED_KEY, JSON.stringify([entry, ...existing]))
+        }
+      } catch { /* localStorage unavailable — silently skip */ }
+    }
     setMatchedPet(pet)
     setIdx(i => Math.min(i + 1, animals.length))
   }
