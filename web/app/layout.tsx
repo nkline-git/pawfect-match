@@ -27,11 +27,10 @@ export const metadata: Metadata = {
   ],
   applicationName: 'Pawfect Match',
 
-  // ── Icons ─────────────────────────────────────────────────────────
+  // ── Icons (apple-icon.tsx auto-serves the 180×180 apple touch icon)
   icons: {
-    icon:      [{ url: '/favicon.svg', type: 'image/svg+xml' }],
-    shortcut:  '/favicon.svg',
-    apple:     [{ url: '/favicon.svg', type: 'image/svg+xml' }],
+    icon:     [{ url: '/favicon.svg', type: 'image/svg+xml' }],
+    shortcut: '/favicon.svg',
   },
 
   // ── PWA manifest ──────────────────────────────────────────────────
@@ -53,9 +52,9 @@ export const metadata: Metadata = {
     locale:      'en_US',
   },
 
-  // ── Twitter / X card ──────────────────────────────────────────────
+  // ── Twitter / X card (summary_large_image since opengraph-image.tsx exists)
   twitter: {
-    card:        'summary',
+    card:        'summary_large_image',
     title:       'Pawfect Match',
     description: 'Swipe to find your perfect rescue pet 🐾',
   },

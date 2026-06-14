@@ -239,6 +239,13 @@ export default function LoginPage() {
           ← Browse pets without signing in
         </a>
       </p>
+
+      {/* Legal links */}
+      <p className="text-center text-xs text-white/40 mt-3">
+        <a href="/terms" className="hover:text-white/70 transition-colors">Terms of Service</a>
+        <span className="mx-2">·</span>
+        <a href="/privacy" className="hover:text-white/70 transition-colors">Privacy Policy</a>
+      </p>
     </div>
   )
 }
