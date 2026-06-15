@@ -1,6 +1,6 @@
 import type { MetadataRoute } from 'next'
 
-const BASE = 'https://pawfect-match.vercel.app'
+const BASE = 'https://pawfect-match-khaki.vercel.app'
 
 export default function sitemap(): MetadataRoute.Sitemap {
   return [

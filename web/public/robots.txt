@@ -11,4 +11,4 @@ Disallow: /profile
 Disallow: /saved
 Disallow: /update-password
 
-Sitemap: https://pawfect-match.vercel.app/sitemap.xml
+Sitemap: https://pawfect-match-khaki.vercel.app/sitemap.xml
