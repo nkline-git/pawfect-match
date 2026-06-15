@@ -113,10 +113,11 @@ export default function OnboardingPage() {
       housing,
     }
 
+    // upsert so preferences are saved even if the profile row doesn't exist yet
+    // (new Google OAuth users arrive here before setting up their profile)
     await supabase
       .from('profiles')
-      .update({ preferences: prefs })
-      .eq('id', user.id)
+      .upsert({ id: user.id, preferences: prefs })
 
     setSaving(false)
 
