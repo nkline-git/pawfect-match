@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import {
   ArrowLeft, Phone, Mail, Globe, MapPin,
-  Clock, ExternalLink, Loader2, CheckCircle,
+  Clock, ExternalLink, Loader2, CheckCircle, Search, X,
 } from 'lucide-react'
 import Link from 'next/link'
 import type { Rescue, Pet } from '@/types'
@@ -52,6 +52,11 @@ export default function RescuePublicPage() {
   const [pets,    setPets]    = useState<Pet[]>([])
   const [events,  setEvents]  = useState<RescueEvent[]>([])
   const [loading, setLoading] = useState(true)
+
+  // Animal directory: search + filters
+  const [petQuery,      setPetQuery]      = useState('')
+  const [petSpecies,    setPetSpecies]    = useState('')
+  const [petGender,     setPetGender]     = useState('')
 
   useEffect(() => {
     const load = async () => {
@@ -242,20 +247,88 @@ export default function RescuePublicPage() {
           </div>
         )}
 
-        {/* Available pets */}
+        {/* Available pets — searchable directory */}
         <div className="mb-6">
           <h2 className="text-white font-bold text-base mb-2 px-1">
             Available Pets {pets.length > 0 && `(${pets.length})`}
           </h2>
 
-          {pets.length === 0 ? (
-            <div className="bg-white rounded-2xl shadow-sm px-5 py-10 text-center">
-              <span className="text-4xl block mb-3">🐾</span>
-              <p className="text-sm text-gray-500">No pets available right now.<br />Check back soon!</p>
+          {/* Search + filters (shown when there's anything to search) */}
+          {pets.length > 0 && (
+            <div className="mb-3 space-y-2">
+              <div className="flex items-center gap-2 bg-white rounded-xl shadow-sm px-3 py-2.5">
+                <Search size={14} className="text-gray-400 flex-shrink-0" />
+                <input
+                  value={petQuery}
+                  onChange={e => setPetQuery(e.target.value)}
+                  placeholder="Search by name, breed, or age…"
+                  className="flex-1 min-w-0 text-sm outline-none text-gray-800 placeholder:text-gray-400 bg-transparent"
+                />
+                {petQuery && (
+                  <button onClick={() => setPetQuery('')} className="text-gray-300 hover:text-gray-500">
+                    <X size={14} />
+                  </button>
+                )}
+              </div>
+              <div className="flex gap-1.5 overflow-x-auto scrollbar-none">
+                {/* Species chips — only species this rescue actually has */}
+                {[...new Set(pets.map(p => p.species))].map(s => (
+                  <button
+                    key={s}
+                    onClick={() => setPetSpecies(v => v === s ? '' : s)}
+                    className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap flex-shrink-0 transition-all ${
+                      petSpecies === s ? 'text-white' : 'bg-white/80 text-gray-600'
+                    }`}
+                    style={petSpecies === s ? { backgroundColor: '#e05a4e' } : {}}
+                  >
+                    {SPECIES_EMOJI[s] ?? '🐾'} <span className="capitalize">{s.replace('_', ' ')}s</span>
+                  </button>
+                ))}
+                {['Female', 'Male'].map(g => (
+                  <button
+                    key={g}
+                    onClick={() => setPetGender(v => v === g ? '' : g)}
+                    className={`px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap flex-shrink-0 transition-all ${
+                      petGender === g ? 'text-white' : 'bg-white/80 text-gray-600'
+                    }`}
+                    style={petGender === g ? { backgroundColor: '#e05a4e' } : {}}
+                  >
+                    {g === 'Female' ? '♀' : '♂'} {g}
+                  </button>
+                ))}
+              </div>
             </div>
-          ) : (
+          )}
+
+          {(() => {
+            const q = petQuery.trim().toLowerCase()
+            const shown = pets.filter(p => {
+              if (petSpecies && p.species !== petSpecies) return false
+              if (petGender && p.gender !== petGender) return false
+              if (q && ![p.name, p.breed, p.age, ...(p.traits ?? [])].filter(Boolean).join(' ').toLowerCase().includes(q)) return false
+              return true
+            })
+            if (pets.length === 0) return (
+              <div className="bg-white rounded-2xl shadow-sm px-5 py-10 text-center">
+                <span className="text-4xl block mb-3">🐾</span>
+                <p className="text-sm text-gray-500">No pets available right now.<br />Check back soon!</p>
+              </div>
+            )
+            if (shown.length === 0) return (
+              <div className="bg-white rounded-2xl shadow-sm px-5 py-8 text-center">
+                <span className="text-3xl block mb-2">🔍</span>
+                <p className="text-sm text-gray-500">No pets match your search.</p>
+                <button
+                  onClick={() => { setPetQuery(''); setPetSpecies(''); setPetGender('') }}
+                  className="text-xs font-semibold mt-2 underline" style={{ color: '#e05a4e' }}
+                >
+                  Clear filters
+                </button>
+              </div>
+            )
+            return (
             <div className="grid grid-cols-2 gap-3">
-              {pets.map(pet => (
+              {shown.map(pet => (
                 <Link
                   key={pet.id}
                   href={`/pets/${pet.id}`}
@@ -289,7 +362,8 @@ export default function RescuePublicPage() {
                 </Link>
               ))}
             </div>
-          )}
+            )
+          })()}
         </div>
 
       </div>

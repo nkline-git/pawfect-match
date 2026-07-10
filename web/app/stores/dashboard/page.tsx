@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useStore } from '@/hooks/useStore'
-import { Loader2, Check, LogOut, ExternalLink, Share2, Plus, Trash2, PackageOpen } from 'lucide-react'
+import { Loader2, Check, LogOut, ExternalLink, Share2, Plus, Trash2, PackageOpen, Calendar, MapPin } from 'lucide-react'
 import Link from 'next/link'
 import type { StoreProduct } from '@/types'
 
@@ -24,6 +24,179 @@ const SPECIALTY_OPTIONS = [
   'Boarding', 'Doggy daycare', 'Aquatics', 'Reptiles',
   'Birds', 'Farm animals', 'Holistic care', 'Adoption support',
 ]
+
+// ── Store events: sales, workshops, adoption days ────────────────
+const STORE_EVENT_TYPES = [
+  { value: 'sale',           label: '🏷️ Sale'           },
+  { value: 'workshop',       label: '🎓 Workshop'        },
+  { value: 'adoption_event', label: '🐾 Adoption Event'  },
+  { value: 'meetup',         label: '☕ Meetup'           },
+  { value: 'other',          label: '📅 Other'           },
+]
+
+type StoreEvent = {
+  id: string
+  title: string
+  event_type: string
+  location: string | null
+  starts_at: string
+  status: string
+}
+
+function StoreEventsManager({ storeId, userId }: { storeId: string; userId: string }) {
+  const supabase = createClient()
+  const [events,    setEvents]    = useState<StoreEvent[]>([])
+  const [available, setAvailable] = useState<boolean | null>(null) // false = 007 not applied
+  const [showForm,  setShowForm]  = useState(false)
+  const [saving,    setSaving]    = useState(false)
+  const [error,     setError]     = useState<string | null>(null)
+  const [eTitle,    setETitle]    = useState('')
+  const [eType,     setEType]     = useState('sale')
+  const [eLocation, setELocation] = useState('')
+  const [eDate,     setEDate]     = useState('')
+  const [eTime,     setETime]     = useState('')
+  const [eDesc,     setEDesc]     = useState('')
+
+  const load = async () => {
+    const { data, error } = await supabase
+      .from('events')
+      .select('id, title, event_type, location, starts_at, status')
+      .eq('store_id', storeId)
+      .order('starts_at', { ascending: true })
+      .limit(20)
+    if (error) { setAvailable(false); return }
+    setAvailable(true)
+    setEvents((data ?? []) as StoreEvent[])
+  }
+  useEffect(() => { load() // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [storeId])
+
+  const addEvent = async () => {
+    if (!eTitle.trim()) { setError('Event title is required.'); return }
+    if (!eDate)         { setError('Event date is required.'); return }
+    setSaving(true); setError(null)
+    const startsAt = new Date(`${eDate}T${eTime || '12:00'}`)
+    const { error } = await supabase.from('events').insert({
+      user_id:     userId,
+      store_id:    storeId,
+      title:       eTitle.trim(),
+      description: eDesc.trim() || null,
+      event_type:  eType,
+      location:    eLocation.trim() || null,
+      starts_at:   startsAt.toISOString(),
+      status:      'active',
+    })
+    setSaving(false)
+    if (error) { setError(error.message); return }
+    setETitle(''); setELocation(''); setEDate(''); setETime(''); setEDesc(''); setEType('sale')
+    setShowForm(false)
+    load()
+  }
+
+  const removeEvent = async (id: string) => {
+    await supabase.from('events').delete().eq('id', id)
+    load()
+  }
+
+  const fmtDate = (iso: string) =>
+    new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' · ' +
+    new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+
+  if (available === null) return null
+  if (available === false) return null  // 007 migration not applied yet
+
+  return (
+    <div className="bg-white rounded-2xl shadow-lg p-5 mb-4">
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="font-bold text-gray-900 flex items-center gap-1.5">
+          <Calendar size={16} className="text-gray-400" /> Your events
+        </h2>
+        <button
+          onClick={() => setShowForm(v => !v)}
+          className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-full text-white"
+          style={{ backgroundColor: '#e05a4e' }}
+        >
+          <Plus size={12} /> {showForm ? 'Close' : 'New event'}
+        </button>
+      </div>
+
+      {showForm && (
+        <div className="border border-gray-100 rounded-xl p-3.5 mb-3 space-y-3 bg-gray-50">
+          <input
+            value={eTitle} onChange={e => setETitle(e.target.value)}
+            placeholder="Event title * (e.g. Spring Sale — 20% off toys)"
+            className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none bg-white"
+          />
+          <div className="flex flex-wrap gap-1.5">
+            {STORE_EVENT_TYPES.map(t => (
+              <button key={t.value} onClick={() => setEType(t.value)}
+                className={`px-2.5 py-1 rounded-full text-[11px] font-medium border transition-all ${
+                  eType === t.value ? 'text-white border-transparent' : 'bg-white text-gray-600 border-gray-200'
+                }`}
+                style={eType === t.value ? { backgroundColor: '#e05a4e' } : {}}>{t.label}</button>
+            ))}
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <input type="date" value={eDate} onChange={e => setEDate(e.target.value)}
+              className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none text-gray-700 bg-white" />
+            <input type="time" value={eTime} onChange={e => setETime(e.target.value)}
+              className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none text-gray-700 bg-white" />
+          </div>
+          <input
+            value={eLocation} onChange={e => setELocation(e.target.value)}
+            placeholder="Location (defaults to your store)"
+            className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none bg-white"
+          />
+          <textarea
+            value={eDesc} onChange={e => setEDesc(e.target.value)}
+            placeholder="Details (optional)" rows={2}
+            className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none resize-none bg-white"
+          />
+          {error && <p className="text-xs text-red-600">{error}</p>}
+          <button
+            onClick={addEvent} disabled={saving}
+            className="w-full py-2.5 rounded-xl text-white text-sm font-semibold disabled:opacity-50 flex items-center justify-center gap-2"
+            style={{ backgroundColor: '#e05a4e' }}
+          >
+            {saving && <Loader2 size={14} className="animate-spin" />}
+            Publish event
+          </button>
+        </div>
+      )}
+
+      {events.length === 0 && !showForm ? (
+        <p className="text-sm text-gray-400 text-center py-4">
+          No events yet. Sales and workshops you post<br />show up on your store page.
+        </p>
+      ) : (
+        <div className="space-y-2">
+          {events.map(ev => {
+            const past = new Date(ev.starts_at) < new Date()
+            const typeMeta = STORE_EVENT_TYPES.find(t => t.value === ev.event_type)
+            return (
+              <div key={ev.id} className={`flex items-start justify-between gap-2 border border-gray-100 rounded-xl px-3 py-2.5 ${past ? 'opacity-50' : ''}`}>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-gray-900 truncate">{ev.title}</p>
+                  <p className="text-[11px] text-gray-400 mt-0.5">
+                    {typeMeta?.label ?? ev.event_type} · {fmtDate(ev.starts_at)}{past && ' · past'}
+                  </p>
+                  {ev.location && (
+                    <p className="text-[11px] text-gray-400 flex items-center gap-1 mt-0.5">
+                      <MapPin size={10} /> {ev.location}
+                    </p>
+                  )}
+                </div>
+                <button onClick={() => removeEvent(ev.id)} className="text-gray-300 hover:text-red-500 transition-colors p-1 flex-shrink-0">
+                  <Trash2 size={13} />
+                </button>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
 
 const PRODUCT_CATEGORIES = ['food', 'treats', 'toys', 'beds', 'grooming', 'health', 'travel', 'other'] as const
 const PRODUCT_EMOJIS = ['🛍️', '🥩', '🦴', '🎾', '🛏️', '✂️', '💊', '🚗', '🧸', '🥫', '🍪', '🐟']
@@ -204,6 +377,7 @@ export default function StoreDashboardPage() {
   const { store, loading: storeLoading, updateStore } = useStore()
 
   const [authed,  setAuthed]  = useState<boolean | null>(null)
+  const [userId,  setUserId]  = useState<string | null>(null)
   const [saving,  setSaving]  = useState(false)
   const [saved,   setSaved]   = useState(false)
   const [error,   setError]   = useState<string | null>(null)
@@ -227,7 +401,7 @@ export default function StoreDashboardPage() {
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
       if (!data.user) router.replace('/login?next=%2Fstores%2Fdashboard')
-      else setAuthed(true)
+      else { setAuthed(true); setUserId(data.user.id) }
     })
   }, [supabase, router])
 
@@ -352,6 +526,9 @@ export default function StoreDashboardPage() {
 
         {/* Products manager — the store's own shelf */}
         <ProductsManager storeId={store.id} />
+
+        {/* Events manager — sales, workshops, adoption days */}
+        {userId && <StoreEventsManager storeId={store.id} userId={userId} />}
 
         {/* Edit profile card */}
         <div className="bg-white rounded-2xl shadow-lg p-5 space-y-4 mb-6">

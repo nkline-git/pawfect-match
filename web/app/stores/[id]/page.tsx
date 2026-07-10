@@ -19,23 +19,33 @@ export default function StorePublicPage() {
   const id       = params.id as string
   const supabase = createClient()
 
+  type StoreEvent = { id: string; title: string; event_type: string; location: string | null; starts_at: string; description: string | null }
+
   const [store,    setStore]    = useState<PetStore | null>(null)
   const [products, setProducts] = useState<StoreProduct[]>([])
+  const [events,   setEvents]   = useState<StoreEvent[]>([])
   const [loading,  setLoading]  = useState(true)
   const [isOwner,  setIsOwner]  = useState(false)
 
   useEffect(() => {
     const load = async () => {
-      const [storeRes, userRes, productsRes] = await Promise.all([
+      const [storeRes, userRes, productsRes, eventsRes] = await Promise.all([
         supabase.from('pet_stores').select('*').eq('id', id).single(),
         supabase.auth.getUser(),
         // Graceful: table may not exist until the 004 migration is applied
         supabase.from('store_products').select('*').eq('store_id', id)
           .eq('in_stock', true).order('sort').order('created_at').limit(24)
           .then(r => r, () => ({ data: null, error: true })),
+        // Graceful: store_id column may not exist until 007
+        supabase.from('events').select('id, title, event_type, location, starts_at, description')
+          .eq('store_id', id).eq('status', 'active')
+          .gte('starts_at', new Date().toISOString())
+          .order('starts_at').limit(5)
+          .then(r => r, () => ({ data: null, error: true })),
       ])
       setStore(storeRes.data)
       if (!productsRes.error && productsRes.data) setProducts(productsRes.data as StoreProduct[])
+      if (!eventsRes.error && eventsRes.data) setEvents(eventsRes.data as StoreEvent[])
       if (storeRes.data && userRes.data.user) {
         setIsOwner(userRes.data.user.id === storeRes.data.user_id)
       }
@@ -208,6 +218,39 @@ export default function StorePublicPage() {
             </div>
           </div>
         </div>
+
+        {/* ── Upcoming events: sales, workshops, adoption days ── */}
+        {events.length > 0 && (
+          <div className="mb-4">
+            <h2 className="text-white font-bold text-base mb-2 px-1">📅 Upcoming at {store.name.split(' ')[0] === 'The' ? store.name.split(' ').slice(0, 3).join(' ') : store.name}</h2>
+            <div className="space-y-2">
+              {events.map(ev => (
+                <Link
+                  key={ev.id}
+                  href={`/events/${ev.id}`}
+                  className="flex items-center gap-3 bg-white rounded-2xl shadow-sm px-4 py-3 hover:shadow-md transition-shadow"
+                >
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0 bg-amber-50">
+                    {ev.event_type === 'sale' ? '🏷️' :
+                     ev.event_type === 'workshop' ? '🎓' :
+                     ev.event_type === 'adoption_event' ? '🐾' :
+                     ev.event_type === 'meetup' ? '☕' : '📅'}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-gray-900 text-sm truncate">{ev.title}</p>
+                    <p className="text-xs text-gray-500">
+                      {new Date(ev.starts_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                      {' · '}
+                      {new Date(ev.starts_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                      {ev.location && ` · ${ev.location}`}
+                    </p>
+                  </div>
+                  <ExternalLink size={13} className="text-gray-400 flex-shrink-0" />
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* ── Products: the store's own shelf ── */}
         {products.length > 0 && (

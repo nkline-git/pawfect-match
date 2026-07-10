@@ -417,6 +417,12 @@ export default function ProfilePage() {
               </button>
 
               <div className="mt-4 pt-4 border-t border-gray-100 space-y-3">
+                <Link
+                  href="/rehome"
+                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  💛 Rehome my pet
+                </Link>
                 {(profile!.role === 'admin' || profile!.role === 'moderator') && (
                   <a
                     href="/admin"

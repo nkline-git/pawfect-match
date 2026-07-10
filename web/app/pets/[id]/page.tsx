@@ -225,7 +225,7 @@ export default function PetDetailPage() {
                 <div className="absolute bottom-3 left-3">
                   <span className="flex items-center gap-1 bg-white/80 backdrop-blur-sm text-gray-600 text-xs px-2 py-1 rounded-full">
                     <MapPin size={10} />
-                    {pet.rescue?.city ?? '—'}
+                    {pet.rescue?.city ?? pet.city ?? '—'}
                   </span>
                 </div>
               </div>
@@ -290,8 +290,39 @@ export default function PetDetailPage() {
                 <p className="text-sm text-gray-600 leading-relaxed">{pet.description}</p>
               </div>
             )}
+
+            {/* Rehoming reason */}
+            {pet.rehome_reason && (
+              <div className="mb-4">
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Why they need a new home</p>
+                <p className="text-sm text-gray-600 leading-relaxed">{pet.rehome_reason}</p>
+              </div>
+            )}
           </div>
         </div>
+
+        {/* Owner rehoming card — for pets listed by their owner, not a rescue */}
+        {!pet.rescue && pet.owner_id && (
+          <div className="bg-white rounded-2xl shadow-lg px-5 py-4 mb-4">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Owner rehoming</p>
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 rounded-full bg-amber-50 flex items-center justify-center text-xl">💛</div>
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-gray-900">Listed by {pet.name}&apos;s family</p>
+                <p className="text-xs text-gray-500">{pet.city ?? 'Nearby'} · direct adoption, no shelter involved</p>
+              </div>
+            </div>
+            {pet.contact_email && (
+              <a
+                href={`mailto:${pet.contact_email}?subject=Interested in adopting ${encodeURIComponent(pet.name)}&body=Hi! I saw ${encodeURIComponent(pet.name)} on Pawfect Match and I'd love to learn more.`}
+                className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl font-semibold text-sm border-2"
+                style={{ borderColor: '#e05a4e', color: '#e05a4e' }}
+              >
+                ✉️ Email the owner
+              </a>
+            )}
+          </div>
+        )}
 
         {/* Rescue card */}
         {pet.rescue && (

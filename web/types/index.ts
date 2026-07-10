@@ -80,7 +80,13 @@ export interface RescueStats {
 // ── Pet ──────────────────────────────────────────────────────────
 export interface Pet {
   id: string
-  rescue_id: string
+  rescue_id: string | null       // null for owner-rehomed pets (008)
+  owner_id?: string | null       // set for owner-rehomed pets
+  contact_email?: string | null  // rehoming contact
+  rehome_reason?: string | null
+  city?: string | null           // rehoming pets carry their own location
+  lat?: number | null
+  lon?: number | null
   name: string
   species: PetSpecies
   breed: string | null

@@ -73,6 +73,7 @@ function localPetToUnified(pet: Pet): UnifiedPet {
   if (pet.good_with.includes('Dogs')) goodWithTags.push('Dog-friendly')
   if (pet.good_with.includes('Cats')) goodWithTags.push('Cat-friendly')
   const mergedTags = [...pet.traits, ...goodWithTags.filter(t => !pet.traits.includes(t))]
+  const isRehoming = !pet.rescue_id && !!pet.owner_id
   return {
     id:          pet.id,
     name:        pet.name,
@@ -81,19 +82,20 @@ function localPetToUnified(pet: Pet): UnifiedPet {
     age:         pet.age,
     gender:      pet.gender,
     size:        pet.size,
-    description: pet.description,
+    description: pet.description
+      ?? (isRehoming && pet.rehome_reason ? `Looking for a new home: ${pet.rehome_reason}` : null),
     photo:       pet.photos[0] ?? null,
     photos:      pet.photos ?? [],
     url:         `/pets/${pet.id}`,
     orgUrl:      null,
-    orgEmail:    null,
+    orgEmail:    isRehoming ? (pet.contact_email ?? null) : null,
     orgPhone:    null,
-    city:        pet.rescue?.city ?? 'Nearby',
-    orgName:     pet.rescue?.name ?? 'Local Rescue',
+    city:        pet.rescue?.city ?? pet.city ?? 'Nearby',
+    orgName:     pet.rescue?.name ?? (isRehoming ? '💛 Owner rehoming' : 'Local Rescue'),
     tags:        mergedTags,
     isLocal:     true,
-    rescueLat:   pet.rescue?.lat ?? null,
-    rescueLon:   pet.rescue?.lon ?? null,
+    rescueLat:   pet.rescue?.lat ?? pet.lat ?? null,
+    rescueLon:   pet.rescue?.lon ?? pet.lon ?? null,
   }
 }
 

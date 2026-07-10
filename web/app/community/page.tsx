@@ -430,6 +430,20 @@ export default function CommunityPage() {
         {/* Scrollable content area */}
         <div className="flex-1 overflow-y-auto pb-2">
 
+        {/* Lost Pet SOS banner */}
+        <a
+          href="/sos"
+          className="flex items-center gap-3 rounded-2xl shadow-sm px-4 py-3 mb-3 hover:shadow-md transition-shadow"
+          style={{ background: 'linear-gradient(135deg,#fef2f2,#fee2e2)', border: '1px solid #fecaca' }}
+        >
+          <span className="text-2xl">🚨</span>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold text-red-700">Lost Pet SOS</p>
+            <p className="text-xs text-red-500">Report a missing pet or join a search near you</p>
+          </div>
+          <span className="text-xs font-bold flex-shrink-0 text-red-600">Open →</span>
+        </a>
+
         {/* DB missing notice */}
         {dbMissing && (
           <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-3 text-sm text-amber-800">
@@ -699,6 +713,19 @@ export default function CommunityPage() {
             </div>
           </>
         )}
+
+        {/* Rehoming CTA */}
+        <a
+          href="/rehome"
+          className="flex items-center gap-3 bg-white rounded-2xl shadow-sm px-4 py-3 mt-3 hover:shadow-md transition-shadow"
+        >
+          <span className="text-2xl">💛</span>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-gray-800">Need to rehome your pet?</p>
+            <p className="text-xs text-gray-400">List them here and find a loving new family nearby</p>
+          </div>
+          <span className="text-xs font-semibold flex-shrink-0" style={{ color: '#e05a4e' }}>Start →</span>
+        </a>
 
         {/* Business CTAs — help rescues and stores find their portals */}
         <div className="grid grid-cols-2 gap-2 mt-3 mb-2">
