@@ -2,6 +2,33 @@ import { NextResponse } from 'next/server'
 
 const RG_BASE = 'https://api.rescuegroups.org/v5/public'
 
+// RescueGroups v5 returns picture URL fields as OBJECTS:
+//   { url: "https://...", filesize: 1401259, resolutionX: 4752, resolutionY: 3168 }
+// not plain strings. This helper handles both forms and applies CDN width capping
+// so cards load a reasonable 800px image instead of a raw 4752px DSLR shot.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function pickUrl(val: any): string | null {
+  if (!val) return null
+  let url: string | null = null
+  if (typeof val === 'string') {
+    url = val || null
+  } else if (typeof val === 'object') {
+    const u = val.url ?? val.urlFull ?? val.urlFullsize ?? val.original
+    url = typeof u === 'string' ? u || null : null
+  }
+  // Append CDN resize param if not already present — keeps cards fast
+  if (url && url.includes('cdn.rescuegroups.org') && !url.includes('width=')) {
+    url = `${url}?width=800`
+  }
+  return url
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function extractFilesize(val: any): number {
+  if (!val || typeof val !== 'object') return 0
+  return typeof val.filesize === 'number' ? val.filesize : 0
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function GET(
   _request: Request,
@@ -14,44 +41,63 @@ export async function GET(
     return NextResponse.json({ photos: [] })
   }
 
+  const headers = {
+    Authorization: apiKey,
+    'User-Agent': 'PawfectMatch/1.0',
+  }
+
   try {
-    const p = new URLSearchParams({
-      include: 'pictures',
-      'fields[pictures]': 'url,urlFullsize',
-    })
-
+    const p = new URLSearchParams({ include: 'pictures' })
     const res = await fetch(`${RG_BASE}/animals/${id}?${p}`, {
-      headers: {
-        Authorization: apiKey,
-        'User-Agent': 'PawfectMatch/1.0',
-      },
-      // Cache each animal's photos for 1 hour (they rarely change)
-      next: { revalidate: 3600 },
+      headers,
+      cache: 'no-store',
     })
-
     if (!res.ok) return NextResponse.json({ photos: [] })
 
     const json = await res.json()
 
-    // Extract picture IDs from the animal's relationships
-    const picRels = json.data?.relationships?.pictures?.data ?? []
+    const animalData = Array.isArray(json.data) ? json.data[0] : json.data
+
+    const picRels = animalData?.relationships?.pictures?.data ?? []
     const picIds: string[] = Array.isArray(picRels)
       ? picRels.map((r: { id: string }) => r.id)
       : []
 
-    // Match picture IDs to their records in included[]
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const included: any[] = json.included ?? []
-    const photos: string[] = picIds
-      .map((picId) =>
-        included.find((i: any) => i.type === 'pictures' && i.id === picId)
-      )
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const pictures = picIds
+      .map((picId) => included.find((i: any) => i.type === 'pictures' && i.id === picId))
       .filter(Boolean)
-      .map(
-        (pic: any) =>
-          pic.attributes?.urlFullsize ?? pic.attributes?.url ?? null
-      )
+
+    // Sort smallest-first so the fastest-loading thumbnail comes first on the card.
+    // Full-size photos (4000+ px) are only needed for zoomed detail view.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    pictures.sort((a: any, b: any) => {
+      const fa = extractFilesize(a.attributes?.urlThumbnail ?? a.attributes?.urlMedium ?? a.attributes?.urlLarge ?? a.attributes?.urlFull ?? a.attributes?.urlFullsize)
+      const fb = extractFilesize(b.attributes?.urlThumbnail ?? b.attributes?.urlMedium ?? b.attributes?.urlLarge ?? b.attributes?.urlFull ?? b.attributes?.urlFullsize)
+      return fa - fb
+    })
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const photos: string[] = pictures
+      .map((pic: any) => {
+        const a = pic.attributes ?? {}
+        // Prefer medium/large for card display; fall back to fullsize or plain url
+        return (
+          pickUrl(a.urlMedium)    ??
+          pickUrl(a.urlLarge)     ??
+          pickUrl(a.urlThumbnail) ??
+          pickUrl(a.urlFull)      ??
+          pickUrl(a.urlFullsize)  ??
+          pickUrl(a.original)     ??
+          pickUrl(a.url)          ??
+          null
+        )
+      })
       .filter(Boolean)
-      .slice(0, 12) // cap at 12 photos
+      .slice(0, 12) as string[]
 
     return NextResponse.json({ photos })
   } catch {

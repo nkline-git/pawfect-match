@@ -27,7 +27,12 @@ export async function GET(request: Request) {
           .maybeSingle()
 
         if (!profile) {
-          // New user: preference quiz first, then profile setup
+          // Business signups (rescue/store) skip the adopter preference quiz —
+          // send them straight to their setup flow instead
+          if (next.startsWith('/rescue') || next.startsWith('/stores')) {
+            return NextResponse.redirect(`${origin}${next}`)
+          }
+          // New adopter: preference quiz first, then profile setup
           return NextResponse.redirect(`${origin}/onboarding`)
         }
       }

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { geocodeCity } from '@/lib/geocode'
 import { useRescue } from '@/hooks/useRescue'
 import { Loader2, Check, ArrowLeft } from 'lucide-react'
 import { Suspense } from 'react'
@@ -17,8 +18,10 @@ function RescueSetupForm() {
   const supabase     = createClient()
   const { createRescue } = useRescue()
 
-  const ein     = searchParams.get('ein') ?? ''
-  const orgName = searchParams.get('orgName') ?? ''
+  // EIN + org name come from the verify step; sessionStorage backs them up
+  // across the login/signup round-trip so the agency never re-verifies.
+  const [ein,     setEin]     = useState(searchParams.get('ein') ?? '')
+  const [orgName, setOrgName] = useState(searchParams.get('orgName') ?? '')
 
   const [name, setName]           = useState(orgName)
   const [city, setCity]           = useState('')
@@ -34,10 +37,28 @@ function RescueSetupForm() {
   const [error, setError]         = useState<string | null>(null)
 
   useEffect(() => {
-    // Require auth
+    // Restore verify-step data if the URL params were lost across the auth round-trip
+    if (!ein) {
+      try {
+        const stash = JSON.parse(sessionStorage.getItem('pawfect_pending_rescue') ?? 'null')
+        if (stash?.ein) {
+          setEin(stash.ein)
+          setOrgName(stash.orgName ?? '')
+          if (!name && stash.orgName) setName(stash.orgName)
+        }
+      } catch { /* noop */ }
+    } else {
+      try { sessionStorage.setItem('pawfect_pending_rescue', JSON.stringify({ ein, orgName })) } catch { /* noop */ }
+    }
+
+    // Require auth — send agencies back here (with their EIN) after login/signup
     supabase.auth.getUser().then(({ data }) => {
-      if (!data.user) router.replace('/login')
+      if (!data.user) {
+        const next = encodeURIComponent(window.location.pathname + window.location.search)
+        router.replace(`/login?next=${next}`)
+      }
     })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [supabase, router])
 
   const toggleAnimalType = (t: string) =>
@@ -49,9 +70,14 @@ function RescueSetupForm() {
     setSaving(true)
     setError(null)
 
+    // Geocode the city so this rescue's pets are distance-filtered correctly
+    const coords = await geocodeCity(city)
+
     const { error: err } = await createRescue({
       name: name.trim(),
       city: city.trim(),
+      lat: coords?.lat ?? null,
+      lon: coords?.lon ?? null,
       mission: mission.trim() || null,
       phone: phone.trim() || null,
       email: email.trim() || null,
@@ -72,6 +98,7 @@ function RescueSetupForm() {
 
     setSaving(false)
     if (err) { setError(err); return }
+    try { sessionStorage.removeItem('pawfect_pending_rescue') } catch { /* noop */ }
     router.replace('/rescue/dashboard')
   }
 

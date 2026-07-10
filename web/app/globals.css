@@ -15,6 +15,42 @@ html {
   color-scheme: light;
 }
 
+/* Like-heart float-up animation */
+@keyframes floatUp {
+  0%   { transform: translateY(0) scale(1); opacity: 1; }
+  80%  { opacity: 1; }
+  100% { transform: translateY(-70px) scale(0.6); opacity: 0; }
+}
+.animate-float-up {
+  animation: floatUp 0.75s ease-out forwards;
+}
+
+/* Swipe-hint bounce animations */
+@keyframes bounceLeft {
+  0%, 100% { transform: translateX(0); }
+  50%       { transform: translateX(-10px); }
+}
+@keyframes bounceRight {
+  0%, 100% { transform: translateX(0); }
+  50%       { transform: translateX(10px); }
+}
+.animate-bounce-left  { animation: bounceLeft  1s ease-in-out infinite; }
+.animate-bounce-right { animation: bounceRight 1s ease-in-out infinite; }
+
+/* Geolocation button pulse to draw first-time users' attention */
+@keyframes softPulse {
+  0%, 100% { opacity: 0.5; }
+  50%       { opacity: 0.9; }
+}
+.animate-soft-pulse { animation: softPulse 2s ease-in-out infinite; }
+
+/* New-card entrance fade — opacity only to avoid conflicting with the swipe transform */
+@keyframes cardIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.animate-card-in { animation: cardIn 0.2s ease-out; }
+
 body {
   background-color: #c4b5a2;
   color: #171717;

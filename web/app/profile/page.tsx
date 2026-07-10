@@ -4,7 +4,8 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useProfile } from '@/hooks/useProfile'
-import { Loader2, ArrowLeft, Check, SlidersHorizontal, Shield, X, Plus } from 'lucide-react'
+import Link from 'next/link'
+import { Loader2, ArrowLeft, Check, SlidersHorizontal, Shield, X, Plus, Trash2 } from 'lucide-react'
 import BottomNav from '@/components/ui/BottomNav'
 
 const AVATARS = ['🙂', '😎', '🤗', '🧑', '👩', '👨', '🧔', '👱', '🙋', '🐾']
@@ -38,8 +39,10 @@ export default function ProfilePage() {
 
   const [authed, setAuthed]     = useState<boolean | null>(null)
   const [editing, setEditing]   = useState(false)
-  const [saving, setSaving]     = useState(false)
-  const [saveError, setSaveError] = useState<string | null>(null)
+  const [saving, setSaving]         = useState(false)
+  const [saveError, setSaveError]   = useState<string | null>(null)
+  const [deleteConfirm, setDeleteConfirm] = useState(false)
+  const [deleting, setDeleting]     = useState(false)
 
   // form state
   const [firstName, setFirstName]       = useState('')
@@ -432,6 +435,60 @@ export default function ProfilePage() {
                 >
                   Sign out
                 </button>
+
+                {/* Delete account — required for Apple/Google app stores */}
+                {!deleteConfirm ? (
+                  <button
+                    onClick={() => setDeleteConfirm(true)}
+                    className="w-full flex items-center justify-center gap-1.5 text-sm text-red-400 hover:text-red-600 transition-colors"
+                  >
+                    <Trash2 size={13} /> Delete my account
+                  </button>
+                ) : (
+                  <div className="rounded-2xl border border-red-200 bg-red-50 p-4 space-y-3">
+                    <p className="text-sm font-semibold text-red-800">Delete your account?</p>
+                    <p className="text-xs text-red-600 leading-relaxed">
+                      This permanently deletes your profile, saved pets, and all data. This cannot be undone.
+                    </p>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setDeleteConfirm(false)}
+                        className="flex-1 py-2 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 bg-white"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        disabled={deleting}
+                        onClick={async () => {
+                          setDeleting(true)
+                          try {
+                            const res = await fetch('/api/account/delete', { method: 'DELETE' })
+                            if (res.ok) {
+                              await supabase.auth.signOut()
+                              // Clear localStorage data
+                              localStorage.removeItem('pawfect_saved_rg')
+                              localStorage.removeItem('pawfect_seen_rg')
+                              localStorage.removeItem('pawfect_city')
+                              router.replace('/login')
+                            }
+                          } finally {
+                            setDeleting(false)
+                          }
+                        }}
+                        className="flex-1 py-2 rounded-xl bg-red-600 text-sm font-semibold text-white disabled:opacity-50 flex items-center justify-center gap-1.5"
+                      >
+                        {deleting ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
+                        {deleting ? 'Deleting…' : 'Yes, delete'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Legal links */}
+                <div className="flex justify-center gap-4 text-[11px] text-gray-400 pt-1">
+                  <Link href="/privacy" className="hover:text-gray-600 underline">Privacy Policy</Link>
+                  <Link href="/terms" className="hover:text-gray-600 underline">Terms of Service</Link>
+                </div>
               </div>
             </>
           )}

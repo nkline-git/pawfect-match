@@ -8,6 +8,7 @@ import { usePets } from '@/hooks/usePets'
 import {
   PlusCircle, Loader2, Check, X, LogOut,
   Users, Heart, Home, Bell, UserCog, ExternalLink,
+  Calendar, MapPin, Trash2,
 } from 'lucide-react'
 import Link from 'next/link'
 import type { Pet, PetSpecies } from '@/types'
@@ -64,6 +65,202 @@ type NewPet = {
   photoPreview: string | null
 }
 
+// ── Events manager: adoption events, fundraisers, volunteer days ──
+const EVENT_TYPES = [
+  { value: 'adoption_event', label: '🐾 Adoption Event' },
+  { value: 'fundraiser',     label: '💰 Fundraiser'     },
+  { value: 'volunteer_day',  label: '🤝 Volunteer Day'  },
+  { value: 'training',       label: '🎓 Training'       },
+  { value: 'meetup',         label: '☕ Meetup'          },
+  { value: 'other',          label: '📅 Other'          },
+]
+
+type RescueEvent = {
+  id: string
+  title: string
+  event_type: string
+  location: string | null
+  starts_at: string
+  status: string
+}
+
+function EventsManager({ rescueId, userId }: { rescueId: string; userId: string }) {
+  const supabase = createClient()
+  const [events,   setEvents]   = useState<RescueEvent[]>([])
+  const [loading,  setLoading]  = useState(true)
+  const [showForm, setShowForm] = useState(false)
+  const [saving,   setSaving]   = useState(false)
+  const [error,    setError]    = useState<string | null>(null)
+  const [eTitle,    setETitle]    = useState('')
+  const [eType,     setEType]     = useState('adoption_event')
+  const [eLocation, setELocation] = useState('')
+  const [eDate,     setEDate]     = useState('')
+  const [eTime,     setETime]     = useState('')
+  const [eDesc,     setEDesc]     = useState('')
+
+  const load = async () => {
+    const { data, error } = await supabase
+      .from('events')
+      .select('id, title, event_type, location, starts_at, status')
+      .eq('rescue_id', rescueId)
+      .order('starts_at', { ascending: true })
+      .limit(20)
+    if (!error) setEvents((data ?? []) as RescueEvent[])
+    setLoading(false)
+  }
+  useEffect(() => { load() // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rescueId])
+
+  const addEvent = async () => {
+    if (!eTitle.trim()) { setError('Event title is required.'); return }
+    if (!eDate)         { setError('Event date is required.'); return }
+    setSaving(true); setError(null)
+    const startsAt = new Date(`${eDate}T${eTime || '12:00'}`)
+    const { error } = await supabase.from('events').insert({
+      user_id:     userId,
+      rescue_id:   rescueId,
+      title:       eTitle.trim(),
+      description: eDesc.trim() || null,
+      event_type:  eType,
+      location:    eLocation.trim() || null,
+      starts_at:   startsAt.toISOString(),
+      status:      'active',
+    })
+    setSaving(false)
+    if (error) { setError(error.message); return }
+    setETitle(''); setELocation(''); setEDate(''); setETime(''); setEDesc(''); setEType('adoption_event')
+    setShowForm(false)
+    load()
+  }
+
+  const cancelEvent = async (id: string) => {
+    await supabase.from('events').update({ status: 'cancelled' }).eq('id', id)
+    load()
+  }
+
+  const removeEvent = async (id: string) => {
+    await supabase.from('events').delete().eq('id', id)
+    load()
+  }
+
+  const fmtDate = (iso: string) =>
+    new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' · ' +
+    new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+
+  return (
+    <div className="space-y-3 pb-6">
+      <div className="flex items-center justify-between">
+        <p className="text-white/80 text-sm font-semibold">Your events</p>
+        <button
+          onClick={() => setShowForm(v => !v)}
+          className="flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-full text-white bg-white/20 hover:bg-white/30 transition-colors"
+        >
+          <PlusCircle size={12} /> {showForm ? 'Close' : 'New event'}
+        </button>
+      </div>
+
+      {showForm && (
+        <div className="bg-white rounded-2xl shadow-lg p-4 space-y-3">
+          <input
+            value={eTitle} onChange={e => setETitle(e.target.value)}
+            placeholder="Event title * (e.g. Spring Adoption Day)"
+            className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none"
+          />
+          <div className="flex flex-wrap gap-1.5">
+            {EVENT_TYPES.map(t => (
+              <button key={t.value} onClick={() => setEType(t.value)}
+                className={`px-2.5 py-1 rounded-full text-[11px] font-medium border transition-all ${
+                  eType === t.value ? 'text-white border-transparent' : 'bg-gray-50 text-gray-600 border-gray-200'
+                }`}
+                style={eType === t.value ? { backgroundColor: '#e05a4e' } : {}}>{t.label}</button>
+            ))}
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <input
+              type="date" value={eDate} onChange={e => setEDate(e.target.value)}
+              className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none text-gray-700"
+            />
+            <input
+              type="time" value={eTime} onChange={e => setETime(e.target.value)}
+              className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none text-gray-700"
+            />
+          </div>
+          <input
+            value={eLocation} onChange={e => setELocation(e.target.value)}
+            placeholder="Location (e.g. Central Park, Wichita)"
+            className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none"
+          />
+          <textarea
+            value={eDesc} onChange={e => setEDesc(e.target.value)}
+            placeholder="Details (optional)" rows={2}
+            className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none resize-none"
+          />
+          {error && <p className="text-xs text-red-600">{error}</p>}
+          <button
+            onClick={addEvent} disabled={saving}
+            className="w-full py-2.5 rounded-xl text-white text-sm font-semibold disabled:opacity-50 flex items-center justify-center gap-2"
+            style={{ backgroundColor: '#e05a4e' }}
+          >
+            {saving && <Loader2 size={14} className="animate-spin" />}
+            Publish event
+          </button>
+        </div>
+      )}
+
+      {loading ? (
+        <div className="bg-white rounded-2xl p-4 text-center">
+          <Loader2 size={16} className="animate-spin text-gray-300 mx-auto" />
+        </div>
+      ) : events.length === 0 && !showForm ? (
+        <div className="bg-white rounded-2xl shadow-sm px-5 py-8 text-center">
+          <Calendar size={28} className="text-gray-300 mx-auto mb-2" />
+          <p className="text-sm font-semibold text-gray-700">No events yet</p>
+          <p className="text-xs text-gray-400 mt-1">
+            Adoption days and fundraisers you post here show up<br />
+            on your public page and the Community tab.
+          </p>
+        </div>
+      ) : (
+        events.map(ev => {
+          const past = new Date(ev.starts_at) < new Date()
+          const typeMeta = EVENT_TYPES.find(t => t.value === ev.event_type)
+          return (
+            <div key={ev.id} className={`bg-white rounded-2xl shadow-sm px-4 py-3 ${ev.status === 'cancelled' || past ? 'opacity-60' : ''}`}>
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="text-sm font-bold text-gray-900 truncate">{ev.title}</p>
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    {typeMeta?.label ?? ev.event_type} · {fmtDate(ev.starts_at)}
+                    {past && ' · past'}
+                  </p>
+                  {ev.location && (
+                    <p className="text-xs text-gray-400 flex items-center gap-1 mt-0.5">
+                      <MapPin size={10} /> {ev.location}
+                    </p>
+                  )}
+                </div>
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                  {ev.status === 'cancelled' ? (
+                    <span className="text-[10px] font-bold bg-gray-100 text-gray-400 px-2 py-0.5 rounded-full">Cancelled</span>
+                  ) : !past && (
+                    <button onClick={() => cancelEvent(ev.id)}
+                      className="text-[10px] font-semibold text-amber-600 border border-amber-200 px-2 py-1 rounded-full hover:bg-amber-50">
+                      Cancel
+                    </button>
+                  )}
+                  <button onClick={() => removeEvent(ev.id)} className="text-gray-300 hover:text-red-500 transition-colors p-1">
+                    <Trash2 size={13} />
+                  </button>
+                </div>
+              </div>
+            </div>
+          )
+        })
+      )}
+    </div>
+  )
+}
+
 const EMPTY_PET: NewPet = {
   name: '', species: 'dog', breed: '', age: '', gender: 'Male',
   size: 'Medium', description: '', fee: '', traits: [],
@@ -78,7 +275,8 @@ export default function RescueDashboardPage() {
   const { pets, loading: petsLoading, refetch } = usePets({ rescueId: rescue?.id })
 
   const [authed, setAuthed]     = useState<boolean | null>(null)
-  const [tab, setTab]           = useState<'listings' | 'applications' | 'profile'>('listings')
+  const [userId, setUserId]     = useState<string | null>(null)
+  const [tab, setTab]           = useState<'listings' | 'applications' | 'events' | 'profile'>('listings')
   const [showForm, setShowForm] = useState(false)
   const [form, setForm]         = useState<NewPet>({ ...EMPTY_PET })
   const [saving, setSaving]     = useState(false)
@@ -105,8 +303,8 @@ export default function RescueDashboardPage() {
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
-      if (!data.user) router.replace('/login')
-      else setAuthed(true)
+      if (!data.user) router.replace('/login?next=%2Frescue%2Fdashboard')
+      else { setAuthed(true); setUserId(data.user.id) }
     })
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -159,6 +357,7 @@ export default function RescueDashboardPage() {
       banner_gradient:   pBanner,
       name:              pName.trim(),
       city:              pCity.trim(),
+      ...(await import('@/lib/geocode').then(m => m.geocodeCity(pCity)).then(c => c ? { lat: c.lat, lon: c.lon } : {})),
       mission:           pMission.trim() || null,
       phone:             pPhone.trim() || null,
       email:             pEmail.trim() || null,
@@ -348,6 +547,16 @@ export default function RescueDashboardPage() {
             Apps
           </button>
           <button
+            onClick={() => setTab('events')}
+            className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-1 ${
+              tab === 'events' ? 'text-white' : 'text-gray-500 hover:text-gray-700'
+            }`}
+            style={tab === 'events' ? { backgroundColor: '#e05a4e' } : {}}
+          >
+            <Calendar size={12} />
+            Events
+          </button>
+          <button
             onClick={() => setTab('profile')}
             className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-1 ${
               tab === 'profile' ? 'text-white' : 'text-gray-500 hover:text-gray-700'
@@ -361,6 +570,11 @@ export default function RescueDashboardPage() {
 
         {/* Scrollable tab content */}
         <div className="flex-1 overflow-y-auto pb-2">
+
+        {/* Events panel */}
+        {tab === 'events' && userId && (
+          <EventsManager rescueId={rescue.id} userId={userId} />
+        )}
 
         {/* Applications panel */}
         {tab === 'applications' && (

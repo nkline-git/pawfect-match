@@ -42,6 +42,8 @@ export interface Rescue {
   user_id: string
   name: string
   city: string
+  lat?: number | null   // geocoded from city (006 migration)
+  lon?: number | null
   mission: string | null
   logo: string
   banner_gradient: string
@@ -95,7 +97,7 @@ export interface Pet {
   created_at: string
   updated_at: string
   // joined
-  rescue?: Pick<Rescue, 'id' | 'name' | 'city' | 'logo'>
+  rescue?: Pick<Rescue, 'id' | 'name' | 'city' | 'logo' | 'lat' | 'lon'>
 }
 
 export type PetSpecies = 'dog' | 'cat' | 'rabbit' | 'bird' | 'reptile' | 'small_animal' | 'farm' | 'other'
@@ -186,6 +188,24 @@ export interface PetStore {
   instagram: string | null
   facebook: string | null
   verified: boolean
+  announcement?: string | null   // deal banner on public page (004 migration)
+  created_at: string
+  updated_at: string
+}
+
+// ── Store products (mini storefront, 004 migration) ─────────────
+export interface StoreProduct {
+  id: string
+  store_id: string
+  name: string
+  description: string | null
+  price: number | null       // cents; null = "ask in store"
+  compare_at: number | null
+  emoji: string
+  photo_url: string | null
+  category: 'food' | 'toys' | 'beds' | 'grooming' | 'health' | 'travel' | 'treats' | 'other'
+  in_stock: boolean
+  sort: number
   created_at: string
   updated_at: string
 }
@@ -203,11 +223,14 @@ export interface SavedRGAnimal {
   photo:    string | null
   orgName:  string
   orgUrl:   string | null
+  orgEmail: string | null
+  orgPhone: string | null
   city:     string
   savedAt:  string          // ISO timestamp
 }
 
 export const RG_SAVED_KEY = 'pawfect_saved_rg'
+export const RG_SEEN_KEY  = 'pawfect_seen_rg'
 
 // ── API helpers ──────────────────────────────────────────────────
 export interface ApiResponse<T> {

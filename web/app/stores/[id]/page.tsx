@@ -6,10 +6,12 @@ import { createClient } from '@/lib/supabase/client'
 import {
   ArrowLeft, Phone, Mail, Globe, MapPin,
   Clock, ExternalLink, Loader2, CheckCircle,
-  Link2, PenLine,
+  Link2, PenLine, Megaphone,
 } from 'lucide-react'
 import Link from 'next/link'
-import type { PetStore } from '@/types'
+import type { PetStore, StoreProduct } from '@/types'
+
+function fmtPrice(cents: number) { return `$${(cents / 100).toFixed(2)}` }
 
 export default function StorePublicPage() {
   const params   = useParams()
@@ -18,16 +20,22 @@ export default function StorePublicPage() {
   const supabase = createClient()
 
   const [store,    setStore]    = useState<PetStore | null>(null)
+  const [products, setProducts] = useState<StoreProduct[]>([])
   const [loading,  setLoading]  = useState(true)
   const [isOwner,  setIsOwner]  = useState(false)
 
   useEffect(() => {
     const load = async () => {
-      const [storeRes, userRes] = await Promise.all([
+      const [storeRes, userRes, productsRes] = await Promise.all([
         supabase.from('pet_stores').select('*').eq('id', id).single(),
         supabase.auth.getUser(),
+        // Graceful: table may not exist until the 004 migration is applied
+        supabase.from('store_products').select('*').eq('store_id', id)
+          .eq('in_stock', true).order('sort').order('created_at').limit(24)
+          .then(r => r, () => ({ data: null, error: true })),
       ])
       setStore(storeRes.data)
+      if (!productsRes.error && productsRes.data) setProducts(productsRes.data as StoreProduct[])
       if (storeRes.data && userRes.data.user) {
         setIsOwner(userRes.data.user.id === storeRes.data.user_id)
       }
@@ -115,6 +123,15 @@ export default function StorePublicPage() {
               <ExternalLink size={10} className="text-gray-400" />
             </a>
 
+            {/* Announcement / deal banner */}
+            {store.announcement && (
+              <div className="flex items-start gap-2.5 rounded-xl px-3.5 py-3 mb-4"
+                style={{ background: 'linear-gradient(135deg,#fef3c7,#fde68a)' }}>
+                <Megaphone size={15} className="text-amber-600 flex-shrink-0 mt-0.5" />
+                <p className="text-sm text-amber-800 font-medium leading-snug">{store.announcement}</p>
+              </div>
+            )}
+
             {store.description && (
               <p className="text-sm text-gray-600 leading-relaxed mb-4">{store.description}</p>
             )}
@@ -191,6 +208,54 @@ export default function StorePublicPage() {
             </div>
           </div>
         </div>
+
+        {/* ── Products: the store's own shelf ── */}
+        {products.length > 0 && (
+          <div className="mb-4">
+            <h2 className="text-white font-bold text-base mb-2 px-1 flex items-center gap-1.5">
+              🛒 Shop {store.name.split(' ')[0] === 'The' ? store.name.split(' ').slice(0, 3).join(' ') : store.name}
+            </h2>
+            <div className="grid grid-cols-2 gap-3">
+              {products.map(p => (
+                <div key={p.id} className="bg-white rounded-2xl shadow-sm overflow-hidden flex flex-col">
+                  <div className="h-24 relative overflow-hidden bg-gray-50 flex items-center justify-center">
+                    {p.photo_url ? (
+                      <img src={p.photo_url} alt={p.name} className="w-full h-full object-cover" loading="lazy" />
+                    ) : (
+                      <span className="text-4xl">{p.emoji}</span>
+                    )}
+                    {p.compare_at && p.price && p.compare_at > p.price && (
+                      <span className="absolute top-2 left-2 text-[10px] font-bold px-1.5 py-0.5 rounded-full text-white bg-green-500">
+                        {Math.round((1 - p.price / p.compare_at) * 100)}% off
+                      </span>
+                    )}
+                  </div>
+                  <div className="p-2.5 flex flex-col flex-1">
+                    <p className="text-xs font-semibold text-gray-900 leading-tight line-clamp-2 mb-0.5">{p.name}</p>
+                    {p.description && (
+                      <p className="text-[10px] text-gray-400 line-clamp-2 mb-1">{p.description}</p>
+                    )}
+                    <div className="mt-auto flex items-baseline gap-1.5">
+                      {p.price != null ? (
+                        <>
+                          <span className="text-sm font-bold text-gray-900">{fmtPrice(p.price)}</span>
+                          {p.compare_at && p.compare_at > p.price && (
+                            <span className="text-[10px] text-gray-400 line-through">{fmtPrice(p.compare_at)}</span>
+                          )}
+                        </>
+                      ) : (
+                        <span className="text-[11px] font-medium text-gray-500">Ask in store</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <p className="text-[10px] text-white/50 text-center mt-2">
+              Available in-store at {store.name} · {store.city}
+            </p>
+          </div>
+        )}
 
         {/* Directions CTA */}
         <a

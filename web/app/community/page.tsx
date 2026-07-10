@@ -284,16 +284,32 @@ export default function CommunityPage() {
     })
   }, [supabase])
 
-  // Fetch posts
+  // Fetch posts — two-step: posts first, then profiles by user_id
+  // (community_posts.user_id → auth.users, not public.profiles, so PostgREST can't join directly)
   const fetchPosts = useCallback(async () => {
     setLoadingPosts(true)
     const { data, error } = await supabase
       .from('community_posts')
-      .select('id, user_id, content, topic, likes, created_at, profile:profiles(first_name, avatar)')
+      .select('id, user_id, content, topic, likes, created_at')
       .order('created_at', { ascending: false })
       .limit(50)
     if (error?.code === '42P01') { setDbMissing(true); setLoadingPosts(false); return }
     if (error) { setLoadingPosts(false); return }
+
+    const posts = data ?? []
+
+    // Batch-fetch profiles for all unique authors
+    const userIds = [...new Set(posts.map((p: { user_id: string }) => p.user_id))]
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const profileMap = new Map<string, PostProfile>()
+    if (userIds.length > 0) {
+      const { data: profileRows } = await supabase
+        .from('profiles')
+        .select('id, first_name, avatar')
+        .in('id', userIds)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ;(profileRows ?? []).forEach((pr: any) => profileMap.set(pr.id, { first_name: pr.first_name, avatar: pr.avatar }))
+    }
 
     let likedSet = new Set<string>()
     if (userId) {
@@ -301,10 +317,10 @@ export default function CommunityPage() {
       if (likes) likedSet = new Set(likes.map((l: { post_id: string }) => l.post_id))
     }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    setPosts((data ?? []).map((p: any) => ({
+    setPosts(posts.map((p: any) => ({
       id: p.id, user_id: p.user_id, content: p.content, topic: p.topic,
       likes: p.likes, created_at: p.created_at,
-      profile: Array.isArray(p.profile) ? (p.profile[0] ?? null) : (p.profile ?? null),
+      profile: profileMap.get(p.user_id) ?? null,
       liked: likedSet.has(p.id),
     })))
     setLoadingPosts(false)
@@ -683,6 +699,26 @@ export default function CommunityPage() {
             </div>
           </>
         )}
+
+        {/* Business CTAs — help rescues and stores find their portals */}
+        <div className="grid grid-cols-2 gap-2 mt-3 mb-2">
+          <a
+            href="/rescue/verify"
+            className="flex flex-col items-center gap-1 bg-white rounded-2xl shadow-sm px-3 py-3 text-center hover:shadow-md transition-shadow"
+          >
+            <span className="text-xl">🐾</span>
+            <p className="text-xs font-semibold text-gray-700 leading-tight">Run a rescue?</p>
+            <p className="text-[10px] leading-tight" style={{ color: '#e05a4e' }}>Post your animals free →</p>
+          </a>
+          <a
+            href="/stores/register"
+            className="flex flex-col items-center gap-1 bg-white rounded-2xl shadow-sm px-3 py-3 text-center hover:shadow-md transition-shadow"
+          >
+            <span className="text-xl">🏪</span>
+            <p className="text-xs font-semibold text-gray-700 leading-tight">Own a pet store?</p>
+            <p className="text-[10px] leading-tight" style={{ color: '#e05a4e' }}>Create your page →</p>
+          </a>
+        </div>
 
         </div>{/* end scrollable */}
         <BottomNav />

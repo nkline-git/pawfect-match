@@ -7,10 +7,10 @@ import { NextResponse } from 'next/server'
 
 const RG_BASE    = 'https://api.rescuegroups.org/v5/public'
 // Species-specific URL paths (/dogs/, /cats/) reject POST requests.
-// We fetch 2 pages of 250 from the base endpoint (RG max is 250/page)
-// then filter by distance AND species client-side.
+// We fetch pages from the base endpoint (RG max is 250/page)
+// then filter by distance AND species client-side, sorted by distance.
 const PAGE_SIZE  = 250
-const PAGES      = 4     // 4 × 250 = 1000 animals scanned per request
+const PAGES      = 8     // 8 × 250 = 2000 animals scanned per request
 
 // Geocode a city name or zip → { lat, lon } using OpenStreetMap Nominatim
 async function geocode(location: string): Promise<{ lat: number; lon: number } | null> {
@@ -49,6 +49,21 @@ function distanceMiles(lat1: number, lon1: number, lat2: number, lon2: number): 
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
 }
 
+// Strip HTML tags and decode common HTML entities from RescueGroups descriptions
+function stripHtml(html: string | null | undefined): string | null {
+  if (!html) return null
+  return html
+    .replace(/<[^>]+>/g, ' ')   // remove tags
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/\s{2,}/g, ' ')    // collapse multiple spaces
+    .trim() || null
+}
+
 // sizeCurrent is a float (weight in lbs) — convert to human-readable label
 function sizeLabel(lbs: number | null | undefined): string | null {
   if (lbs == null) return null
@@ -76,9 +91,10 @@ function mapAnimal(animal: any, included: any[]) {
   const locId  = Array.isArray(locRel) ? locRel[0]?.id : locRel?.id
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const loc    = included.find((i: any) => i.type === 'locations' && i.id === locId)
+  const rawState = loc?.attributes?.state ?? org?.attributes?.state
   const city   = [
     loc?.attributes?.city  ?? org?.attributes?.city,
-    loc?.attributes?.state ?? org?.attributes?.state,
+    rawState?.length <= 3 ? rawState?.toUpperCase() : rawState,
   ].filter(Boolean).join(', ') || 'Nearby'
 
   // Resolve species name from included[]
@@ -93,7 +109,7 @@ function mapAnimal(animal: any, included: any[]) {
   // endpoint's included[] becomes enormous at 1000 animals and field name
   // support varies. Thumbnail is reliable; local DB pets have full galleries.
   const thumbUrl: string | null = attr.pictureThumbnailUrl
-    ? (attr.pictureThumbnailUrl as string).replace('?width=100', '?width=800')
+    ? (attr.pictureThumbnailUrl as string).replace(/\?width=\d+/, '?width=800')
     : null
   const photos: string[] = thumbUrl ? [thumbUrl] : []
 
@@ -117,6 +133,37 @@ function mapAnimal(animal: any, included: any[]) {
     org?.attributes?.phoneNumber  ??
     null
 
+  // Derive personality tags from structured fields + keyword scan of description
+  const desc = (attr.descriptionText ?? attr.description ?? '').toLowerCase()
+  const tags: string[] = []
+  if (attr.sex === 'Female')                                              tags.push('Female')
+  else if (attr.sex === 'Male')                                           tags.push('Male')
+  const ageStr = (attr.ageString ?? attr.ageGroup ?? '').toLowerCase()
+  if (ageStr.includes('puppy') || ageStr.includes('kitten') || ageStr.includes('baby') || ageStr.includes('young'))
+                                                                          tags.push('Young')
+  else if (ageStr.includes('senior') || ageStr.includes('older'))        tags.push('Senior')
+  // Structured boolean fields take priority, then fall back to keyword scan
+  if (!!attr.isHouseTrained || /house.?train|potty.?train|fully.?train/.test(desc))
+                                                                          tags.push('House-trained')
+  if (!!attr.isGoodWithKids || /good with (kids|children|child)|loves? (kids|children)|great with (kids|children)/.test(desc))
+                                                                          tags.push('Good with kids')
+  if (!!attr.isGoodWithDogs || /good with (dogs?)|dog.friendly|gets along with (dogs?)/.test(desc))
+                                                                          tags.push('Dog-friendly')
+  if (!!attr.isGoodWithCats || /good with (cats?)|cat.friendly|gets along with (cats?)/.test(desc))
+                                                                          tags.push('Cat-friendly')
+  if (/indoor|house cat|inside only/.test(desc))                          tags.push('Indoor')
+  if (/playful|energetic|active|loves to play|high.energy/.test(desc))   tags.push('Playful')
+  if (/cuddl|affectionate|lap (dog|cat|pet)|loves attention|loves to snuggle/.test(desc))
+                                                                          tags.push('Cuddly')
+  if (/calm|gentle|mellow|laid.back|easy.going|relaxed|quiet/.test(desc)) tags.push('Calm')
+  if (!!attr.isFixed || /spayed|neutered/.test(desc))      tags.push('Fixed')
+  if (!!attr.isCurrentShots || /vaccinated|up.to.date|current on shots|microchip/.test(desc))
+                                                                          tags.push('Vaccinated')
+  if (/leash.train|walks? well on.leash|leash.manners/.test(desc))       tags.push('Leash-trained')
+  if (/crate.train|kennel.train/.test(desc))                              tags.push('Crate-trained')
+  if (!!attr.isOkForApartment || /apartment|condo|small (space|home)/.test(desc))
+                                                                          tags.push('Apartment OK')
+
   return {
     id:          String(animal.id),
     name:        (attr.name ?? 'Unknown').trim(),
@@ -125,7 +172,7 @@ function mapAnimal(animal: any, included: any[]) {
     age:         attr.ageString   ?? attr.ageGroup     ?? null,
     gender:      attr.sex         ?? 'Unknown',
     size:        sizeLabel(attr.sizeCurrent),
-    description: attr.descriptionText ?? attr.description ?? null,
+    description: stripHtml(attr.descriptionText ?? attr.description),
     photo:       thumbUrl,
     photos,
     url:      attr.url ?? `https://www.rescuegroups.org/animals/detail/?AnimalID=${animal.id}`,
@@ -134,7 +181,7 @@ function mapAnimal(animal: any, included: any[]) {
     orgPhone,
     city,
     orgName,
-    tags:        [] as string[],
+    tags,
     // Internal — used for distance filtering, stripped before response
     _lat: orgLat,
     _lon: orgLon,
@@ -179,6 +226,9 @@ export async function GET(request: Request) {
       'name', 'ageGroup', 'ageString', 'sex',
       'breedPrimary', 'breedString', 'sizeCurrent',
       'pictureThumbnailUrl', 'url', 'descriptionText',
+      // Structured boolean fields — give us tags even when description is empty
+      'isFixed', 'isHouseTrained', 'isGoodWithDogs', 'isGoodWithCats',
+      'isGoodWithKids', 'isCurrentShots', 'isOkForApartment',
     ].join(',')
     const reqBody  = JSON.stringify({
       filterRadius: { coordinates: `${userCoords.lat},${userCoords.lon}`, miles: radius },
@@ -188,8 +238,10 @@ export async function GET(request: Request) {
       'Authorization': apiKey,
     }
 
-    // Fetch pages in parallel
-    const pageResponses = await Promise.all(
+    // Fetch pages in parallel — each with a 12s timeout so one slow page
+    // can't block the rest. Promise.allSettled so partial results are usable.
+    const PAGE_TIMEOUT_MS = 12_000
+    const settled = await Promise.allSettled(
       Array.from({ length: PAGES }, (_, i) => {
         const p = new URLSearchParams({
           limit:             String(PAGE_SIZE),
@@ -202,7 +254,8 @@ export async function GET(request: Request) {
         })
         return fetch(`${endpoint}?${p}`, {
           method: 'POST', headers: reqHeaders, body: reqBody,
-        })
+          signal: AbortSignal.timeout(PAGE_TIMEOUT_MS),
+        }).then(res => res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`)))
       })
     )
 
@@ -211,22 +264,34 @@ export async function GET(request: Request) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let allIncluded: any[] = []
 
-    for (const res of pageResponses) {
-      if (!res.ok) {
-        if (allData.length === 0) {
-          const errText = await res.text()
-          console.error('RescueGroups error:', errText)
-          return NextResponse.json({ error: `RescueGroups API error ${res.status}` }, { status: res.status })
-        }
-        break // subsequent pages failing is non-fatal
+    let anySucceeded = false
+    for (const result of settled) {
+      if (result.status === 'rejected') {
+        console.warn('RescueGroups page failed:', result.reason?.message ?? result.reason)
+        continue
       }
-      const json   = await res.json()
-      allData      = allData.concat(json.data ?? [])
-      allIncluded  = allIncluded.concat(json.included ?? [])
+      anySucceeded = true
+      const json = result.value
+      allData     = allData.concat(json.data ?? [])
+      allIncluded = allIncluded.concat(json.included ?? [])
     }
 
+    if (!anySucceeded) {
+      return NextResponse.json({ error: 'All RescueGroups pages failed' }, { status: 502 })
+    }
+
+    // Deduplicate animals across pages (same animal can appear on multiple pages)
+    const seenIds = new Set<string>()
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const all = allData.map((a: any) => mapAnimal(a, allIncluded))
+    const all = allData
+      .filter((a: any) => {
+        if (seenIds.has(String(a.id))) return false
+        seenIds.add(String(a.id))
+        return true
+      })
+      .map((a: any) => mapAnimal(a, allIncluded))
+
+    const offset = parseInt(searchParams.get('offset') ?? '0', 10)
 
     const nearby = all
       .filter((a: ReturnType<typeof mapAnimal>) => {
@@ -236,13 +301,30 @@ export async function GET(request: Request) {
         if (type && a.type.toLowerCase() !== type.toLowerCase()) return false
         return true
       })
-      .slice(0, limit)
-      // Strip internal coords before sending to client
-      .map(({ _lat: _l, _lon: _o, ...rest }: ReturnType<typeof mapAnimal>) => rest)
+      // Sort closest first so the first cards are always the most local animals
+      .sort((a: ReturnType<typeof mapAnimal>, b: ReturnType<typeof mapAnimal>) => {
+        const da = distanceMiles(userCoords!.lat, userCoords!.lon, a._lat!, a._lon!)
+        const db = distanceMiles(userCoords!.lat, userCoords!.lon, b._lat!, b._lon!)
+        return da - db
+      })
+      // Attach rounded distance so clients can show "X mi away" without exposing raw coords
+      .map((a: ReturnType<typeof mapAnimal>) => ({
+        ...a,
+        distance: Math.round(distanceMiles(userCoords!.lat, userCoords!.lon, a._lat!, a._lon!)),
+      }))
+
+    const total  = nearby.length
+    const paged  = nearby
+      .slice(offset, offset + limit)
+      // Strip internal coords before sending to client (distance is kept)
+      .map(({ _lat: _l, _lon: _o, ...rest }: ReturnType<typeof mapAnimal> & { distance: number }) => rest)
 
     return NextResponse.json({
-      animals: nearby,
-      pagination: { countReturned: nearby.length },
+      animals: paged,
+      // Geocoded center of the search — lets the client distance-filter
+      // local DB pets against the same origin
+      searchCoords: { lat: userCoords.lat, lon: userCoords.lon },
+      pagination: { countReturned: paged.length, total, offset },
     })
   } catch (err) {
     console.error('RescueGroups route error:', err)

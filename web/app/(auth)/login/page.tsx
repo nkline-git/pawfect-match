@@ -39,10 +39,12 @@ export default function LoginPage() {
         router.push(next)
         router.refresh()
       } else {
+        const next = new URLSearchParams(window.location.search).get('next')
+        const cb   = `${window.location.origin}/api/auth/callback${next ? `?next=${encodeURIComponent(next)}` : ''}`
         const { error } = await supabase.auth.signUp({
           email,
           password,
-          options: { emailRedirectTo: `${window.location.origin}/api/auth/callback` },
+          options: { emailRedirectTo: cb },
         })
         if (error) { setError(error.message); return }
         setSuccess('Check your email for a confirmation link!')
@@ -55,9 +57,10 @@ export default function LoginPage() {
   const handleGoogle = async () => {
     clearMessages()
     setGoogleLoading(true)
+    const next = new URLSearchParams(window.location.search).get('next')
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: `${window.location.origin}/api/auth/callback` },
+      options: { redirectTo: `${window.location.origin}/api/auth/callback${next ? `?next=${encodeURIComponent(next)}` : ''}` },
     })
     if (error) {
       setError(error.message)

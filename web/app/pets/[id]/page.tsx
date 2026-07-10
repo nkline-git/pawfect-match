@@ -90,7 +90,7 @@ export default function PetDetailPage() {
 
   const toggleSave = async () => {
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { router.push('/login'); return }
+    if (!user) { router.push(`/login?next=${encodeURIComponent(`/pets/${id}`)}`); return }
 
     if (saved) {
       await supabase.from('saved_pets').delete().eq('user_id', user.id).eq('pet_id', id)
@@ -103,7 +103,7 @@ export default function PetDetailPage() {
 
   const handleApply = async () => {
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { router.push('/login'); return }
+    if (!user) { router.push(`/login?next=${encodeURIComponent(`/pets/${id}`)}`); return }
     if (!pet) return
 
     setApplying(true)
@@ -297,15 +297,15 @@ export default function PetDetailPage() {
         {pet.rescue && (
           <div className="bg-white rounded-2xl shadow-lg px-5 py-4 mb-4">
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Rescue / Shelter</p>
-            <div className="flex items-center gap-3 mb-3">
+            <a href={`/rescues/${pet.rescue.id}`} className="flex items-center gap-3 mb-3 group">
               <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-xl">
                 {pet.rescue.logo}
               </div>
-              <div>
-                <p className="font-semibold text-gray-900">{pet.rescue.name}</p>
-                <p className="text-xs text-gray-500">{pet.rescue.city}</p>
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-gray-900 group-hover:text-[#e05a4e] transition-colors">{pet.rescue.name}</p>
+                <p className="text-xs text-gray-500">{pet.rescue.city} · <span style={{ color: '#e05a4e' }}>See all their pets →</span></p>
               </div>
-            </div>
+            </a>
             <div className="space-y-2">
               {pet.rescue.phone && (
                 <a href={`tel:${pet.rescue.phone}`} className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900">

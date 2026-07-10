@@ -29,17 +29,23 @@ export async function proxy(request: NextRequest) {
 
   const path = request.nextUrl.pathname
 
-  // Redirect unauthenticated users away from protected pages
+  // Redirect unauthenticated users away from protected pages.
+  // Keep the full path + query in `next` (e.g. /rescue/setup?ein=…) so
+  // flows like rescue verification survive the login round-trip.
   if (!user && PROTECTED.some(p => path.startsWith(p))) {
-    const url = request.nextUrl.clone()
+    const url  = request.nextUrl.clone()
+    const dest = path + url.search
     url.pathname = '/login'
-    url.searchParams.set('next', path)
+    url.search = ''
+    url.searchParams.set('next', dest)
     return NextResponse.redirect(url)
   }
 
-  // Redirect logged-in users away from auth pages
+  // Redirect logged-in users away from auth pages — honoring `next` if present
   if (user && AUTH_PAGES.some(p => path === p)) {
-    return NextResponse.redirect(new URL('/', request.url))
+    const next = request.nextUrl.searchParams.get('next')
+    const dest = next && next.startsWith('/') && !next.startsWith('//') ? next : '/'
+    return NextResponse.redirect(new URL(dest, request.url))
   }
 
   return supabaseResponse

@@ -310,7 +310,19 @@ function PartnerStores() {
           <Loader2 size={14} className="animate-spin text-gray-300" />
           <span className="text-sm text-gray-400">Loading…</span>
         </div>
-      ) : stores.length === 0 ? null : (
+      ) : stores.length === 0 ? (
+        <a
+          href="/stores/register"
+          className="flex items-center gap-3 bg-white rounded-2xl shadow-sm px-4 py-3 hover:shadow-md transition-shadow"
+        >
+          <span className="text-2xl">🏪</span>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-gray-800">Own a pet store?</p>
+            <p className="text-xs text-gray-400">Create your free store page and reach local adopters</p>
+          </div>
+          <span className="text-xs font-semibold flex-shrink-0" style={{ color: '#e05a4e' }}>List it free →</span>
+        </a>
+      ) : (
         <div className="space-y-2 mb-2">
           {(expanded ? stores : stores.slice(0, 3)).map(s => (
             <a
@@ -465,8 +477,8 @@ function NearbyStores() {
 
   // City input field (shown when no profile city or user wants to change)
   const CitySearchBar = ({ label }: { label?: string }) => (
-    <div className="flex gap-2 mb-3">
-      <div className="flex-1 flex items-center gap-2 bg-white rounded-xl shadow-sm px-3 py-2.5 border border-gray-200">
+    <div className="flex gap-2 mb-3 min-w-0">
+      <div className="flex-1 min-w-0 flex items-center gap-2 bg-white rounded-xl shadow-sm px-3 py-2.5 border border-gray-200">
         <MapPin size={14} className="text-gray-400 flex-shrink-0" />
         <input
           ref={inputRef}
@@ -474,7 +486,7 @@ function NearbyStores() {
           onChange={e => setCityInput(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && geocodeAndFetch(cityInput)}
           placeholder="City, State or zip code…"
-          className="flex-1 text-sm outline-none text-gray-800 placeholder:text-gray-400 bg-transparent"
+          className="flex-1 min-w-0 text-sm outline-none text-gray-800 placeholder:text-gray-400 bg-transparent"
         />
       </div>
       <button
@@ -664,6 +676,11 @@ export default function ShopPage() {
               <ProductCard key={p.id} p={p} />
             ))}
           </div>
+
+          {/* Affiliate disclosure — FTC required */}
+          <p className="text-[10px] text-gray-400 text-center px-4 pb-4 pt-2 leading-relaxed">
+            Affiliate disclosure: Pawfect Match may earn a commission from qualifying purchases made through links on this page, at no extra cost to you.
+          </p>
 
         </div>{/* end scrollable */}
 

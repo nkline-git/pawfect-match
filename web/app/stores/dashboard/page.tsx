@@ -4,8 +4,9 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useStore } from '@/hooks/useStore'
-import { Loader2, Check, LogOut, ExternalLink, Share2 } from 'lucide-react'
+import { Loader2, Check, LogOut, ExternalLink, Share2, Plus, Trash2, PackageOpen } from 'lucide-react'
 import Link from 'next/link'
+import type { StoreProduct } from '@/types'
 
 const LOGO_OPTIONS = ['🏪', '🐾', '🐕', '🐱', '🦮', '🐟', '🐦', '🌿', '🦴', '🛁', '🌟', '💛']
 
@@ -23,6 +24,179 @@ const SPECIALTY_OPTIONS = [
   'Boarding', 'Doggy daycare', 'Aquatics', 'Reptiles',
   'Birds', 'Farm animals', 'Holistic care', 'Adoption support',
 ]
+
+const PRODUCT_CATEGORIES = ['food', 'treats', 'toys', 'beds', 'grooming', 'health', 'travel', 'other'] as const
+const PRODUCT_EMOJIS = ['🛍️', '🥩', '🦴', '🎾', '🛏️', '✂️', '💊', '🚗', '🧸', '🥫', '🍪', '🐟']
+
+// ── Products manager: the store's own shelf ─────────────────────
+function ProductsManager({ storeId }: { storeId: string }) {
+  const supabase = createClient()
+  const [products,   setProducts]   = useState<StoreProduct[]>([])
+  const [available,  setAvailable]  = useState<boolean | null>(null) // null = loading; false = 004 not applied
+  const [showForm,   setShowForm]   = useState(false)
+  const [saving,     setSaving]     = useState(false)
+  const [error,      setError]      = useState<string | null>(null)
+  const [pName,  setPName]  = useState('')
+  const [pDesc,  setPDesc]  = useState('')
+  const [pPrice, setPPrice] = useState('')
+  const [pCompare, setPCompare] = useState('')
+  const [pEmoji, setPEmoji] = useState('🛍️')
+  const [pCat,   setPCat]   = useState<string>('food')
+
+  const load = async () => {
+    const { data, error } = await supabase
+      .from('store_products').select('*').eq('store_id', storeId)
+      .order('sort').order('created_at')
+    if (error) { setAvailable(false); return }
+    setAvailable(true)
+    setProducts((data ?? []) as StoreProduct[])
+  }
+  useEffect(() => { load() // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [storeId])
+
+  const addProduct = async () => {
+    if (!pName.trim()) { setError('Product name is required.'); return }
+    setSaving(true); setError(null)
+    const priceCents   = pPrice.trim()   ? Math.round(parseFloat(pPrice) * 100)   : null
+    const compareCents = pCompare.trim() ? Math.round(parseFloat(pCompare) * 100) : null
+    const { error } = await supabase.from('store_products').insert({
+      store_id: storeId,
+      name: pName.trim(),
+      description: pDesc.trim() || null,
+      price: Number.isFinite(priceCents) ? priceCents : null,
+      compare_at: Number.isFinite(compareCents) ? compareCents : null,
+      emoji: pEmoji,
+      category: pCat,
+      in_stock: true,
+      sort: products.length,
+    })
+    setSaving(false)
+    if (error) { setError(error.message); return }
+    setPName(''); setPDesc(''); setPPrice(''); setPCompare(''); setPEmoji('🛍️'); setPCat('food')
+    setShowForm(false)
+    load()
+  }
+
+  const removeProduct = async (id: string) => {
+    await supabase.from('store_products').delete().eq('id', id)
+    load()
+  }
+
+  const toggleStock = async (p: StoreProduct) => {
+    await supabase.from('store_products').update({ in_stock: !p.in_stock }).eq('id', p.id)
+    load()
+  }
+
+  if (available === null) return null
+  if (available === false) {
+    return (
+      <div className="bg-white/90 rounded-2xl shadow-sm px-4 py-3 mb-4 text-xs text-gray-500 leading-relaxed">
+        🛒 <strong>Products coming soon</strong> — the store products feature needs a database
+        update (migration <code>004_store_products.sql</code>). Once applied, you can showcase
+        your products right on your store page.
+      </div>
+    )
+  }
+
+  return (
+    <div className="bg-white rounded-2xl shadow-lg p-5 mb-4">
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="font-bold text-gray-900 flex items-center gap-1.5">
+          <PackageOpen size={16} className="text-gray-400" /> Your products
+        </h2>
+        <button
+          onClick={() => setShowForm(v => !v)}
+          className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-full text-white"
+          style={{ backgroundColor: '#e05a4e' }}
+        >
+          <Plus size={12} /> Add product
+        </button>
+      </div>
+
+      {showForm && (
+        <div className="border border-gray-100 rounded-xl p-3.5 mb-3 space-y-3 bg-gray-50">
+          <input
+            value={pName} onChange={e => setPName(e.target.value)}
+            placeholder="Product name *"
+            className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none bg-white"
+          />
+          <textarea
+            value={pDesc} onChange={e => setPDesc(e.target.value)}
+            placeholder="Short description (optional)" rows={2}
+            className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none resize-none bg-white"
+          />
+          <div className="grid grid-cols-2 gap-2">
+            <input
+              value={pPrice} onChange={e => setPPrice(e.target.value)}
+              placeholder="Price ($)" inputMode="decimal"
+              className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none bg-white"
+            />
+            <input
+              value={pCompare} onChange={e => setPCompare(e.target.value)}
+              placeholder="Was ($, optional)" inputMode="decimal"
+              className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none bg-white"
+            />
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {PRODUCT_EMOJIS.map(e => (
+              <button key={e} onClick={() => setPEmoji(e)}
+                className={`w-8 h-8 rounded-lg text-base flex items-center justify-center border-2 transition-all ${
+                  pEmoji === e ? 'border-[#e05a4e] bg-red-50' : 'border-transparent bg-white'
+                }`}>{e}</button>
+            ))}
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {PRODUCT_CATEGORIES.map(c => (
+              <button key={c} onClick={() => setPCat(c)}
+                className={`px-2.5 py-1 rounded-full text-[11px] font-medium border capitalize transition-all ${
+                  pCat === c ? 'text-white border-transparent' : 'bg-white text-gray-600 border-gray-200'
+                }`}
+                style={pCat === c ? { backgroundColor: '#e05a4e' } : {}}>{c}</button>
+            ))}
+          </div>
+          {error && <p className="text-xs text-red-600">{error}</p>}
+          <button
+            onClick={addProduct} disabled={saving}
+            className="w-full py-2.5 rounded-xl text-white text-sm font-semibold disabled:opacity-50 flex items-center justify-center gap-2"
+            style={{ backgroundColor: '#e05a4e' }}
+          >
+            {saving && <Loader2 size={14} className="animate-spin" />}
+            Add to your shelf
+          </button>
+        </div>
+      )}
+
+      {products.length === 0 && !showForm ? (
+        <p className="text-sm text-gray-400 text-center py-4">
+          No products yet. Add a few bestsellers so shoppers<br />can see what you carry!
+        </p>
+      ) : (
+        <div className="space-y-2">
+          {products.map(p => (
+            <div key={p.id} className={`flex items-center gap-3 border border-gray-100 rounded-xl px-3 py-2.5 ${!p.in_stock ? 'opacity-50' : ''}`}>
+              <span className="text-2xl flex-shrink-0">{p.emoji}</span>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-gray-900 truncate">{p.name}</p>
+                <p className="text-[11px] text-gray-400">
+                  {p.price != null ? `$${(p.price / 100).toFixed(2)}` : 'Ask in store'}
+                  {p.compare_at ? ` · was $${(p.compare_at / 100).toFixed(2)}` : ''}
+                  {' · '}<span className="capitalize">{p.category}</span>
+                </p>
+              </div>
+              <button onClick={() => toggleStock(p)}
+                className={`text-[10px] font-semibold px-2 py-1 rounded-full ${p.in_stock ? 'bg-green-50 text-green-600' : 'bg-gray-100 text-gray-400'}`}>
+                {p.in_stock ? 'In stock' : 'Hidden'}
+              </button>
+              <button onClick={() => removeProduct(p.id)} className="text-gray-300 hover:text-red-500 transition-colors">
+                <Trash2 size={14} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
 
 export default function StoreDashboardPage() {
   const router   = useRouter()
@@ -48,10 +222,11 @@ export default function StoreDashboardPage() {
   const [instagram,   setInstagram]   = useState('')
   const [facebook,    setFacebook]    = useState('')
   const [specialties, setSpecialties] = useState<string[]>([])
+  const [announcement, setAnnouncement] = useState('')
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
-      if (!data.user) router.replace('/login')
+      if (!data.user) router.replace('/login?next=%2Fstores%2Fdashboard')
       else setAuthed(true)
     })
   }, [supabase, router])
@@ -72,6 +247,7 @@ export default function StoreDashboardPage() {
       setInstagram(store.instagram ?? '')
       setFacebook(store.facebook ?? '')
       setSpecialties(store.specialties)
+      setAnnouncement(store.announcement ?? '')
     }
   }, [store])
 
@@ -96,6 +272,8 @@ export default function StoreDashboardPage() {
       instagram: instagram.trim() || null,
       facebook: facebook.trim() || null,
       specialties,
+      // Only send announcement when the 004 column exists (key present in the row)
+      ...(store && 'announcement' in store ? { announcement: announcement.trim() || null } : {}),
     })
     setSaving(false)
     if (err) { setError(err); return }
@@ -171,6 +349,9 @@ export default function StoreDashboardPage() {
             Share page
           </button>
         </div>
+
+        {/* Products manager — the store's own shelf */}
+        <ProductsManager storeId={store.id} />
 
         {/* Edit profile card */}
         <div className="bg-white rounded-2xl shadow-lg p-5 space-y-4 mb-6">
@@ -327,6 +508,23 @@ export default function StoreDashboardPage() {
               onBlur={e => e.target.style.borderColor = '#e5e7eb'}
             />
           </div>
+
+          {/* Announcement — only when 004 migration is applied */}
+          {store && 'announcement' in store && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">📣 Announcement banner</label>
+              <textarea
+                value={announcement}
+                onChange={e => setAnnouncement(e.target.value)}
+                placeholder="e.g. 15% off for new adopters this month! Show your Pawfect Match profile at checkout."
+                rows={2}
+                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none transition-all placeholder:text-gray-400 resize-none"
+                onFocus={e => e.target.style.borderColor = '#e05a4e'}
+                onBlur={e => e.target.style.borderColor = '#e5e7eb'}
+              />
+              <p className="text-[11px] text-gray-400 mt-1">Shows as a highlighted deal banner at the top of your store page.</p>
+            </div>
+          )}
 
           {/* Specialties */}
           <div>

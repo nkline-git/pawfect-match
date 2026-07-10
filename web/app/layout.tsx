@@ -15,6 +15,7 @@ export const viewport: Viewport = {
 
 // ── Rich metadata ──────────────────────────────────────────────────
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'),
   title: {
     default:  'Pawfect Match — Find Your Perfect Rescue Pet',
     template: '%s | Pawfect Match',

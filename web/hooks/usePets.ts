@@ -23,7 +23,7 @@ export function usePets(options: UsePetsOptions = {}) {
     setLoading(true)
     let query = supabase
       .from('pets')
-      .select('*, rescue:rescues(id, name, city, logo)')
+      .select('*, rescue:rescues(id, name, city, logo, lat, lon)')
       .eq('status', options.status ?? 'available')
       .order('created_at', { ascending: false })
 

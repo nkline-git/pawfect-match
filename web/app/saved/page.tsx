@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Heart, MapPin, Loader2 } from 'lucide-react'
 import BottomNav from '@/components/ui/BottomNav'
@@ -9,6 +8,24 @@ import Link from 'next/link'
 import type { Pet, SavedRGAnimal } from '@/types'
 import { RG_SAVED_KEY } from '@/types'
 import { Globe } from 'lucide-react'
+
+function shortBreed(breed: string | null | undefined): string | null {
+  if (!breed) return null
+  return breed.split(/[/(]|\s+-\s+/)[0].trim() || breed
+}
+
+function formatAge(raw: string | null | undefined): string | null {
+  if (!raw) return null
+  const s = raw.toLowerCase()
+  const yr = s.match(/(\d+)\s*year/)?.[1]
+  const mo = s.match(/(\d+)\s*month/)?.[1]
+  const wk = s.match(/(\d+)\s*week/)?.[1]
+  if (yr && mo && mo !== '0') return `${yr}yr ${mo}mo`
+  if (yr) return `${yr}yr`
+  if (mo) return `${mo}mo`
+  if (wk) return `${wk}wk`
+  return raw
+}
 
 const SPECIES_EMOJI: Record<string, string> = {
   dog: '🐕', cat: '🐱', rabbit: '🐰', bird: '🦜',
@@ -28,17 +45,23 @@ const SPECIES_BG: Record<string, string> = {
 type SavedPetRow = { pet: Pet & { rescue?: { name: string; city: string; logo: string } | null } }
 
 export default function SavedPage() {
-  const router   = useRouter()
   const supabase = createClient()
 
   const [rows, setRows]           = useState<SavedPetRow[]>([])
   const [loading, setLoading]     = useState(true)
   const [rgSaved, setRgSaved]     = useState<SavedRGAnimal[]>([])
+  const [isGuest, setIsGuest]     = useState(false)
 
   useEffect(() => {
     const load = async () => {
+      // Load RG animals from localStorage first — available to everyone
+      try {
+        const stored = localStorage.getItem(RG_SAVED_KEY)
+        if (stored) setRgSaved(JSON.parse(stored) as SavedRGAnimal[])
+      } catch { /* localStorage unavailable */ }
+
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) { router.replace('/login'); return }
+      if (!user) { setIsGuest(true); setLoading(false); return } // guests see RG likes only
 
       const { data } = await supabase
         .from('saved_pets')
@@ -50,13 +73,7 @@ export default function SavedPage() {
       setLoading(false)
     }
     load()
-
-    // Load RG animals from localStorage (client-only)
-    try {
-      const stored = localStorage.getItem(RG_SAVED_KEY)
-      if (stored) setRgSaved(JSON.parse(stored) as SavedRGAnimal[])
-    } catch { /* localStorage unavailable */ }
-  }, [supabase, router])
+  }, [supabase])
 
   const unsave = async (petId: string) => {
     const { data: { user } } = await supabase.auth.getUser()
@@ -88,6 +105,19 @@ export default function SavedPage() {
             <span className="text-xl">👤</span>
           </Link>
         </header>
+
+        {/* Sign-in nudge for guests */}
+        {isGuest && (
+          <a
+            href="/login"
+            className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl mb-2 text-white text-sm font-medium"
+            style={{ background: 'linear-gradient(135deg,#e05a4e,#c44b40)' }}
+          >
+            <span>🔓</span>
+            <span>Sign in to save pets across devices</span>
+            <span className="ml-auto text-white/70">→</span>
+          </a>
+        )}
 
         <div className="flex-1 overflow-y-auto pb-2">
           {loading ? (
@@ -190,13 +220,13 @@ export default function SavedPage() {
                         <div className="flex-1 px-3 py-2.5 min-w-0">
                           <h3 className="font-bold text-gray-900">{animal.name}</h3>
                           <p className="text-xs text-gray-500 truncate">
-                            {[animal.breed, animal.age, animal.gender].filter(Boolean).join(' · ')}
+                            {[shortBreed(animal.breed), formatAge(animal.age), animal.gender].filter(Boolean).join(' · ')}
                           </p>
                           <p className="flex items-center gap-1 text-xs text-gray-400 mt-0.5 truncate">
                             <MapPin size={10} />
                             {animal.orgName}{animal.city ? ` · ${animal.city}` : ''}
                           </p>
-                          <div className="flex items-center gap-2 mt-2 flex-wrap">
+                          <div className="flex items-center gap-1.5 mt-2 flex-wrap">
                             {animal.orgUrl && (
                               <a
                                 href={animal.orgUrl}
@@ -209,9 +239,25 @@ export default function SavedPage() {
                                 Adopt
                               </a>
                             )}
+                            {animal.orgEmail && (
+                              <a
+                                href={`mailto:${animal.orgEmail}?subject=Adoption inquiry: ${encodeURIComponent(animal.name)}&body=Hi! I found ${encodeURIComponent(animal.name)} on Pawfect Match and would love to adopt them. Could you share more details?`}
+                                className="text-xs font-semibold px-2.5 py-1 rounded-full border border-gray-200 text-gray-600 flex items-center gap-1"
+                              >
+                                ✉️ Email
+                              </a>
+                            )}
+                            {animal.orgPhone && (
+                              <a
+                                href={`tel:${animal.orgPhone}`}
+                                className="text-xs font-semibold px-2.5 py-1 rounded-full border border-gray-200 text-gray-600 flex items-center gap-1"
+                              >
+                                📞 Call
+                              </a>
+                            )}
                             <button
                               onClick={() => unsaveRG(animal.id)}
-                              className="text-xs font-medium px-3 py-1 rounded-full border border-gray-200 text-gray-500 hover:bg-gray-50 flex items-center gap-1"
+                              className="text-xs font-medium px-2.5 py-1 rounded-full border border-gray-200 text-gray-400 hover:bg-gray-50 flex items-center gap-1"
                             >
                               <Heart size={11} fill="#e05a4e" className="text-[#e05a4e]" />
                               Unsave

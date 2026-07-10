@@ -49,7 +49,7 @@ export default function StoreRegisterPage() {
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
-      if (!data.user) router.replace('/login')
+      if (!data.user) router.replace('/login?next=%2Fstores%2Fregister')
       else setAuthed(true)
     })
   }, [supabase, router])
