@@ -538,12 +538,20 @@ export default function BrowsePage() {
       savedRG.forEach(a => seenIdsRef.current.add(String(a.id)))
     } catch { /* noop */ }
   }, [])
-  const markSeen = (id: string) => {
-    seenIdsRef.current.add(id)
+  const persistSeen = () => {
     try {
       const arr = Array.from(seenIdsRef.current).slice(-5000)
       localStorage.setItem(RG_SEEN_KEY, JSON.stringify(arr))
     } catch { /* noop */ }
+  }
+  const markSeen = (id: string) => {
+    seenIdsRef.current.add(id)
+    persistSeen()
+  }
+  // Undo brings a card back — it shouldn't stay filtered out on reload
+  const unmarkSeen = (id: string) => {
+    seenIdsRef.current.delete(id)
+    persistSeen()
   }
 
   // Location state — persisted in localStorage for guests
@@ -774,8 +782,10 @@ export default function BrowsePage() {
         // Distance-filter local pets against the same search origin the API
         // used — a rescue in Kansas shouldn't show for a San Diego user.
         // Pets whose rescue has no coords are kept (fail open).
-        // Skip local pets the user already liked — they live in Saved now
-        const unseenLocal = localUnified.filter(p => !savedIdsRef.current.has(p.id))
+        // Skip local pets the user already liked (they live in Saved now)
+        // or already passed on (seen set covers local + RG pets)
+        const unseenLocal = localUnified.filter(p =>
+          !savedIdsRef.current.has(p.id) && !seenIdsRef.current.has(p.id))
         const nearbyLocal = data.searchCoords
           ? unseenLocal.filter(p =>
               p.rescueLat == null || p.rescueLon == null ||
@@ -806,7 +816,8 @@ export default function BrowsePage() {
       })
       .catch(err => {
         if (err?.name !== 'AbortError') {
-          setAnimals(localUnified.filter(p => !savedIdsRef.current.has(p.id)))
+          setAnimals(localUnified.filter(p =>
+            !savedIdsRef.current.has(p.id) && !seenIdsRef.current.has(p.id)))
           setIdx(0)
           setRgFailed(true)
         }
@@ -879,13 +890,13 @@ export default function BrowsePage() {
   // doPass / doLike = pure state mutations (no animation); called after card flies out
   const doPass = () => {
     dismissHint()
-    if (pet && !pet.isLocal) markSeen(pet.id)
+    if (pet) markSeen(pet.id)
     setIdx(i => Math.min(i + 1, animals.length))
   }
   const doLike = () => {
     if (!pet) return
     dismissHint()
-    if (!pet.isLocal) markSeen(pet.id)
+    markSeen(pet.id)
     spawnHearts()
     if (pet.isLocal) {
       toggleSave(pet.id)
@@ -923,7 +934,11 @@ export default function BrowsePage() {
     setSwipeDx(EXIT_DX)
     setTimeout(() => { doLike(); setSwipeDx(0) }, EXIT_MS)
   }
-  const handleUndo = () => setIdx(i => Math.max(i - 1, 0))
+  const handleUndo = () => {
+    const prev = animals[idx - 1]
+    if (prev) unmarkSeen(prev.id)
+    setIdx(i => Math.max(i - 1, 0))
+  }
 
   // ── Geolocation ───────────────────────────────────────────────────
   const requestGeolocation = () => {
@@ -1173,25 +1188,11 @@ export default function BrowsePage() {
                 </div>
               </div>
             ) : pet ? (
-              /* Pet card with card-stack depth effect */
+              /* Pet card */
               <div className="flex-1 min-h-0 relative">
-                {/* Furthest card peeks from behind */}
-                {animals[idx + 2] && (
-                  <div
-                    className="absolute inset-x-10 top-0 h-16 rounded-t-2xl"
-                    style={{ background: SPECIES_BG[animals[idx + 2].type] ?? SPECIES_BG.other, zIndex: 1 }}
-                  />
-                )}
-                {/* Next card peeks from behind */}
-                {animals[idx + 1] && (
-                  <div
-                    className="absolute inset-x-5 top-0 h-16 rounded-t-2xl"
-                    style={{ background: SPECIES_BG[animals[idx + 1].type] ?? SPECIES_BG.other, zIndex: 2 }}
-                  />
-                )}
               <div
                 key={pet.id}
-                className="absolute inset-0 top-8 bg-white rounded-2xl shadow-lg overflow-hidden flex flex-col select-none animate-card-in"
+                className="absolute inset-0 bg-white rounded-2xl shadow-lg overflow-hidden flex flex-col select-none animate-card-in"
                 style={{
                   zIndex: 3,
                   transform:  `translateX(${swipeDx}px) rotate(${swipeDx * 0.04}deg)`,
