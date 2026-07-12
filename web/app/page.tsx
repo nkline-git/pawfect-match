@@ -10,7 +10,7 @@ import { usePets, useSavedPets } from '@/hooks/usePets'
 import { useProfile } from '@/hooks/useProfile'
 import BottomNav from '@/components/ui/BottomNav'
 import type { PetSpecies, PetPreferences, Pet, SavedRGAnimal } from '@/types'
-import { RG_SAVED_KEY, RG_SEEN_KEY } from '@/types'
+import { RG_SAVED_KEY, RG_SEEN_KEY, HIDE_MATCH_POPUP_KEY } from '@/types'
 
 // ── Unified animal shape (local DB pets + RescueGroups animals) ──────
 interface UnifiedPet {
@@ -503,6 +503,18 @@ export default function BrowsePage() {
   const [idx,              setIdx]              = useState(0)
   const [selected,         setSelected]         = useState<UnifiedPet | null>(null)
   const [matchedPet,       setMatchedPet]       = useState<UnifiedPet | null>(null)
+  // Opt-out for the it's-a-match popup — liked pets still go to Saved
+  const [hideMatchPopup,   setHideMatchPopup]   = useState(() => {
+    if (typeof window !== 'undefined') return !!localStorage.getItem(HIDE_MATCH_POPUP_KEY)
+    return false
+  })
+  const toggleHideMatchPopup = (hide: boolean) => {
+    setHideMatchPopup(hide)
+    try {
+      if (hide) localStorage.setItem(HIDE_MATCH_POPUP_KEY, '1')
+      else localStorage.removeItem(HIDE_MATCH_POPUP_KEY)
+    } catch { /* noop */ }
+  }
   // Expand-radius state — when user exhausts all visible pets, offer to widen search
   const [hasExpanded,      setHasExpanded]      = useState(false)
   const [expandLoading,    setExpandLoading]    = useState(false)
@@ -520,6 +532,10 @@ export default function BrowsePage() {
     try {
       const stored = localStorage.getItem(RG_SEEN_KEY)
       if (stored) seenIdsRef.current = new Set(JSON.parse(stored) as string[])
+      // Fold liked RG pets into the seen set too — likes made before seen
+      // tracking existed (or on other pages) must not reappear in the feed
+      const savedRG = JSON.parse(localStorage.getItem(RG_SAVED_KEY) ?? '[]') as SavedRGAnimal[]
+      savedRG.forEach(a => seenIdsRef.current.add(String(a.id)))
     } catch { /* noop */ }
   }, [])
   const markSeen = (id: string) => {
@@ -566,7 +582,10 @@ export default function BrowsePage() {
     setTimeout(() => setLikeHearts(h => h.filter(x => !hearts.some(hh => hh.id === x.id))), 800)
   }
 
-  // Swipe state
+  // Swipe state — on like/pass the card flies fully off-screen and fades
+  // out before the next card is swapped in
+  const EXIT_DX = 560
+  const EXIT_MS = 280
   const [swipeDx,  setSwipeDx]  = useState(0)
   const touchStartX = useRef(0)
   const isExiting = Math.abs(swipeDx) >= 400
@@ -574,6 +593,11 @@ export default function BrowsePage() {
   const { pets, loading: localLoading }  = usePets()
   const { savedIds, toggleSave }         = useSavedPets()
   const { profile, loading: profileLoading } = useProfile()
+
+  // Ref mirror so the feed effect can exclude already-saved local pets
+  // without re-running (and refetching everything) on every like
+  const savedIdsRef = useRef(savedIds)
+  useEffect(() => { savedIdsRef.current = savedIds }, [savedIds])
 
   const prefs  = profile?.preferences ?? null
   const radius = profile?.notification_prefs?.search_radius ?? 100
@@ -750,12 +774,14 @@ export default function BrowsePage() {
         // Distance-filter local pets against the same search origin the API
         // used — a rescue in Kansas shouldn't show for a San Diego user.
         // Pets whose rescue has no coords are kept (fail open).
+        // Skip local pets the user already liked — they live in Saved now
+        const unseenLocal = localUnified.filter(p => !savedIdsRef.current.has(p.id))
         const nearbyLocal = data.searchCoords
-          ? localUnified.filter(p =>
+          ? unseenLocal.filter(p =>
               p.rescueLat == null || p.rescueLon == null ||
               haversineMiles(data.searchCoords!.lat, data.searchCoords!.lon, p.rescueLat, p.rescueLon) <= searchRadius
             )
-          : localUnified
+          : unseenLocal
 
         if (data.setup) {
           setAnimals(nearbyLocal)
@@ -780,7 +806,7 @@ export default function BrowsePage() {
       })
       .catch(err => {
         if (err?.name !== 'AbortError') {
-          setAnimals(localUnified)
+          setAnimals(localUnified.filter(p => !savedIdsRef.current.has(p.id)))
           setIdx(0)
           setRgFailed(true)
         }
@@ -880,7 +906,7 @@ export default function BrowsePage() {
         }
       } catch { /* localStorage unavailable */ }
     }
-    setMatchedPet(pet)
+    if (!hideMatchPopup) setMatchedPet(pet)
     setIdx(i => Math.min(i + 1, animals.length))
   }
 
@@ -888,14 +914,14 @@ export default function BrowsePage() {
   const handlePass = () => {
     if (!pet) return
     vibrate([5, 5])
-    setSwipeDx(-420)
-    setTimeout(() => { doPass(); setSwipeDx(0) }, 140)
+    setSwipeDx(-EXIT_DX)
+    setTimeout(() => { doPass(); setSwipeDx(0) }, EXIT_MS)
   }
   const handleLike = () => {
     if (!pet) return
     vibrate(20)
-    setSwipeDx(420)
-    setTimeout(() => { doLike(); setSwipeDx(0) }, 140)
+    setSwipeDx(EXIT_DX)
+    setTimeout(() => { doLike(); setSwipeDx(0) }, EXIT_MS)
   }
   const handleUndo = () => setIdx(i => Math.max(i - 1, 0))
 
@@ -930,12 +956,12 @@ export default function BrowsePage() {
   const handleTouchEnd = () => {
     if (swipeDx > SWIPE_THRESHOLD) {
       vibrate(20)
-      setSwipeDx(400)
-      setTimeout(() => { doLike(); setSwipeDx(0) }, 150)
+      setSwipeDx(EXIT_DX)
+      setTimeout(() => { doLike(); setSwipeDx(0) }, EXIT_MS)
     } else if (swipeDx < -SWIPE_THRESHOLD) {
       vibrate([5, 5])
-      setSwipeDx(-400)
-      setTimeout(() => { doPass(); setSwipeDx(0) }, 150)
+      setSwipeDx(-EXIT_DX)
+      setTimeout(() => { doPass(); setSwipeDx(0) }, EXIT_MS)
     } else {
       setSwipeDx(0)
     }
@@ -1169,12 +1195,13 @@ export default function BrowsePage() {
                 style={{
                   zIndex: 3,
                   transform:  `translateX(${swipeDx}px) rotate(${swipeDx * 0.04}deg)`,
+                  opacity:    isExiting ? 0 : 1,
                   transition: isExiting
-                    ? 'transform 0.15s ease-out'
+                    ? `transform ${EXIT_MS / 1000}s ease-out, opacity ${EXIT_MS / 1000}s ease-in`
                     : swipeDx === 0
                     ? 'transform 0.25s ease'
                     : 'none',
-                  willChange:  'transform',
+                  willChange:  'transform, opacity',
                   touchAction: 'pan-y',
                 }}
                 onTouchStart={handleTouchStart}
@@ -1558,6 +1585,19 @@ export default function BrowsePage() {
                 >
                   Keep browsing
                 </button>
+
+                <label className="flex items-start gap-2 pt-1 cursor-pointer select-none text-left">
+                  <input
+                    type="checkbox"
+                    checked={hideMatchPopup}
+                    onChange={e => toggleHideMatchPopup(e.target.checked)}
+                    className="mt-0.5 accent-[#e05a4e]"
+                  />
+                  <span className="text-xs text-gray-400 leading-snug">
+                    Hide this popup for now — pets you like are still kept in your{' '}
+                    <a href="/saved" className="underline" onClick={() => setMatchedPet(null)}>Saved</a> list
+                  </span>
+                </label>
               </div>
             </div>
           </div>

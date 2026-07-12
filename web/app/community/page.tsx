@@ -80,7 +80,7 @@ function ReportModal({
       content_id:   contentId,
       reason,
       notes: notes.trim() || null,
-    }, { onConflict: 'reporter_id,content_type,content_id' })
+    }, { onConflict: 'reporter_id,content_type,content_id', ignoreDuplicates: true })
     setSubmitting(false)
     setDone(true)
     setTimeout(onClose, 1500)
@@ -262,6 +262,7 @@ export default function CommunityPage() {
   const [events,       setEvents]       = useState<CommunityEvent[]>([])
   const [loadingPosts, setLoadingPosts] = useState(true)
   const [loadingEvts,  setLoadingEvts]  = useState(true)
+  const [filterTopic,  setFilterTopic]  = useState('all')
   const [postTopic,    setPostTopic]    = useState('general')
   const [content,      setContent]      = useState('')
   const [posting,      setPosting]      = useState(false)
@@ -349,18 +350,18 @@ export default function CommunityPage() {
   useEffect(() => { fetchPosts() }, [fetchPosts])
   useEffect(() => { fetchEvents() }, [fetchEvents])
 
-  // Like handler
+  // Like handler — optimistic UI; the persistent counter on community_posts
+  // is maintained by a DB trigger on post_likes (010_post_likes_trigger.sql),
+  // since RLS blocks updating other users' post rows from the client
   const handleLike = async (post: Post) => {
     if (!userId) return
     setPosts(prev => prev.map(p =>
-      p.id === post.id ? { ...p, liked: !p.liked, likes: p.liked ? p.likes - 1 : p.likes + 1 } : p
+      p.id === post.id ? { ...p, liked: !p.liked, likes: p.liked ? Math.max(p.likes - 1, 0) : p.likes + 1 } : p
     ))
     if (post.liked) {
       await supabase.from('post_likes').delete().eq('user_id', userId).eq('post_id', post.id)
-      await supabase.from('community_posts').update({ likes: post.likes - 1 }).eq('id', post.id)
     } else {
       await supabase.from('post_likes').insert({ user_id: userId, post_id: post.id })
-      await supabase.from('community_posts').update({ likes: post.likes + 1 }).eq('id', post.id)
     }
   }
 
@@ -374,7 +375,7 @@ export default function CommunityPage() {
       .select('id, user_id, content, topic, likes, created_at')
       .single()
     setPosting(false)
-    if (error) { setPostError('Could not post. Please try again.'); return }
+    if (error) { setPostError(`Could not post: ${error.message}`); return }
     setPosts(prev => [{ ...data, profile: userProfile, liked: false }, ...prev])
     setContent('')
     if (textRef.current) textRef.current.style.height = 'auto'
@@ -462,21 +463,21 @@ export default function CommunityPage() {
             {/* Topic filters */}
             <div className="flex gap-2 mb-3 overflow-x-auto scrollbar-none px-1">
               <button
-                onClick={() => setPostTopic('all')}
+                onClick={() => setFilterTopic('all')}
                 className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap border transition-all flex-shrink-0 ${
-                  postTopic === 'all' ? 'text-white border-transparent' : 'bg-white text-gray-600 border-gray-200'
+                  filterTopic === 'all' ? 'text-white border-transparent' : 'bg-white text-gray-600 border-gray-200'
                 }`}
-                style={postTopic === 'all' ? { backgroundColor: '#e05a4e' } : {}}
+                style={filterTopic === 'all' ? { backgroundColor: '#e05a4e' } : {}}
               >
                 💬 All
               </button>
               {POST_TOPICS.map(t => (
                 <button key={t.value}
-                  onClick={() => setPostTopic(t.value)}
+                  onClick={() => setFilterTopic(t.value)}
                   className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap border transition-all flex-shrink-0 ${
-                    postTopic === t.value ? 'text-white border-transparent' : 'bg-white text-gray-600 border-gray-200'
+                    filterTopic === t.value ? 'text-white border-transparent' : 'bg-white text-gray-600 border-gray-200'
                   }`}
-                  style={postTopic === t.value ? { backgroundColor: TOPIC_COLORS[t.value] ?? '#e05a4e' } : {}}
+                  style={filterTopic === t.value ? { backgroundColor: TOPIC_COLORS[t.value] ?? '#e05a4e' } : {}}
                 >
                   {t.icon} {t.label}
                 </button>
@@ -555,7 +556,7 @@ export default function CommunityPage() {
                   </div>
                 ))
               ) : (
-                (postTopic === 'all' ? posts : posts.filter(p => p.topic === postTopic)).map(post => (
+                (filterTopic === 'all' ? posts : posts.filter(p => p.topic === filterTopic)).map(post => (
                   <article key={post.id} className="bg-white rounded-2xl shadow-sm p-3.5">
                     <div className="flex items-start gap-2.5">
                       <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-base flex-shrink-0">
@@ -597,7 +598,7 @@ export default function CommunityPage() {
                 ))
               )}
 
-              {!loadingPosts && posts.filter(p => postTopic === 'all' || p.topic === postTopic).length === 0 && !dbMissing && (
+              {!loadingPosts && posts.filter(p => filterTopic === 'all' || p.topic === filterTopic).length === 0 && !dbMissing && (
                 <div className="flex-1 flex flex-col items-center justify-center py-16 text-center">
                   <span className="text-5xl mb-3">🐾</span>
                   <p className="text-sm font-semibold text-gray-700 mb-1">No posts yet</p>

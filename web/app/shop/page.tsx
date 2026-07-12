@@ -369,6 +369,43 @@ function writeSavedLocation(city: string) {
   else localStorage.removeItem(LOCATION_KEY)
 }
 
+// City input field — module-level so React keeps the same component
+// identity across NearbyStores re-renders (a nested definition remounts
+// the input on every keystroke, dropping focus after one character)
+function CitySearchBar({
+  label, value, onChange, onSearch, inputRef,
+}: {
+  label?: string
+  value: string
+  onChange: (v: string) => void
+  onSearch: () => void
+  inputRef: React.RefObject<HTMLInputElement | null>
+}) {
+  return (
+    <div className="flex gap-2 mb-3 min-w-0">
+      <div className="flex-1 min-w-0 flex items-center gap-2 bg-white rounded-xl shadow-sm px-3 py-2.5 border border-gray-200">
+        <MapPin size={14} className="text-gray-400 flex-shrink-0" />
+        <input
+          ref={inputRef}
+          value={value}
+          onChange={e => onChange(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && onSearch()}
+          placeholder="City, State or zip code…"
+          className="flex-1 min-w-0 text-sm outline-none text-gray-800 placeholder:text-gray-400 bg-transparent"
+        />
+      </div>
+      <button
+        onClick={onSearch}
+        disabled={!value.trim()}
+        className="px-4 rounded-xl text-white text-sm font-semibold disabled:opacity-40 flex items-center gap-1.5"
+        style={{ backgroundColor: '#e05a4e' }}
+      >
+        <Search size={14} />{label ?? 'Search'}
+      </button>
+    </div>
+  )
+}
+
 // ── Nearby stores section ──────────────────────────────────────────
 function NearbyStores() {
   const supabase = createClient()
@@ -475,30 +512,12 @@ function NearbyStores() {
   const independents = stores.filter(s => !s.chain)
   const chains       = stores.filter(s => s.chain)
 
-  // City input field (shown when no profile city or user wants to change)
-  const CitySearchBar = ({ label }: { label?: string }) => (
-    <div className="flex gap-2 mb-3 min-w-0">
-      <div className="flex-1 min-w-0 flex items-center gap-2 bg-white rounded-xl shadow-sm px-3 py-2.5 border border-gray-200">
-        <MapPin size={14} className="text-gray-400 flex-shrink-0" />
-        <input
-          ref={inputRef}
-          value={cityInput}
-          onChange={e => setCityInput(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && geocodeAndFetch(cityInput)}
-          placeholder="City, State or zip code…"
-          className="flex-1 min-w-0 text-sm outline-none text-gray-800 placeholder:text-gray-400 bg-transparent"
-        />
-      </div>
-      <button
-        onClick={() => geocodeAndFetch(cityInput)}
-        disabled={!cityInput.trim()}
-        className="px-4 rounded-xl text-white text-sm font-semibold disabled:opacity-40 flex items-center gap-1.5"
-        style={{ backgroundColor: '#e05a4e' }}
-      >
-        <Search size={14} />{label ?? 'Search'}
-      </button>
-    </div>
-  )
+  const searchBarProps = {
+    value:    cityInput,
+    onChange: setCityInput,
+    onSearch: () => geocodeAndFetch(cityInput),
+    inputRef,
+  }
 
   if (status === 'loading-profile') {
     return (
@@ -513,7 +532,7 @@ function NearbyStores() {
     return (
       <div className="mb-3">
         <p className="text-xs font-semibold text-gray-500 mb-1.5 px-1">🏪 Find pet stores near you</p>
-        <CitySearchBar label="Find stores" />
+        <CitySearchBar label="Find stores" {...searchBarProps} />
       </div>
     )
   }
@@ -542,7 +561,7 @@ function NearbyStores() {
             <p className="text-xs text-red-500">{errorMsg}</p>
           </div>
         </div>
-        <CitySearchBar label="Try again" />
+        <CitySearchBar label="Try again" {...searchBarProps} />
       </div>
     )
   }

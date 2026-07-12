@@ -237,6 +237,11 @@ export interface SavedRGAnimal {
 
 export const RG_SAVED_KEY = 'pawfect_saved_rg'
 export const RG_SEEN_KEY  = 'pawfect_seen_rg'
+// Quiz answers from /onboarding for users with no profile row yet —
+// applied (and cleared) by the profile-setup save
+export const PENDING_PREFS_KEY = 'pawfect_pending_prefs'
+// Set when the user opts out of the it's-a-match popup on every like
+export const HIDE_MATCH_POPUP_KEY = 'pawfect_hide_match_popup'
 
 // ── API helpers ──────────────────────────────────────────────────
 export interface ApiResponse<T> {

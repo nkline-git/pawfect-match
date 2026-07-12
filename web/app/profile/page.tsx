@@ -7,6 +7,9 @@ import { useProfile } from '@/hooks/useProfile'
 import Link from 'next/link'
 import { Loader2, ArrowLeft, Check, SlidersHorizontal, Shield, X, Plus, Trash2 } from 'lucide-react'
 import BottomNav from '@/components/ui/BottomNav'
+import CityAutocomplete from '@/components/ui/CityAutocomplete'
+import type { PetPreferences } from '@/types'
+import { PENDING_PREFS_KEY } from '@/types'
 
 const AVATARS = ['🙂', '😎', '🤗', '🧑', '👩', '👨', '🧔', '👱', '🙋', '🐾']
 
@@ -104,6 +107,10 @@ export default function ProfilePage() {
     setSaving(true)
     setSaveError(null)
     const wasSetup = isSetup
+    // Quiz answers saved before the profile row existed (new OAuth users
+    // finish /onboarding first) — persist them with this first save
+    let pendingPrefs: PetPreferences | null = null
+    try { pendingPrefs = JSON.parse(localStorage.getItem(PENDING_PREFS_KEY) ?? 'null') } catch { /* noop */ }
     const { error } = await updateProfile({
       first_name: firstName.trim(),
       city: city.trim(),
@@ -117,16 +124,20 @@ export default function ProfilePage() {
       // Merge breeds into existing preferences without clobbering other fields
       preferences: profile?.preferences
         ? { ...profile.preferences, breeds }
-        : breeds.length > 0
-          ? { species: [], breeds, size: [], age: [], energy: [], good_with_kids: null, good_with_dogs: null, good_with_cats: null, housing: null }
-          : null,
+        : pendingPrefs
+          ? { ...pendingPrefs, breeds }
+          : breeds.length > 0
+            ? { species: [], breeds, size: [], age: [], energy: [], good_with_kids: null, good_with_dogs: null, good_with_cats: null, housing: null }
+            : null,
     })
     setSaving(false)
     if (error) { setSaveError(error); return }
+    try { localStorage.removeItem(PENDING_PREFS_KEY) } catch { /* noop */ }
     setEditing(false)
-    // New users: go set pet preferences after profile setup
+    // New users: go set pet preferences after profile setup —
+    // unless they already answered the quiz before landing here
     if (wasSetup) {
-      router.push('/onboarding')
+      router.push(pendingPrefs ? '/' : '/onboarding')
     }
   }
 
@@ -192,18 +203,11 @@ export default function ProfilePage() {
                 />
               </div>
 
-              {/* City */}
+              {/* City — validated suggestions so radius search can geocode it */}
               <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">City *</label>
-                <input
-                  type="text"
-                  value={city}
-                  onChange={e => setCity(e.target.value)}
-                  placeholder="San Diego, CA"
-                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none transition-all placeholder:text-gray-400"
-                  onFocus={e => e.target.style.borderColor = '#e05a4e'}
-                  onBlur={e => e.target.style.borderColor = '#e5e7eb'}
-                />
+                <CityAutocomplete value={city} onChange={setCity} />
+                <p className="text-[11px] text-gray-400 mt-1">Pick from the suggestions so distance search works reliably.</p>
               </div>
 
               {/* Search radius */}

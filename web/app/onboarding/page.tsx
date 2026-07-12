@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { ArrowLeft, ArrowRight, Check, Loader2 } from 'lucide-react'
 import type { PetPreferences } from '@/types'
+import { PENDING_PREFS_KEY } from '@/types'
 
 // ── Step definitions ─────────────────────────────────────────────
 
@@ -68,8 +69,9 @@ export default function OnboardingPage() {
   const router   = useRouter()
   const supabase = createClient()
 
-  const [stepIdx, setStepIdx] = useState(0)
-  const [saving,  setSaving]  = useState(false)
+  const [stepIdx,   setStepIdx]   = useState(0)
+  const [saving,    setSaving]    = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
 
   // Preferences state
   const [species,         setSpecies]        = useState<string[]>([])
@@ -113,25 +115,28 @@ export default function OnboardingPage() {
       housing,
     }
 
-    // upsert so preferences are saved even if the profile row doesn't exist yet
-    // (new Google OAuth users arrive here before setting up their profile)
-    await supabase
-      .from('profiles')
-      .upsert({ id: user.id, preferences: prefs })
-
-    setSaving(false)
-
-    // If they don't have a full profile yet, send there; otherwise home
+    // A bare upsert({ id, preferences }) fails the profiles NOT NULL
+    // constraints (first_name, city) even when the row exists, so:
+    // existing profile → plain UPDATE; no profile yet (new OAuth users) →
+    // stash the prefs and let the profile-setup save persist them.
     const { data: profile } = await supabase
       .from('profiles')
-      .select('first_name')
+      .select('id')
       .eq('id', user.id)
       .maybeSingle()
 
-    if (!profile?.first_name) {
-      router.push('/profile')
-    } else {
+    if (profile) {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ preferences: prefs })
+        .eq('id', user.id)
+      setSaving(false)
+      if (error) { setSaveError(`Could not save preferences: ${error.message}`); return }
       router.push('/')
+    } else {
+      try { localStorage.setItem(PENDING_PREFS_KEY, JSON.stringify(prefs)) } catch { /* noop */ }
+      setSaving(false)
+      router.push('/profile')
     }
   }
 
@@ -339,6 +344,12 @@ export default function OnboardingPage() {
             </div>
           )}
         </div>
+
+        {saveError && (
+          <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl px-4 py-3 mb-4">
+            {saveError}
+          </div>
+        )}
 
         {/* Navigation */}
         <div className="flex gap-3">

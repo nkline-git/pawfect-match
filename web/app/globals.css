@@ -44,12 +44,14 @@ html {
 }
 .animate-soft-pulse { animation: softPulse 2s ease-in-out infinite; }
 
-/* New-card entrance fade — opacity only to avoid conflicting with the swipe transform */
+/* New-card entrance — drops in from the top (where the stack peeks) rather
+   than fading in at the exit position. Animating transform briefly overrides
+   the inline swipe transform, but only for the 250ms mount window. */
 @keyframes cardIn {
-  from { opacity: 0; }
-  to   { opacity: 1; }
+  from { opacity: 0; transform: translateY(-28px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
 }
-.animate-card-in { animation: cardIn 0.2s ease-out; }
+.animate-card-in { animation: cardIn 0.25s ease-out; }
 
 body {
   background-color: #c4b5a2;
