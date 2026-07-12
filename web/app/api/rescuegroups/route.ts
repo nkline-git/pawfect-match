@@ -241,7 +241,7 @@ export async function GET(request: Request) {
     // Fetch pages in parallel — each with a 12s timeout so one slow page
     // can't block the rest. Promise.allSettled so partial results are usable.
     const PAGE_TIMEOUT_MS = 12_000
-    const settled = await Promise.allSettled(
+    const fetchPages = () => Promise.allSettled(
       Array.from({ length: PAGES }, (_, i) => {
         const p = new URLSearchParams({
           limit:             String(PAGE_SIZE),
@@ -258,6 +258,14 @@ export async function GET(request: Request) {
         }).then(res => res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`)))
       })
     )
+
+    let settled = await fetchPages()
+    // RescueGroups occasionally rejects a whole burst (rate limit / blip) —
+    // one delayed retry rides it out instead of failing the user's search
+    if (settled.every(s => s.status === 'rejected')) {
+      await new Promise(r => setTimeout(r, 1_000))
+      settled = await fetchPages()
+    }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let allData: any[]     = []
@@ -331,6 +339,10 @@ export async function GET(request: Request) {
       // local DB pets against the same origin
       searchCoords: { lat: userCoords.lat, lon: userCoords.lon },
       pagination: { countReturned: paged.length, total, offset },
+    }, {
+      // CDN-cache identical searches for 5 min (serve stale up to 1h while
+      // revalidating) — cuts RescueGroups load and absorbs their blips
+      headers: { 'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=3600' },
     })
   } catch (err) {
     console.error('RescueGroups route error:', err)
