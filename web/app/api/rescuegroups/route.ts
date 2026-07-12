@@ -277,7 +277,13 @@ export async function GET(request: Request) {
     }
 
     if (!anySucceeded) {
-      return NextResponse.json({ error: 'All RescueGroups pages failed' }, { status: 502 })
+      const reasons = [...new Set(
+        settled
+          .filter((s): s is PromiseRejectedResult => s.status === 'rejected')
+          .map(s => String(s.reason?.message ?? s.reason))
+      )]
+      console.error('All RescueGroups pages failed:', reasons)
+      return NextResponse.json({ error: 'All RescueGroups pages failed', reasons }, { status: 502 })
     }
 
     // Deduplicate animals across pages (same animal can appear on multiple pages)
