@@ -235,6 +235,32 @@ export interface SavedRGAnimal {
   savedAt:  string          // ISO timestamp
 }
 
+// Unified animal shape (local DB pets + RescueGroups animals) — the common
+// currency of the browse feed, detail sheet, and Saved page
+export interface UnifiedPet {
+  id: string
+  name: string
+  type: string
+  breed: string | null
+  age: string | null
+  gender: string
+  size: string | null
+  description: string | null
+  photo: string | null
+  photos: string[]
+  url: string           // RescueGroups listing URL (for RG pets) or /pets/:id (local)
+  orgUrl: string | null   // rescue's own website (if known)
+  orgEmail: string | null // rescue contact email (if known)
+  orgPhone: string | null // rescue contact phone (if known)
+  city: string
+  orgName: string
+  tags: string[]
+  isLocal: boolean
+  distance?: number | null  // miles from search location (RG animals only)
+  rescueLat?: number | null // local pets: rescue coords for distance filtering
+  rescueLon?: number | null
+}
+
 export const RG_SAVED_KEY = 'pawfect_saved_rg'
 export const RG_SEEN_KEY  = 'pawfect_seen_rg'
 // Quiz answers from /onboarding for users with no profile row yet —

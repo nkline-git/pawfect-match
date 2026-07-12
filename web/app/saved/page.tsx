@@ -5,28 +5,13 @@ import { createClient } from '@/lib/supabase/client'
 import { Heart, MapPin, Loader2 } from 'lucide-react'
 import BottomNav from '@/components/ui/BottomNav'
 import Link from 'next/link'
-import type { Pet, SavedRGAnimal } from '@/types'
+import AnimalDetailSheet, { shortBreed, formatAge } from '@/components/AnimalDetailSheet'
+import type { Pet, SavedRGAnimal, UnifiedPet } from '@/types'
 import { RG_SAVED_KEY } from '@/types'
 import { Globe } from 'lucide-react'
 
-function shortBreed(breed: string | null | undefined): string | null {
-  if (!breed) return null
-  return breed.split(/[/(]|\s+-\s+/)[0].trim() || breed
-}
-
-function formatAge(raw: string | null | undefined): string | null {
-  if (!raw) return null
-  const s = raw.toLowerCase()
-  const yr = s.match(/(\d+)\s*year/)?.[1]
-  const mo = s.match(/(\d+)\s*month/)?.[1]
-  const wk = s.match(/(\d+)\s*week/)?.[1]
-  if (yr && mo && mo !== '0') return `${yr}yr ${mo}mo`
-  if (yr) return `${yr}yr`
-  if (mo) return `${mo}mo`
-  if (wk) return `${wk}wk`
-  return raw
-}
-
+// Saved page uses lowercase species keys ("cat") while the shared sheet's
+// SPECIES_BG uses RG display types — keep local lowercase palettes
 const SPECIES_EMOJI: Record<string, string> = {
   dog: '🐕', cat: '🐱', rabbit: '🐰', bird: '🦜',
   reptile: '🦎', small_animal: '🐹', farm: '🐄', other: '🐾',
@@ -42,6 +27,31 @@ const SPECIES_BG: Record<string, string> = {
   other:        'linear-gradient(135deg,#f5d5e8,#e8c4d5)',
 }
 
+// Lift a saved RG entry into the shape the shared detail sheet expects —
+// the sheet lazy-loads the full photo gallery from the animal endpoint
+function rgToUnified(a: SavedRGAnimal): UnifiedPet {
+  return {
+    id:          a.id,
+    name:        a.name,
+    type:        a.type,
+    breed:       a.breed,
+    age:         a.age,
+    gender:      a.gender,
+    size:        null,
+    description: null,
+    photo:       a.photo,
+    photos:      a.photo ? [a.photo] : [],
+    url:         a.orgUrl ?? '',
+    orgUrl:      a.orgUrl,
+    orgEmail:    a.orgEmail,
+    orgPhone:    a.orgPhone,
+    city:        a.city,
+    orgName:     a.orgName,
+    tags:        [],
+    isLocal:     false,
+  }
+}
+
 type SavedPetRow = { pet: Pet & { rescue?: { name: string; city: string; logo: string } | null } }
 
 export default function SavedPage() {
@@ -51,6 +61,7 @@ export default function SavedPage() {
   const [loading, setLoading]     = useState(true)
   const [rgSaved, setRgSaved]     = useState<SavedRGAnimal[]>([])
   const [isGuest, setIsGuest]     = useState(false)
+  const [selected, setSelected]   = useState<UnifiedPet | null>(null)
 
   useEffect(() => {
     const load = async () => {
@@ -204,9 +215,10 @@ export default function SavedPage() {
                     const typeKey = animal.type?.toLowerCase() ?? 'other'
                     return (
                       <div key={animal.id} className="bg-white rounded-2xl shadow-sm overflow-hidden flex">
-                        {/* Thumbnail */}
-                        <div
-                          className="w-24 h-24 flex-shrink-0 flex items-center justify-center"
+                        {/* Thumbnail — opens the detail sheet */}
+                        <button
+                          onClick={() => setSelected(rgToUnified(animal))}
+                          className="w-24 h-24 flex-shrink-0 flex items-center justify-center cursor-pointer"
                           style={{ background: SPECIES_BG[typeKey] ?? SPECIES_BG.other }}
                         >
                           {animal.photo ? (
@@ -214,19 +226,31 @@ export default function SavedPage() {
                           ) : (
                             <span className="text-4xl">{SPECIES_EMOJI[typeKey] ?? '🐾'}</span>
                           )}
-                        </div>
+                        </button>
 
                         {/* Info */}
                         <div className="flex-1 px-3 py-2.5 min-w-0">
-                          <h3 className="font-bold text-gray-900">{animal.name}</h3>
-                          <p className="text-xs text-gray-500 truncate">
-                            {[shortBreed(animal.breed), formatAge(animal.age), animal.gender].filter(Boolean).join(' · ')}
-                          </p>
-                          <p className="flex items-center gap-1 text-xs text-gray-400 mt-0.5 truncate">
-                            <MapPin size={10} />
-                            {animal.orgName}{animal.city ? ` · ${animal.city}` : ''}
-                          </p>
+                          <button
+                            onClick={() => setSelected(rgToUnified(animal))}
+                            className="block w-full text-left cursor-pointer"
+                          >
+                            <h3 className="font-bold text-gray-900">{animal.name}</h3>
+                            <p className="text-xs text-gray-500 truncate">
+                              {[shortBreed(animal.breed), formatAge(animal.age), animal.gender].filter(Boolean).join(' · ')}
+                            </p>
+                            <p className="flex items-center gap-1 text-xs text-gray-400 mt-0.5 truncate">
+                              <MapPin size={10} />
+                              {animal.orgName}{animal.city ? ` · ${animal.city}` : ''}
+                            </p>
+                          </button>
                           <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+                            <button
+                              onClick={() => setSelected(rgToUnified(animal))}
+                              className="text-xs font-semibold px-3 py-1 rounded-full text-white"
+                              style={{ backgroundColor: '#e05a4e' }}
+                            >
+                              View
+                            </button>
                             {animal.orgUrl && (
                               <a
                                 href={animal.orgUrl}
@@ -275,6 +299,11 @@ export default function SavedPage() {
 
         <BottomNav />
       </div>
+
+      {/* Detail sheet for rescue-network pets (photos lazy-load inside) */}
+      {selected && (
+        <AnimalDetailSheet animal={selected} onClose={() => setSelected(null)} />
+      )}
     </div>
   )
 }
