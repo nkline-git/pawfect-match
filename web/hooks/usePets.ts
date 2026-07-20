@@ -21,18 +21,29 @@ export function usePets(options: UsePetsOptions = {}) {
 
   const fetchPets = useCallback(async () => {
     setLoading(true)
-    let query = supabase
-      .from('pets')
-      .select('*, rescue:rescues(id, name, city, logo, lat, lon)')
-      .eq('status', options.status ?? 'available')
-      .order('created_at', { ascending: false })
+    const buildQuery = (withPublished: boolean) => {
+      let query = supabase
+        .from('pets')
+        .select(`*, rescue:rescues(id, name, city, logo, lat, lon${withPublished ? ', published' : ''})`)
+        .eq('status', options.status ?? 'available')
+        .order('created_at', { ascending: false })
+      if (options.species)  query = query.eq('species', options.species)
+      if (options.rescueId) query = query.eq('rescue_id', options.rescueId)
+      return query
+    }
 
-    if (options.species)  query = query.eq('species', options.species)
-    if (options.rescueId) query = query.eq('rescue_id', options.rescueId)
-
-    const { data, error } = await query
+    // published column arrives with migration 011 — retry without it if absent
+    let { data, error } = await buildQuery(true)
+    if (error?.code === '42703') ({ data, error } = await buildQuery(false))
     if (error) setError(error.message)
-    setPets(data ?? [])
+
+    // Hide draft rescues' pets from the public feed. Rehoming pets (no
+    // rescue) always pass; a rescue viewing its own dashboard (rescueId
+    // option) always sees its pets.
+    const rows = (data ?? []).filter(
+      p => options.rescueId || p.rescue?.published !== false
+    )
+    setPets(rows)
     setLoading(false)
   }, [options.species, options.status, options.rescueId])
 

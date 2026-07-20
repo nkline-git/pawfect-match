@@ -100,6 +100,22 @@ export default function RescuePublicPage() {
     )
   }
 
+  // Draft pages (built without an EIN, not yet approved) aren't public
+  if (rescue.published === false) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4 px-4 text-center">
+        <span className="text-5xl">📝</span>
+        <p className="text-white font-semibold">This rescue page isn&apos;t published yet.</p>
+        <p className="text-white/70 text-sm max-w-[300px]">
+          The rescue is still completing verification. Check back soon!
+        </p>
+        <button onClick={() => router.back()} className="text-sm text-white/70 hover:text-white underline">
+          ← Go back
+        </button>
+      </div>
+    )
+  }
+
   const fmtDate = (iso: string) =>
     new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 

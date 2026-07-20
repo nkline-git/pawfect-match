@@ -90,9 +90,13 @@ function RescueSetupForm() {
       appointment_required: false,
       requirements: { application: true, homeVisit: false, refCheck: false, trial: false },
       requirement_notes: null,
-      ein,
+      // No EIN = draft page: hidden from adopters until they add an EIN or
+      // an admin approves their manual-review request (dashboard banner)
+      ein: ein || null,
       verified: false,
       verified_at: null,
+      published: !!ein,
+      approval_requested_at: null,
       stats: { animals: 0, placed: 0, apps: 0 },
     })
 
@@ -132,6 +136,17 @@ function RescueSetupForm() {
         </div>
 
         <div className="bg-white rounded-2xl shadow-lg p-6 space-y-4">
+
+          {!ein && (
+            <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 flex items-start gap-2">
+              <span className="mt-0.5">📝</span>
+              <p className="text-xs text-blue-800 leading-relaxed">
+                <span className="font-semibold">Building without an EIN.</span> You can
+                set up everything now — your page stays a private draft until you add
+                your EIN or request approval from your dashboard.
+              </p>
+            </div>
+          )}
 
           {/* Logo */}
           <div>

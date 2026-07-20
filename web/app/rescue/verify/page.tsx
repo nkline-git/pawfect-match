@@ -151,6 +151,22 @@ export default function RescueVerifyPage() {
           <p className="text-xs text-gray-400 text-center mt-4">
             Your EIN is used only for verification and is never shared publicly.
           </p>
+
+          {/* EIN-less path — build the page now, verify before publishing */}
+          <div className="mt-4 pt-4 border-t border-gray-100 text-center">
+            <p className="text-xs text-gray-500 mb-2">Don&apos;t have your EIN handy?</p>
+            <a
+              href="/rescue/setup"
+              className="inline-block text-sm font-semibold hover:underline"
+              style={{ color: '#e05a4e' }}
+            >
+              Build your page now, verify later →
+            </a>
+            <p className="text-[11px] text-gray-400 mt-1.5 leading-relaxed">
+              You can set everything up today. Before your page goes live, add your
+              EIN or request a quick manual review from our team.
+            </p>
+          </div>
         </div>
       </div>
     </div>

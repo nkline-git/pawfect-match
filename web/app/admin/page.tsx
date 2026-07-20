@@ -11,11 +11,13 @@ import {
 type PendingRescue = {
   id: string
   name: string
-  ein: string
+  ein: string | null
   city: string
   email: string | null
   website: string | null
   verified: boolean
+  published?: boolean
+  approval_requested_at?: string | null
   created_at: string
 }
 
@@ -92,11 +94,21 @@ export default function AdminPage() {
   }, [supabase, filter])
 
   const fetchRescues = useCallback(async () => {
-    const { data } = await supabase
+    // published/approval_requested_at arrive with migration 011 — fall back
+    // to the older column list until it's applied
+    let { data, error } = await supabase
       .from('rescues')
-      .select('id, name, ein, city, email, website, verified, created_at')
+      .select('id, name, ein, city, email, website, verified, published, approval_requested_at, created_at')
       .order('created_at', { ascending: false })
       .limit(100)
+    if (error?.code === '42703') {
+      const fallback = await supabase
+        .from('rescues')
+        .select('id, name, ein, city, email, website, verified, created_at')
+        .order('created_at', { ascending: false })
+        .limit(100)
+      data = (fallback.data ?? []) as typeof data
+    }
     setRescues((data ?? []) as PendingRescue[])
   }, [supabase])
 
@@ -125,8 +137,16 @@ export default function AdminPage() {
 
   const verifyRescue = async (id: string) => {
     setActing(id)
-    await supabase.from('rescues').update({ verified: true, verified_at: new Date().toISOString() }).eq('id', id)
-    setRescues(prev => prev.map(r => r.id === id ? { ...r, verified: true } : r))
+    // Verify also publishes — this is how EIN-less manual-review requests go live
+    let { error } = await supabase.from('rescues')
+      .update({ verified: true, verified_at: new Date().toISOString(), published: true })
+      .eq('id', id)
+    if (error?.code === '42703') {
+      ({ error } = await supabase.from('rescues')
+        .update({ verified: true, verified_at: new Date().toISOString() })
+        .eq('id', id))
+    }
+    if (!error) setRescues(prev => prev.map(r => r.id === id ? { ...r, verified: true, published: true } : r))
     setActing(null)
   }
 
@@ -229,13 +249,22 @@ export default function AdminPage() {
                         <p className="text-xs text-gray-400">{rescue.city}</p>
                       </div>
                       <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 ${
-                        rescue.verified ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
+                        rescue.verified
+                          ? 'bg-green-100 text-green-700'
+                          : rescue.approval_requested_at
+                            ? 'bg-blue-100 text-blue-700'
+                            : 'bg-amber-100 text-amber-700'
                       }`}>
-                        {rescue.verified ? 'Verified' : 'Pending'}
+                        {rescue.verified ? 'Verified' : rescue.approval_requested_at ? 'Review requested' : 'Pending'}
                       </span>
                     </div>
 
-                    <p className="text-xs text-gray-500 font-mono mb-0.5">EIN: {rescue.ein}</p>
+                    <p className="text-xs text-gray-500 font-mono mb-0.5">
+                      EIN: {rescue.ein ?? <span className="text-amber-600 font-sans font-semibold">none — manual review</span>}
+                    </p>
+                    {rescue.published === false && (
+                      <p className="text-[10px] font-semibold text-gray-400 mb-0.5">DRAFT — not visible to adopters</p>
+                    )}
                     {rescue.email && <p className="text-xs text-gray-400 mb-0.5">{rescue.email}</p>}
                     {rescue.website && (
                       <a href={rescue.website} target="_blank" rel="noopener noreferrer"

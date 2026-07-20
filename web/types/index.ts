@@ -56,9 +56,11 @@ export interface Rescue {
   requirements: RescueRequirements
   fee_range: string | null
   requirement_notes: string | null
-  ein: string
+  ein: string | null            // null = built page without EIN (draft until published)
   verified: boolean
   verified_at: string | null
+  published?: boolean           // false = draft, hidden from adopters (011 migration)
+  approval_requested_at?: string | null // set when a draft asks for manual review
   stats: RescueStats
   created_at: string
   updated_at: string
