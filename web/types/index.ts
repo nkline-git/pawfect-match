@@ -263,6 +263,28 @@ export interface UnifiedPet {
   rescueLon?: number | null
 }
 
+// ── Sponsored ads (house ads, admin-curated — no ad network) ──────
+export type AdPlacement = 'shop' | 'community' | 'saved'
+
+export interface SponsoredAd {
+  id: string
+  title: string
+  body: string | null
+  emoji: string
+  image_url: string | null
+  cta_label: string
+  cta_url: string
+  placement: AdPlacement
+  active: boolean
+  starts_at: string | null
+  ends_at: string | null
+  priority: number
+  impressions: number
+  clicks: number
+  created_at: string
+  updated_at: string
+}
+
 export const RG_SAVED_KEY = 'pawfect_saved_rg'
 export const RG_SEEN_KEY  = 'pawfect_seen_rg'
 // Quiz answers from /onboarding for users with no profile row yet —

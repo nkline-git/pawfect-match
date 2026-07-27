@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Heart, MapPin, Loader2 } from 'lucide-react'
 import BottomNav from '@/components/ui/BottomNav'
+import SponsoredBanner from '@/components/ui/SponsoredBanner'
 import Link from 'next/link'
 import AnimalDetailSheet, { shortBreed, formatAge } from '@/components/AnimalDetailSheet'
 import type { Pet, SavedRGAnimal, UnifiedPet } from '@/types'
@@ -152,6 +153,9 @@ export default function SavedPage() {
             </div>
           ) : (
             <div className="space-y-3">
+              {/* Sponsored (house ad — admin-curated, pet-related only) */}
+              <SponsoredBanner placement="saved" />
+
               {/* ── Local shelter pets ── */}
               {rows.map(({ pet }) => (
                 <div key={pet.id} className="bg-white rounded-2xl shadow-sm overflow-hidden flex">

@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import BottomNav from '@/components/ui/BottomNav'
+import SponsoredBanner from '@/components/ui/SponsoredBanner'
 import {
   Heart, Send, Loader2, RefreshCw,
   Calendar, MapPin, Plus, Flag, X, Check,
@@ -444,6 +445,9 @@ export default function CommunityPage() {
           </div>
           <span className="text-xs font-bold flex-shrink-0 text-red-600">Open →</span>
         </a>
+
+        {/* Sponsored (house ad — admin-curated, pet-related only) */}
+        <SponsoredBanner placement="community" />
 
         {/* DB missing notice */}
         {dbMissing && (

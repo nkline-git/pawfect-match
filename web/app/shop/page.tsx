@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Star, ExternalLink, MapPin, Loader2, Phone, Globe, ChevronDown, ChevronUp, Search, Navigation } from 'lucide-react'
 import BottomNav from '@/components/ui/BottomNav'
+import SponsoredBanner from '@/components/ui/SponsoredBanner'
 import { createClient } from '@/lib/supabase/client'
 
 // ── Known big-box chains ───────────────────────────────────────────
@@ -655,6 +656,9 @@ export default function ShopPage() {
 
           {/* Partner stores registered on Pawfect Match */}
           <PartnerStores />
+
+          {/* Sponsored (house ad — admin-curated, pet-related only) */}
+          <SponsoredBanner placement="shop" />
 
           {/* Nearby stores from OpenStreetMap */}
           <NearbyStores />

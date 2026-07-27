@@ -6,7 +6,9 @@ import { createClient } from '@/lib/supabase/client'
 import {
   ArrowLeft, Loader2, Check, X, Eye, EyeOff,
   Flag, AlertTriangle, Building2, BadgeCheck, Trash2,
+  Megaphone, Plus, Pencil, MousePointerClick,
 } from 'lucide-react'
+import type { SponsoredAd, AdPlacement } from '@/types'
 
 type PendingRescue = {
   id: string
@@ -55,11 +57,27 @@ export default function AdminPage() {
 
   const [loading,   setLoading]   = useState(true)
   const [authed,    setAuthed]    = useState(false)
-  const [mainTab,   setMainTab]   = useState<'reports' | 'rescues'>('rescues')
+  const [mainTab,   setMainTab]   = useState<'reports' | 'rescues' | 'ads'>('rescues')
   const [reports,   setReports]   = useState<Report[]>([])
   const [rescues,   setRescues]   = useState<PendingRescue[]>([])
   const [filter,    setFilter]    = useState<'all' | 'pending' | 'actioned' | 'dismissed'>('pending')
   const [acting,    setActing]    = useState<string | null>(null)
+
+  // Sponsored ads (house ads — admin-curated, no ad network)
+  const [ads,        setAds]        = useState<SponsoredAd[]>([])
+  const [showAdForm, setShowAdForm] = useState(false)
+  const [editingAd,  setEditingAd]  = useState<string | null>(null)
+  const [adSaving,   setAdSaving]   = useState(false)
+  const [adError,    setAdError]    = useState<string | null>(null)
+  const [adTitle,    setAdTitle]    = useState('')
+  const [adBody,     setAdBody]     = useState('')
+  const [adEmoji,    setAdEmoji]    = useState('🐾')
+  const [adImageUrl, setAdImageUrl] = useState('')
+  const [adCtaLabel, setAdCtaLabel] = useState('Learn more')
+  const [adCtaUrl,   setAdCtaUrl]   = useState('')
+  const [adPlacement, setAdPlacement] = useState<AdPlacement>('shop')
+  const [adPriority, setAdPriority] = useState(0)
+  const [adActive,   setAdActive]   = useState(true)
 
   // Check admin role
   useEffect(() => {
@@ -112,9 +130,89 @@ export default function AdminPage() {
     setRescues((data ?? []) as PendingRescue[])
   }, [supabase])
 
+  const fetchAds = useCallback(async () => {
+    const { data } = await supabase
+      .from('sponsored_ads')
+      .select('*')
+      .order('created_at', { ascending: false })
+    setAds((data ?? []) as SponsoredAd[])
+  }, [supabase])
+
   useEffect(() => {
-    if (authed) { fetchReports(); fetchRescues() }
-  }, [authed, fetchReports, fetchRescues])
+    if (authed) { fetchReports(); fetchRescues(); fetchAds() }
+  }, [authed, fetchReports, fetchRescues, fetchAds])
+
+  const resetAdForm = () => {
+    setEditingAd(null)
+    setAdTitle('')
+    setAdBody('')
+    setAdEmoji('🐾')
+    setAdImageUrl('')
+    setAdCtaLabel('Learn more')
+    setAdCtaUrl('')
+    setAdPlacement('shop')
+    setAdPriority(0)
+    setAdActive(true)
+    setAdError(null)
+  }
+
+  const startEditAd = (ad: SponsoredAd) => {
+    setEditingAd(ad.id)
+    setAdTitle(ad.title)
+    setAdBody(ad.body ?? '')
+    setAdEmoji(ad.emoji)
+    setAdImageUrl(ad.image_url ?? '')
+    setAdCtaLabel(ad.cta_label)
+    setAdCtaUrl(ad.cta_url)
+    setAdPlacement(ad.placement)
+    setAdPriority(ad.priority)
+    setAdActive(ad.active)
+    setAdError(null)
+    setShowAdForm(true)
+  }
+
+  const saveAd = async () => {
+    if (!adTitle.trim() || !adCtaUrl.trim()) {
+      setAdError('Title and destination link are required.')
+      return
+    }
+    setAdSaving(true)
+    setAdError(null)
+    const payload = {
+      title: adTitle.trim(),
+      body: adBody.trim() || null,
+      emoji: adEmoji.trim() || '🐾',
+      image_url: adImageUrl.trim() || null,
+      cta_label: adCtaLabel.trim() || 'Learn more',
+      cta_url: adCtaUrl.trim(),
+      placement: adPlacement,
+      priority: adPriority,
+      active: adActive,
+    }
+    const { error } = editingAd
+      ? await supabase.from('sponsored_ads').update(payload).eq('id', editingAd)
+      : await supabase.from('sponsored_ads').insert(payload)
+    setAdSaving(false)
+    if (error) { setAdError(error.message); return }
+    setShowAdForm(false)
+    resetAdForm()
+    fetchAds()
+  }
+
+  const toggleAdActive = async (ad: SponsoredAd) => {
+    setActing(ad.id)
+    await supabase.from('sponsored_ads').update({ active: !ad.active }).eq('id', ad.id)
+    setAds(prev => prev.map(a => a.id === ad.id ? { ...a, active: !a.active } : a))
+    setActing(null)
+  }
+
+  const deleteAd = async (id: string) => {
+    if (!confirm('Delete this ad? This cannot be undone.')) return
+    setActing(id)
+    await supabase.from('sponsored_ads').delete().eq('id', id)
+    setAds(prev => prev.filter(a => a.id !== id))
+    setActing(null)
+  }
 
   const updateReport = async (id: string, status: string) => {
     setActing(id)
@@ -223,7 +321,212 @@ export default function AdminPage() {
               </span>
             )}
           </button>
+          <button
+            onClick={() => setMainTab('ads')}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-sm font-semibold transition-all ${
+              mainTab === 'ads' ? 'text-white' : 'text-gray-500'
+            }`}
+            style={mainTab === 'ads' ? { backgroundColor: '#e05a4e' } : {}}
+          >
+            <Megaphone size={14} />
+            Ads
+          </button>
         </div>
+
+        {/* ── ADS TAB ── */}
+        {mainTab === 'ads' && (
+          <div className="space-y-3 pb-6">
+            <button
+              onClick={() => { resetAdForm(); setShowAdForm(v => !v) }}
+              className={`w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-semibold border-2 transition-all ${
+                showAdForm
+                  ? 'text-gray-600 border-gray-200 bg-white'
+                  : 'text-white border-transparent'
+              }`}
+              style={showAdForm ? {} : { backgroundColor: '#e05a4e' }}
+            >
+              {showAdForm ? <X size={14} /> : <Plus size={14} />}
+              {showAdForm ? 'Cancel' : 'New ad'}
+            </button>
+
+            {showAdForm && (
+              <div className="bg-white rounded-2xl shadow-sm p-4 space-y-3">
+                <p className="text-sm font-bold text-gray-800">{editingAd ? 'Edit ad' : 'New sponsored ad'}</p>
+
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Title *</label>
+                  <input
+                    value={adTitle}
+                    onChange={e => setAdTitle(e.target.value)}
+                    placeholder="Happy Paws Pet Food"
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none placeholder:text-gray-400"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Body <span className="text-gray-400 font-normal">(optional)</span></label>
+                  <input
+                    value={adBody}
+                    onChange={e => setAdBody(e.target.value)}
+                    placeholder="20% off your first order"
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none placeholder:text-gray-400"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Emoji</label>
+                    <input
+                      value={adEmoji}
+                      onChange={e => setAdEmoji(e.target.value)}
+                      placeholder="🐾"
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none placeholder:text-gray-400"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Priority</label>
+                    <input
+                      type="number"
+                      value={adPriority}
+                      onChange={e => setAdPriority(Number(e.target.value))}
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Image URL <span className="text-gray-400 font-normal">(optional — falls back to emoji)</span></label>
+                  <input
+                    value={adImageUrl}
+                    onChange={e => setAdImageUrl(e.target.value)}
+                    placeholder="https://…"
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none placeholder:text-gray-400"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Button label</label>
+                    <input
+                      value={adCtaLabel}
+                      onChange={e => setAdCtaLabel(e.target.value)}
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Placement</label>
+                    <select
+                      value={adPlacement}
+                      onChange={e => setAdPlacement(e.target.value as AdPlacement)}
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none bg-white"
+                    >
+                      <option value="shop">Shop</option>
+                      <option value="community">Community</option>
+                      <option value="saved">Saved</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Destination link *</label>
+                  <input
+                    value={adCtaUrl}
+                    onChange={e => setAdCtaUrl(e.target.value)}
+                    placeholder="https://…"
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none placeholder:text-gray-400"
+                  />
+                </div>
+
+                <button
+                  onClick={() => setAdActive(v => !v)}
+                  className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold w-full ${
+                    adActive ? 'bg-green-50 text-green-700' : 'bg-gray-50 text-gray-500'
+                  }`}
+                >
+                  {adActive ? <Eye size={12} /> : <EyeOff size={12} />}
+                  {adActive ? 'Active — visible to adopters' : 'Inactive — hidden'}
+                </button>
+
+                {adError && (
+                  <div className="bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl px-3 py-2">
+                    {adError}
+                  </div>
+                )}
+
+                <button
+                  onClick={saveAd}
+                  disabled={adSaving}
+                  className="w-full py-2.5 rounded-xl text-white text-sm font-semibold flex items-center justify-center gap-2 disabled:opacity-50"
+                  style={{ backgroundColor: '#e05a4e' }}
+                >
+                  {adSaving && <Loader2 size={14} className="animate-spin" />}
+                  {editingAd ? 'Save changes' : 'Create ad'}
+                </button>
+              </div>
+            )}
+
+            {ads.length === 0 ? (
+              <div className="bg-white rounded-2xl shadow-sm px-5 py-12 text-center">
+                <Megaphone size={32} className="text-gray-300 mx-auto mb-3" />
+                <p className="text-sm font-semibold text-gray-700">No ads yet</p>
+                <p className="text-xs text-gray-400 mt-1">Add a sponsor to start earning from Shop, Community, or Saved.</p>
+              </div>
+            ) : (
+              ads.map(ad => (
+                <div key={ad.id} className="bg-white rounded-2xl shadow-sm overflow-hidden">
+                  <div className="px-4 py-3">
+                    <div className="flex items-start justify-between gap-2 mb-1.5">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="text-xl flex-shrink-0">{ad.emoji}</span>
+                        <div className="min-w-0">
+                          <p className="text-sm font-bold text-gray-900 truncate">{ad.title}</p>
+                          {ad.body && <p className="text-xs text-gray-400 truncate">{ad.body}</p>}
+                        </div>
+                      </div>
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 capitalize ${
+                        ad.active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
+                      }`}>
+                        {ad.active ? 'Active' : 'Inactive'}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-3 text-[11px] text-gray-400 mb-2">
+                      <span className="capitalize bg-gray-50 px-2 py-0.5 rounded-full">{ad.placement}</span>
+                      <span className="flex items-center gap-1"><Eye size={11} /> {ad.impressions}</span>
+                      <span className="flex items-center gap-1"><MousePointerClick size={11} /> {ad.clicks}</span>
+                      <span>Priority {ad.priority}</span>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => toggleAdActive(ad)}
+                        disabled={acting === ad.id}
+                        className="flex-1 py-1.5 rounded-lg border border-gray-200 text-xs font-semibold text-gray-600 hover:bg-gray-50 flex items-center justify-center gap-1"
+                      >
+                        {acting === ad.id ? <Loader2 size={11} className="animate-spin" /> : ad.active ? <EyeOff size={11} /> : <Eye size={11} />}
+                        {ad.active ? 'Deactivate' : 'Activate'}
+                      </button>
+                      <button
+                        onClick={() => startEditAd(ad)}
+                        className="flex-1 py-1.5 rounded-lg border border-gray-200 text-xs font-semibold text-gray-600 hover:bg-gray-50 flex items-center justify-center gap-1"
+                      >
+                        <Pencil size={11} /> Edit
+                      </button>
+                      <button
+                        onClick={() => deleteAd(ad.id)}
+                        disabled={acting === ad.id}
+                        className="flex-1 py-1.5 rounded-lg border border-red-200 text-xs font-semibold text-red-500 hover:bg-red-50 flex items-center justify-center gap-1"
+                      >
+                        {acting === ad.id ? <Loader2 size={11} className="animate-spin" /> : <Trash2 size={11} />}
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        )}
 
         {/* ── RESCUES TAB ── */}
         {mainTab === 'rescues' && (
