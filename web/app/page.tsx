@@ -108,7 +108,8 @@ const SPECIES_TABS = [
 // ── Main page ─────────────────────────────────────────────────────────
 export default function BrowsePage() {
   const [speciesFilter,    setSpeciesFilter]    = useState('')
-  const [prefActive,       setPrefActive]       = useState(false)
+  // Preferences filtering is always applied when the user has set any —
+  // no on/off toggle. The header button opens /onboarding to edit them.
   const [animals,          setAnimals]          = useState<UnifiedPet[]>([])
   const [rgLoading,        setRgLoading]        = useState(false)
   const [rgFailed,         setRgFailed]         = useState(false)
@@ -362,7 +363,7 @@ export default function BrowsePage() {
       ? pets.filter(p => localSpecies.includes(p.species))
       : pets
 
-    const filteredLocal = prefActive && prefs
+    const filteredLocal = prefs
       ? applyPreferences(baseLocal, prefs)
       : baseLocal
 
@@ -438,7 +439,7 @@ export default function BrowsePage() {
       .finally(() => { if (!ac.signal.aborted) setRgLoading(false) })
     return () => ac.abort()
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pets, speciesFilter, prefActive, searchCity, searchRadius, retryTick, profileLoading])
+  }, [pets, speciesFilter, prefs, searchCity, searchRadius, retryTick, profileLoading])
 
   // ── Auto-load more when queue is getting low (< 15 animals left) ─
   useEffect(() => {
@@ -642,18 +643,14 @@ export default function BrowsePage() {
             </div>
             <div className="flex items-center gap-3">
               {prefs && (
-                <button
-                  onClick={() => setPrefActive(v => !v)}
-                  title={prefActive ? 'Preferences on' : 'Preferences off'}
-                  className="relative flex items-center justify-center w-8 h-8 rounded-full transition-colors"
-                  style={{ backgroundColor: prefActive ? '#fef2f2' : 'transparent', color: '#e05a4e' }}
+                <a
+                  href="/onboarding"
+                  title="Edit your pet preferences"
+                  className="flex items-center justify-center w-8 h-8 rounded-full transition-colors"
+                  style={{ color: '#e05a4e' }}
                 >
                   <SlidersHorizontal size={16} />
-                  {prefActive && (
-                    <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full"
-                      style={{ backgroundColor: '#e05a4e' }} />
-                  )}
-                </button>
+                </a>
               )}
               <a href="/saved" className="text-gray-400 hover:text-gray-600">
                 <Bookmark size={20} />
@@ -1021,7 +1018,7 @@ export default function BrowsePage() {
               <div className="flex-1 min-h-0 bg-white rounded-2xl shadow-lg flex flex-col items-center justify-center py-8 px-8 text-center">
                 <span className="text-6xl mb-4">🐾</span>
                 <h3 className="text-lg font-bold text-gray-800 mb-2">
-                  {animals.length === 0 && prefActive && prefs
+                  {animals.length === 0 && prefs
                     ? 'No matches for your preferences'
                     : hasExpanded
                     ? `You've seen all pets within ${expandedToRadius ?? searchRadius} miles!`
@@ -1056,11 +1053,11 @@ export default function BrowsePage() {
                     Start over
                   </button>
 
-                  {prefActive && prefs && (
-                    <button onClick={() => setPrefActive(false)}
-                      className="px-5 py-2.5 rounded-full text-sm font-semibold border border-gray-200 text-gray-600 hover:bg-gray-50">
-                      Show all pets
-                    </button>
+                  {prefs && (
+                    <a href="/onboarding"
+                      className="px-5 py-2.5 rounded-full text-sm font-semibold border border-gray-200 text-gray-600 hover:bg-gray-50 text-center">
+                      Adjust your preferences
+                    </a>
                   )}
                   {!profile && (
                     <a href="/login"
