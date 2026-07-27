@@ -1,9 +1,11 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { Star, ExternalLink, MapPin, Loader2, Phone, Globe, ChevronDown, ChevronUp, Search, Navigation } from 'lucide-react'
+import { Star, ExternalLink, MapPin, Loader2, Phone, Globe, ChevronDown, ChevronUp, Navigation } from 'lucide-react'
 import BottomNav from '@/components/ui/BottomNav'
 import SponsoredBanner from '@/components/ui/SponsoredBanner'
+import CityStateSearch from '@/components/ui/CityStateSearch'
+import { parseStateFromCity, stripStateFromCity } from '@/lib/usStates'
 import { createClient } from '@/lib/supabase/client'
 
 // ── Known big-box chains ───────────────────────────────────────────
@@ -370,43 +372,6 @@ function writeSavedLocation(city: string) {
   else localStorage.removeItem(LOCATION_KEY)
 }
 
-// City input field — module-level so React keeps the same component
-// identity across NearbyStores re-renders (a nested definition remounts
-// the input on every keystroke, dropping focus after one character)
-function CitySearchBar({
-  label, value, onChange, onSearch, inputRef,
-}: {
-  label?: string
-  value: string
-  onChange: (v: string) => void
-  onSearch: () => void
-  inputRef: React.RefObject<HTMLInputElement | null>
-}) {
-  return (
-    <div className="flex gap-2 mb-3 min-w-0">
-      <div className="flex-1 min-w-0 flex items-center gap-2 bg-white rounded-xl shadow-sm px-3 py-2.5 border border-gray-200">
-        <MapPin size={14} className="text-gray-400 flex-shrink-0" />
-        <input
-          ref={inputRef}
-          value={value}
-          onChange={e => onChange(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && onSearch()}
-          placeholder="City, State or zip code…"
-          className="flex-1 min-w-0 text-sm outline-none text-gray-800 placeholder:text-gray-400 bg-transparent"
-        />
-      </div>
-      <button
-        onClick={onSearch}
-        disabled={!value.trim()}
-        className="px-4 rounded-xl text-white text-sm font-semibold disabled:opacity-40 flex items-center gap-1.5"
-        style={{ backgroundColor: '#e05a4e' }}
-      >
-        <Search size={14} />{label ?? 'Search'}
-      </button>
-    </div>
-  )
-}
-
 // ── Nearby stores section ──────────────────────────────────────────
 function NearbyStores() {
   const supabase = createClient()
@@ -416,6 +381,7 @@ function NearbyStores() {
   const [errorMsg,     setErrorMsg]     = useState('')
   const [showChains,   setShowChains]   = useState(false)
   const [cityInput,    setCityInput]    = useState('')
+  const [stateInput,   setStateInput]   = useState('')
   const [resolvedCity, setResolvedCity] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -425,7 +391,9 @@ function NearbyStores() {
       // 1. Already-saved location (set from home page or previous shop search)
       const saved = readSavedLocation()
       if (saved) {
-        setCityInput(saved)
+        const savedState = parseStateFromCity(saved)
+        setCityInput(savedState ? stripStateFromCity(saved) : saved)
+        setStateInput(savedState)
         geocodeAndFetch(saved)
         return
       }
@@ -435,7 +403,9 @@ function NearbyStores() {
         const { data: profile } = await supabase
           .from('profiles').select('city').eq('id', user.id).single()
         if (profile?.city) {
-          setCityInput(profile.city)
+          const profileState = parseStateFromCity(profile.city)
+          setCityInput(profileState ? stripStateFromCity(profile.city) : profile.city)
+          setStateInput(profileState)
           geocodeAndFetch(profile.city)
           return
         }
@@ -514,9 +484,15 @@ function NearbyStores() {
   const chains       = stores.filter(s => s.chain)
 
   const searchBarProps = {
-    value:    cityInput,
-    onChange: setCityInput,
-    onSearch: () => geocodeAndFetch(cityInput),
+    city: cityInput,
+    onCityChange: setCityInput,
+    state: stateInput,
+    onStateChange: setStateInput,
+    // Zip codes have no state field to append; combining "City, ST" for
+    // named-place searches is what actually fixes "location not found"
+    // on ambiguous city names
+    onSearch: () => geocodeAndFetch(stateInput && !/^\d{5}/.test(cityInput.trim()) ? `${cityInput}, ${stateInput}` : cityInput),
+    searching: status === 'geocoding' || status === 'fetching',
     inputRef,
   }
 
@@ -533,7 +509,7 @@ function NearbyStores() {
     return (
       <div className="mb-3">
         <p className="text-xs font-semibold text-gray-500 mb-1.5 px-1">🏪 Find pet stores near you</p>
-        <CitySearchBar label="Find stores" {...searchBarProps} />
+        <CityStateSearch searchLabel="Find stores" {...searchBarProps} />
       </div>
     )
   }
@@ -562,7 +538,7 @@ function NearbyStores() {
             <p className="text-xs text-red-500">{errorMsg}</p>
           </div>
         </div>
-        <CitySearchBar label="Try again" {...searchBarProps} />
+        <CityStateSearch searchLabel="Try again" {...searchBarProps} />
       </div>
     )
   }
