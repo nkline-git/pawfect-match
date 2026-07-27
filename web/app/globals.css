@@ -53,6 +53,15 @@ html {
 }
 .animate-card-in { animation: cardIn 0.25s ease-out; }
 
+/* Short-viewport safeguard for the swipe card: on phones with limited
+   vertical space (e.g. iPhone SE at 375×568), the description/tags were
+   tall enough to push the Pass/Undo/Info/Like buttons behind the bottom
+   nav. Drop the least-essential content so buttons stay reachable. */
+@media (max-height: 700px) {
+  .hide-on-short-viewport { display: none; }
+  .short-viewport-compact { padding-top: 0.5rem; padding-bottom: 0.25rem; }
+}
+
 body {
   background-color: #c4b5a2;
   color: #171717;

@@ -934,8 +934,10 @@ export default function BrowsePage() {
                   )}
                 </div>
 
-                {/* Info */}
-                <div className="px-4 pt-3 pb-2">
+                {/* Info — tags/description hide on short viewports (see globals.css
+                    @media max-height) so the action buttons below are never
+                    squeezed past the bottom nav on small-height phones */}
+                <div className="px-4 pt-3 pb-2 short-viewport-compact">
                   <div className="flex items-baseline gap-2 mb-0.5">
                     <h2 className="text-2xl font-bold text-gray-900">{pet.name}</h2>
                     {pet.age && <span className="text-gray-400 text-sm">{formatAge(pet.age)}</span>}
@@ -944,7 +946,7 @@ export default function BrowsePage() {
                     {[shortBreed(pet.breed), pet.gender, pet.size].filter(Boolean).join(' · ')}
                   </p>
                   {pet.tags.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5 mb-2">
+                    <div className="flex flex-wrap gap-1.5 mb-2 hide-on-short-viewport">
                       {/* Skip Male/Female — already shown in the subtitle breed line */}
                       {pet.tags.filter(t => t !== 'Male' && t !== 'Female').slice(0, 5).map(t => (
                         <span key={t} className={`text-xs px-2.5 py-0.5 rounded-full font-medium ${TAG_COLORS[t] ?? 'bg-gray-100 text-gray-600'}`}>{t}</span>
@@ -952,7 +954,7 @@ export default function BrowsePage() {
                     </div>
                   )}
                   {pet.description && (
-                    <p className="text-sm text-gray-600 leading-relaxed line-clamp-2">{pet.description}</p>
+                    <p className="text-sm text-gray-600 leading-relaxed line-clamp-2 hide-on-short-viewport">{pet.description}</p>
                   )}
                 </div>
 
