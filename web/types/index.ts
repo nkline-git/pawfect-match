@@ -197,6 +197,7 @@ export interface PetStore {
   facebook: string | null
   verified: boolean
   announcement?: string | null   // deal banner on public page (004 migration)
+  featured?: boolean             // admin-toggled paid placement (014 migration)
   created_at: string
   updated_at: string
 }
@@ -214,6 +215,8 @@ export interface StoreProduct {
   category: 'food' | 'toys' | 'beds' | 'grooming' | 'health' | 'travel' | 'treats' | 'other'
   in_stock: boolean
   sort: number
+  buy_url?: string | null   // where the seller actually sells this (Etsy, PayPal.me, etc.) — 014 migration
+  clicks?: number           // "Buy" click count — 014 migration
   created_at: string
   updated_at: string
 }

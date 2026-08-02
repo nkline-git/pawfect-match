@@ -54,6 +54,13 @@ export default function StorePublicPage() {
     load()
   }, [id, supabase])
 
+  // No in-app checkout — "Buy" sends shoppers to wherever the seller
+  // actually sells the item (Etsy, PayPal.me, their own site, etc.),
+  // same affiliate-style pattern as the Chewy links on the Shop page
+  const handleBuyClick = (product: StoreProduct) => {
+    supabase.rpc('increment_product_click', { product_id: product.id }).then(() => {})
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -298,6 +305,18 @@ export default function StorePublicPage() {
                         <span className="text-[11px] font-medium text-gray-500">Ask in store</span>
                       )}
                     </div>
+                    {p.buy_url && (
+                      <a
+                        href={p.buy_url}
+                        target="_blank"
+                        rel="noopener noreferrer sponsored"
+                        onClick={() => handleBuyClick(p)}
+                        className="mt-1.5 w-full py-1.5 rounded-xl text-white text-[11px] font-semibold text-center flex items-center justify-center gap-1"
+                        style={{ backgroundColor: '#e05a4e' }}
+                      >
+                        Buy <ExternalLink size={9} />
+                      </a>
+                    )}
                   </div>
                 </div>
               ))}

@@ -260,20 +260,33 @@ function StoreCard({ store }: { store: Store }) {
 // ── Partner stores (registered on Pawfect Match) ──────────────────
 function PartnerStores() {
   const supabase = createClient()
-  type PSStore = { id: string; name: string; city: string | null; logo: string; cover_color: string; specialties: string[]; hours: string | null; verified: boolean }
+  type PSStore = { id: string; name: string; city: string | null; logo: string; cover_color: string; specialties: string[]; hours: string | null; verified: boolean; featured?: boolean }
   const [stores,   setStores]   = useState<PSStore[]>([])
   const [loading,  setLoading]  = useState(true)
   const [expanded, setExpanded] = useState(false)
 
   useEffect(() => {
+    // featured arrives with migration 014 — fall back to the older column
+    // list until it's applied
     supabase
       .from('pet_stores')
-      .select('id, name, city, logo, cover_color, specialties, hours, verified')
+      .select('id, name, city, logo, cover_color, specialties, hours, verified, featured')
+      .order('featured', { ascending: false })
       .order('verified', { ascending: false })
       .order('created_at', { ascending: false })
       .limit(20)
-      .then(({ data }) => {
-        setStores((data ?? []) as PSStore[])
+      .then(async ({ data, error }) => {
+        if (error?.code === '42703') {
+          const fallback = await supabase
+            .from('pet_stores')
+            .select('id, name, city, logo, cover_color, specialties, hours, verified')
+            .order('verified', { ascending: false })
+            .order('created_at', { ascending: false })
+            .limit(20)
+          setStores((fallback.data ?? []) as PSStore[])
+        } else {
+          setStores((data ?? []) as PSStore[])
+        }
         setLoading(false)
       })
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -329,6 +342,11 @@ function PartnerStores() {
                 <div className="flex items-center gap-1.5 mb-0.5">
                   <p className="text-sm font-bold text-gray-900 truncate">{s.name}</p>
                   {s.verified && <span className="text-[10px] text-emerald-600">✓</span>}
+                  {s.featured && (
+                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full text-white flex-shrink-0" style={{ backgroundColor: '#f59e0b' }}>
+                      ⭐ Featured
+                    </span>
+                  )}
                 </div>
                 <p className="text-xs text-gray-400 truncate">{s.city || '🌐 Online / ships nationwide'}</p>
                 {s.specialties.length > 0 && (

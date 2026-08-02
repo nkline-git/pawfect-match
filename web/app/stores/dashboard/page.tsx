@@ -215,6 +215,7 @@ function ProductsManager({ storeId }: { storeId: string }) {
   const [pCompare, setPCompare] = useState('')
   const [pEmoji, setPEmoji] = useState('🛍️')
   const [pCat,   setPCat]   = useState<string>('food')
+  const [pBuyUrl, setPBuyUrl] = useState('')
 
   const load = async () => {
     const { data, error } = await supabase
@@ -240,12 +241,13 @@ function ProductsManager({ storeId }: { storeId: string }) {
       compare_at: Number.isFinite(compareCents) ? compareCents : null,
       emoji: pEmoji,
       category: pCat,
+      buy_url: pBuyUrl.trim() || null,
       in_stock: true,
       sort: products.length,
     })
     setSaving(false)
     if (error) { setError(error.message); return }
-    setPName(''); setPDesc(''); setPPrice(''); setPCompare(''); setPEmoji('🛍️'); setPCat('food')
+    setPName(''); setPDesc(''); setPPrice(''); setPCompare(''); setPEmoji('🛍️'); setPCat('food'); setPBuyUrl('')
     setShowForm(false)
     load()
   }
@@ -327,6 +329,16 @@ function ProductsManager({ storeId }: { storeId: string }) {
                 style={pCat === c ? { backgroundColor: '#e05a4e' } : {}}>{c}</button>
             ))}
           </div>
+          <div>
+            <input
+              value={pBuyUrl} onChange={e => setPBuyUrl(e.target.value)}
+              placeholder="Buy link (optional) — Etsy, PayPal.me, Instagram, your site…"
+              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none bg-white"
+            />
+            <p className="text-[11px] text-gray-400 mt-1">
+              No in-app checkout yet — this shows a &quot;Buy&quot; button that sends shoppers to wherever you actually sell it.
+            </p>
+          </div>
           {error && <p className="text-xs text-red-600">{error}</p>}
           <button
             onClick={addProduct} disabled={saving}
@@ -354,6 +366,7 @@ function ProductsManager({ storeId }: { storeId: string }) {
                   {p.price != null ? `$${(p.price / 100).toFixed(2)}` : 'Ask in store'}
                   {p.compare_at ? ` · was $${(p.compare_at / 100).toFixed(2)}` : ''}
                   {' · '}<span className="capitalize">{p.category}</span>
+                  {p.buy_url ? ` · ${p.clicks ?? 0} buy click${p.clicks === 1 ? '' : 's'}` : ''}
                 </p>
               </div>
               <button onClick={() => toggleStock(p)}

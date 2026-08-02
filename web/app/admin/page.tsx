@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import {
   ArrowLeft, Loader2, Check, X, Eye, EyeOff,
   Flag, AlertTriangle, Building2, BadgeCheck, Trash2,
-  Megaphone, Plus, Pencil, MousePointerClick,
+  Megaphone, Plus, Pencil, MousePointerClick, Store, Star,
 } from 'lucide-react'
 import type { SponsoredAd, AdPlacement } from '@/types'
 
@@ -20,6 +20,15 @@ type PendingRescue = {
   verified: boolean
   published?: boolean
   approval_requested_at?: string | null
+  created_at: string
+}
+
+type PendingStore = {
+  id: string
+  name: string
+  city: string | null
+  verified: boolean
+  featured?: boolean
   created_at: string
 }
 
@@ -57,7 +66,7 @@ export default function AdminPage() {
 
   const [loading,   setLoading]   = useState(true)
   const [authed,    setAuthed]    = useState(false)
-  const [mainTab,   setMainTab]   = useState<'reports' | 'rescues' | 'ads'>('rescues')
+  const [mainTab,   setMainTab]   = useState<'reports' | 'rescues' | 'ads' | 'stores'>('rescues')
   const [reports,   setReports]   = useState<Report[]>([])
   const [rescues,   setRescues]   = useState<PendingRescue[]>([])
   const [filter,    setFilter]    = useState<'all' | 'pending' | 'actioned' | 'dismissed'>('pending')
@@ -78,6 +87,12 @@ export default function AdminPage() {
   const [adPlacement, setAdPlacement] = useState<AdPlacement>('shop')
   const [adPriority, setAdPriority] = useState(0)
   const [adActive,   setAdActive]   = useState(true)
+
+  // Pet stores — no in-app checkout, so "featured" is a manually-toggled
+  // paid placement (arranged with the seller off-platform); click counts
+  // are aggregated from store_products to gauge real buyer interest
+  const [stores,      setStores]      = useState<PendingStore[]>([])
+  const [storeClicks,  setStoreClicks] = useState<Record<string, number>>({})
 
   // Check admin role
   useEffect(() => {
@@ -138,9 +153,42 @@ export default function AdminPage() {
     setAds((data ?? []) as SponsoredAd[])
   }, [supabase])
 
+  const fetchStores = useCallback(async () => {
+    // featured arrives with migration 014 — fall back to the older column
+    // list until it's applied
+    let { data, error } = await supabase
+      .from('pet_stores')
+      .select('id, name, city, verified, featured, created_at')
+      .order('created_at', { ascending: false })
+    if (error?.code === '42703') {
+      const fallback = await supabase
+        .from('pet_stores')
+        .select('id, name, city, verified, created_at')
+        .order('created_at', { ascending: false })
+      data = fallback.data as typeof data
+    }
+    setStores((data ?? []) as PendingStore[])
+
+    const { data: products } = await supabase
+      .from('store_products')
+      .select('store_id, clicks')
+    const clickTotals: Record<string, number> = {}
+    for (const p of (products ?? []) as { store_id: string; clicks: number | null }[]) {
+      clickTotals[p.store_id] = (clickTotals[p.store_id] ?? 0) + (p.clicks ?? 0)
+    }
+    setStoreClicks(clickTotals)
+  }, [supabase])
+
+  const toggleFeatured = async (store: PendingStore) => {
+    setActing(store.id)
+    const { error } = await supabase.from('pet_stores').update({ featured: !store.featured }).eq('id', store.id)
+    if (!error) setStores(prev => prev.map(s => s.id === store.id ? { ...s, featured: !s.featured } : s))
+    setActing(null)
+  }
+
   useEffect(() => {
-    if (authed) { fetchReports(); fetchRescues(); fetchAds() }
-  }, [authed, fetchReports, fetchRescues, fetchAds])
+    if (authed) { fetchReports(); fetchRescues(); fetchAds(); fetchStores() }
+  }, [authed, fetchReports, fetchRescues, fetchAds, fetchStores])
 
   const resetAdForm = () => {
     setEditingAd(null)
@@ -331,7 +379,71 @@ export default function AdminPage() {
             <Megaphone size={14} />
             Ads
           </button>
+          <button
+            onClick={() => setMainTab('stores')}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-sm font-semibold transition-all ${
+              mainTab === 'stores' ? 'text-white' : 'text-gray-500'
+            }`}
+            style={mainTab === 'stores' ? { backgroundColor: '#e05a4e' } : {}}
+          >
+            <Store size={14} />
+            Stores
+          </button>
         </div>
+
+        {/* ── STORES TAB ── */}
+        {mainTab === 'stores' && (
+          <div className="space-y-3 pb-6">
+            <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 text-xs text-blue-800 leading-relaxed">
+              📎 No in-app checkout — sellers link out to where they actually sell (Etsy, PayPal.me, etc).
+              &quot;Featured&quot; is a manual boost for sellers you&apos;ve arranged a paid placement with;
+              buy-clicks show real interest per store.
+            </div>
+
+            {stores.length === 0 ? (
+              <div className="bg-white rounded-2xl shadow-sm px-5 py-12 text-center">
+                <Store size={32} className="text-gray-300 mx-auto mb-3" />
+                <p className="text-sm font-semibold text-gray-700">No stores yet</p>
+              </div>
+            ) : (
+              stores.map(store => (
+                <div key={store.id} className="bg-white rounded-2xl shadow-sm overflow-hidden">
+                  <div className="px-4 py-3">
+                    <div className="flex items-start justify-between gap-2 mb-1.5">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <span className="text-sm font-bold text-gray-900 truncate">{store.name}</span>
+                        {store.verified && <BadgeCheck size={14} className="text-green-500 flex-shrink-0" />}
+                      </div>
+                      {store.featured && (
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full text-white flex-shrink-0" style={{ backgroundColor: '#f59e0b' }}>
+                          ⭐ Featured
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-400 mb-2">{store.city || '🌐 Online / ships nationwide'}</p>
+                    <div className="flex items-center gap-3 text-[11px] text-gray-400 mb-3">
+                      <span className="flex items-center gap-1"><MousePointerClick size={11} /> {storeClicks[store.id] ?? 0} buy clicks</span>
+                      <span>Since {new Date(store.created_at).toLocaleDateString()}</span>
+                    </div>
+                    <button
+                      onClick={() => toggleFeatured(store)}
+                      disabled={acting === store.id}
+                      className={`w-full py-1.5 rounded-lg text-xs font-semibold flex items-center justify-center gap-1 ${
+                        store.featured
+                          ? 'border border-gray-200 text-gray-600 hover:bg-gray-50'
+                          : 'text-white'
+                      }`}
+                      style={store.featured ? {} : { backgroundColor: '#f59e0b' }}
+                    >
+                      {acting === store.id ? <Loader2 size={11} className="animate-spin" /> : <Star size={11} />}
+                      {store.featured ? 'Remove featured' : 'Make featured'}
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        )}
 
         {/* ── ADS TAB ── */}
         {mainTab === 'ads' && (
