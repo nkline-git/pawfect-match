@@ -260,7 +260,7 @@ function StoreCard({ store }: { store: Store }) {
 // ── Partner stores (registered on Pawfect Match) ──────────────────
 function PartnerStores() {
   const supabase = createClient()
-  type PSStore = { id: string; name: string; city: string; logo: string; cover_color: string; specialties: string[]; hours: string | null; verified: boolean }
+  type PSStore = { id: string; name: string; city: string | null; logo: string; cover_color: string; specialties: string[]; hours: string | null; verified: boolean }
   const [stores,   setStores]   = useState<PSStore[]>([])
   const [loading,  setLoading]  = useState(true)
   const [expanded, setExpanded] = useState(false)
@@ -330,7 +330,7 @@ function PartnerStores() {
                   <p className="text-sm font-bold text-gray-900 truncate">{s.name}</p>
                   {s.verified && <span className="text-[10px] text-emerald-600">✓</span>}
                 </div>
-                <p className="text-xs text-gray-400 truncate">{s.city}</p>
+                <p className="text-xs text-gray-400 truncate">{s.city || '🌐 Online / ships nationwide'}</p>
                 {s.specialties.length > 0 && (
                   <p className="text-[11px] text-gray-500 truncate mt-0.5">
                     {s.specialties.slice(0, 3).join(' · ')}

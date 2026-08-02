@@ -183,7 +183,7 @@ export interface PetStore {
   id: string
   user_id: string
   name: string
-  city: string
+  city: string | null   // null = online/home-based seller with no storefront location
   address: string | null
   phone: string | null
   email: string | null

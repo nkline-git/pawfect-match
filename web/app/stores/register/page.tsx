@@ -58,13 +58,13 @@ export default function StoreRegisterPage() {
     setSpecialties(prev => prev.includes(s) ? prev.filter(x => x !== s) : [...prev, s])
 
   const handleSave = async () => {
-    if (!name.trim() || !city.trim()) { setError('Store name and city are required.'); return }
+    if (!name.trim()) { setError('Store name is required.'); return }
     setSaving(true)
     setError(null)
 
     const { error: err } = await createStore({
       name: name.trim(),
-      city: city.trim(),
+      city: city.trim() || null,
       address: address.trim() || null,
       phone: phone.trim() || null,
       email: email.trim() || null,
@@ -116,7 +116,7 @@ export default function StoreRegisterPage() {
               </div>
               <div className="pb-1">
                 <p className="font-bold text-gray-900 text-sm">{name || 'Your Store Name'}</p>
-                <p className="text-xs text-gray-500">{city || 'City, ST'}</p>
+                <p className="text-xs text-gray-500">{city || '🌐 Online / ships nationwide'}</p>
               </div>
             </div>
           </div>
@@ -175,15 +175,20 @@ export default function StoreRegisterPage() {
 
           {/* City */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">City *</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">
+              City <span className="text-gray-400 font-normal">(optional)</span>
+            </label>
             <input
               value={city}
               onChange={e => setCity(e.target.value)}
-              placeholder="San Diego, CA"
+              placeholder="San Diego, CA — leave blank if you sell online or from home"
               className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none transition-all placeholder:text-gray-400"
               onFocus={e => e.target.style.borderColor = '#e05a4e'}
               onBlur={e => e.target.style.borderColor = '#e5e7eb'}
             />
+            <p className="text-xs text-gray-400 mt-1">
+              No storefront? Skip this — your shop will show as &quot;Online / ships nationwide.&quot;
+            </p>
           </div>
 
           {/* Address */}

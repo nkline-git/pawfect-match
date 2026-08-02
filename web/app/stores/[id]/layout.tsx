@@ -17,7 +17,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   return {
     title: store.name,
-    description: `${store.name} — a local pet shop in ${store.city}.`,
+    description: store.city
+      ? `${store.name} — a local pet shop in ${store.city}.`
+      : `${store.name} — an online pet shop on Pawfect Match.`,
   }
 }
 

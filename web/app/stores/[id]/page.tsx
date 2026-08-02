@@ -74,9 +74,11 @@ export default function StorePublicPage() {
     )
   }
 
-  const mapsUrl = store.address
-    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${store.address}, ${store.city}`)}`
-    : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${store.name} ${store.city}`)}`
+  const mapsUrl = store.city
+    ? store.address
+      ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${store.address}, ${store.city}`)}`
+      : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${store.name} ${store.city}`)}`
+    : null
 
   return (
     <div className="min-h-screen flex items-start justify-center py-4 px-4">
@@ -122,16 +124,22 @@ export default function StorePublicPage() {
             </div>
 
             <h1 className="text-xl font-bold text-gray-900 mb-0.5">{store.name}</h1>
-            <a
-              href={mapsUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-800 mb-3 transition-colors"
-            >
-              <MapPin size={12} />
-              {store.address ? `${store.address}, ${store.city}` : store.city}
-              <ExternalLink size={10} className="text-gray-400" />
-            </a>
+            {mapsUrl ? (
+              <a
+                href={mapsUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-800 mb-3 transition-colors"
+              >
+                <MapPin size={12} />
+                {store.address ? `${store.address}, ${store.city}` : store.city}
+                <ExternalLink size={10} className="text-gray-400" />
+              </a>
+            ) : (
+              <p className="inline-flex items-center gap-1 text-sm text-gray-500 mb-3">
+                🌐 Online / ships nationwide
+              </p>
+            )}
 
             {/* Announcement / deal banner */}
             {store.announcement && (
@@ -295,22 +303,26 @@ export default function StorePublicPage() {
               ))}
             </div>
             <p className="text-[10px] text-white/50 text-center mt-2">
-              Available in-store at {store.name} · {store.city}
+              {store.city
+                ? `Available in-store at ${store.name} · ${store.city}`
+                : `Available from ${store.name}`}
             </p>
           </div>
         )}
 
-        {/* Directions CTA */}
-        <a
-          href={mapsUrl}
-          target="_blank"
-          rel="noreferrer"
-          className="flex items-center justify-center gap-2 w-full py-3.5 rounded-2xl text-white font-semibold shadow-lg mb-6"
-          style={{ backgroundColor: '#3b82f6' }}
-        >
-          <MapPin size={18} />
-          Get directions
-        </a>
+        {/* Directions CTA — only when the store has a physical location */}
+        {mapsUrl && (
+          <a
+            href={mapsUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="flex items-center justify-center gap-2 w-full py-3.5 rounded-2xl text-white font-semibold shadow-lg mb-6"
+            style={{ backgroundColor: '#3b82f6' }}
+          >
+            <MapPin size={18} />
+            Get directions
+          </a>
+        )}
 
       </div>
     </div>

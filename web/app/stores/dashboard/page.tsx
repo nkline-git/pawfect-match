@@ -411,7 +411,7 @@ export default function StoreDashboardPage() {
       setLogo(store.logo)
       setCover(store.cover_color)
       setName(store.name)
-      setCity(store.city)
+      setCity(store.city ?? '')
       setAddress(store.address ?? '')
       setPhone(store.phone ?? '')
       setEmail(store.email ?? '')
@@ -429,14 +429,14 @@ export default function StoreDashboardPage() {
     setSpecialties(prev => prev.includes(s) ? prev.filter(x => x !== s) : [...prev, s])
 
   const handleSave = async () => {
-    if (!name.trim() || !city.trim()) { setError('Store name and city are required.'); return }
+    if (!name.trim()) { setError('Store name is required.'); return }
     setSaving(true)
     setError(null)
     const { error: err } = await updateStore({
       logo,
       cover_color: cover,
       name: name.trim(),
-      city: city.trim(),
+      city: city.trim() || null,
       address: address.trim() || null,
       phone: phone.trim() || null,
       email: email.trim() || null,
@@ -489,7 +489,7 @@ export default function StoreDashboardPage() {
             <span className="text-2xl">{store.logo}</span>
             <div>
               <h1 className="text-white font-bold leading-tight">{store.name}</h1>
-              <p className="text-white/60 text-xs">{store.city}</p>
+              <p className="text-white/60 text-xs">{store.city || '🌐 Online / ships nationwide'}</p>
             </div>
           </div>
           <button
@@ -597,11 +597,14 @@ export default function StoreDashboardPage() {
 
           {/* City */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">City *</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">
+              City <span className="text-gray-400 font-normal">(optional)</span>
+            </label>
             <input
               value={city}
               onChange={e => setCity(e.target.value)}
-              className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none transition-all"
+              placeholder="Leave blank if you sell online or from home"
+              className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none transition-all placeholder:text-gray-400"
               onFocus={e => e.target.style.borderColor = '#e05a4e'}
               onBlur={e => e.target.style.borderColor = '#e5e7eb'}
             />
