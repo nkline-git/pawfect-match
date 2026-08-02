@@ -8,18 +8,7 @@ import CityStateSearch from '@/components/ui/CityStateSearch'
 import { parseStateFromCity, stripStateFromCity } from '@/lib/usStates'
 import { createClient } from '@/lib/supabase/client'
 
-// ── Known big-box chains ───────────────────────────────────────────
-const CHAIN_NAMES = [
-  'petsmart', 'petco', 'pet supplies plus', 'petvalu', 'pet valu',
-  'pet supermarket', 'hollywood feed', 'unleashed', 'petland',
-  'global pet foods', 'chuck & don', 'pet people', 'petshop',
-]
-
-function isChain(name: string) {
-  const lower = name.toLowerCase()
-  return CHAIN_NAMES.some(c => lower.includes(c))
-}
-
+// Big-box chain classification now happens server-side (app/api/nearby-stores)
 function haversine(lat1: number, lon1: number, lat2: number, lon2: number) {
   const R = 3959
   const dLat = (lat2 - lat1) * Math.PI / 180
@@ -449,28 +438,21 @@ function NearbyStores() {
     }
   }
 
+  // Overpass (OpenStreetMap) is a free, shared resource that genuinely
+  // 504s under real load (confirmed server-side: back-to-back requests
+  // failed then succeeded). Routed through our own API route so it can
+  // retry once and cache successful responses at the CDN — repeat/nearby
+  // searches then never touch Overpass at all.
   const fetchStores = async (lat: number, lon: number) => {
     setStatus('fetching')
     try {
-      const query = `[out:json][timeout:25];(node["shop"="pet"](around:24000,${lat},${lon});way["shop"="pet"](around:24000,${lat},${lon}););out center;`
-      const res  = await fetch('https://overpass-api.de/api/interpreter', { method: 'POST', body: query })
-      const json = await res.json()
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const parsed: Store[] = (json.elements ?? []).map((el: any) => {
-        const elLat = el.lat ?? el.center?.lat
-        const elLon = el.lon ?? el.center?.lon
-        const tags  = el.tags ?? {}
-        const name  = tags.name ?? tags['name:en'] ?? 'Pet Store'
-        const parts = [tags['addr:housenumber'], tags['addr:street'], tags['addr:city']].filter(Boolean)
-        return {
-          id: el.id, name, lat: elLat, lon: elLon,
-          distance: haversine(lat, lon, elLat, elLon),
-          phone:   tags.phone ?? tags['contact:phone'],
-          website: tags.website ?? tags['contact:website'],
-          address: parts.length ? parts.join(' ') : undefined,
-          chain:   isChain(name),
-        } as Store
-      }).filter((s: Store) => s.lat)
+      // Round coordinates so nearby searches share the same CDN cache entry
+      const p = new URLSearchParams({ lat: lat.toFixed(2), lon: lon.toFixed(2) })
+      const res = await fetch(`/api/nearby-stores?${p}`)
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const { stores: rawStores } = await res.json()
+      const parsed: Store[] = (rawStores ?? [])
+        .map((s: Store) => ({ ...s, distance: haversine(lat, lon, s.lat, s.lon) }))
         .sort((a: Store, b: Store) => a.distance - b.distance)
       setStores(parsed)
       setStatus('done')
