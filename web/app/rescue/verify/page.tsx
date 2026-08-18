@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Building2, Loader2, CheckCircle, ArrowLeft } from 'lucide-react'
 
@@ -52,9 +53,9 @@ export default function RescueVerifyPage() {
       <div className="w-full max-w-[390px]">
 
         <div className="flex items-center gap-3 mb-6">
-          <a href="/" className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center text-white hover:bg-white/30 transition-colors">
+          <Link href="/" className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center text-white hover:bg-white/30 transition-colors">
             <ArrowLeft size={18} />
-          </a>
+          </Link>
           <h1 className="text-lg font-bold text-white">Rescue / Shelter Portal</h1>
         </div>
 

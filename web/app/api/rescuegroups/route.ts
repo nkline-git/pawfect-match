@@ -296,13 +296,14 @@ export async function GET(request: Request) {
 
     // Deduplicate animals across pages (same animal can appear on multiple pages)
     const seenIds = new Set<string>()
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const all = allData
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .filter((a: any) => {
         if (seenIds.has(String(a.id))) return false
         seenIds.add(String(a.id))
         return true
       })
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .map((a: any) => mapAnimal(a, allIncluded))
 
     const offset = parseInt(searchParams.get('offset') ?? '0', 10)
@@ -331,7 +332,8 @@ export async function GET(request: Request) {
     const paged  = nearby
       .slice(offset, offset + limit)
       // Strip internal coords before sending to client (distance is kept)
-      .map(({ _lat: _l, _lon: _o, ...rest }: ReturnType<typeof mapAnimal> & { distance: number }) => rest)
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      .map(({ _lat, _lon, ...rest }: ReturnType<typeof mapAnimal> & { distance: number }) => rest)
 
     return NextResponse.json({
       animals: paged,

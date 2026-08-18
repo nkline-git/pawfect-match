@@ -2,12 +2,28 @@ import { NextResponse } from 'next/server'
 
 const RG_BASE = 'https://api.rescuegroups.org/v5/public'
 
-// RescueGroups v5 returns picture URL fields as OBJECTS:
+// RescueGroups v5 picture attribute fields (urlMedium, urlLarge, etc.) are
+// either a plain URL string or an object shaped like:
 //   { url: "https://...", filesize: 1401259, resolutionX: 4752, resolutionY: 3168 }
-// not plain strings. This helper handles both forms and applies CDN width capping
-// so cards load a reasonable 800px image instead of a raw 4752px DSLR shot.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function pickUrl(val: any): string | null {
+type RgPictureUrlField = string | { url?: string; urlFull?: string; urlFullsize?: string; original?: string; filesize?: number } | null | undefined
+
+type RgPicture = {
+  id: string
+  type: string
+  attributes?: {
+    urlThumbnail?: RgPictureUrlField
+    urlMedium?: RgPictureUrlField
+    urlLarge?: RgPictureUrlField
+    urlFull?: RgPictureUrlField
+    urlFullsize?: RgPictureUrlField
+    original?: RgPictureUrlField
+    url?: RgPictureUrlField
+  }
+}
+
+// This helper handles both string and object forms and applies CDN width
+// capping so cards load a reasonable 800px image instead of a raw 4752px DSLR shot.
+function pickUrl(val: RgPictureUrlField): string | null {
   if (!val) return null
   let url: string | null = null
   if (typeof val === 'string') {
@@ -23,13 +39,11 @@ function pickUrl(val: any): string | null {
   return url
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function extractFilesize(val: any): number {
+function extractFilesize(val: RgPictureUrlField): number {
   if (!val || typeof val !== 'object') return 0
   return typeof val.filesize === 'number' ? val.filesize : 0
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -63,26 +77,22 @@ export async function GET(
       ? picRels.map((r: { id: string }) => r.id)
       : []
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const included: any[] = json.included ?? []
+    const included: RgPicture[] = json.included ?? []
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const pictures = picIds
-      .map((picId) => included.find((i: any) => i.type === 'pictures' && i.id === picId))
-      .filter(Boolean)
+      .map((picId) => included.find((i) => i.type === 'pictures' && i.id === picId))
+      .filter((p): p is RgPicture => Boolean(p))
 
     // Sort smallest-first so the fastest-loading thumbnail comes first on the card.
     // Full-size photos (4000+ px) are only needed for zoomed detail view.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    pictures.sort((a: any, b: any) => {
+    pictures.sort((a, b) => {
       const fa = extractFilesize(a.attributes?.urlThumbnail ?? a.attributes?.urlMedium ?? a.attributes?.urlLarge ?? a.attributes?.urlFull ?? a.attributes?.urlFullsize)
       const fb = extractFilesize(b.attributes?.urlThumbnail ?? b.attributes?.urlMedium ?? b.attributes?.urlLarge ?? b.attributes?.urlFull ?? b.attributes?.urlFullsize)
       return fa - fb
     })
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const photos: string[] = pictures
-      .map((pic: any) => {
+      .map((pic) => {
         const a = pic.attributes ?? {}
         // Prefer medium/large for card display; fall back to fullsize or plain url
         return (

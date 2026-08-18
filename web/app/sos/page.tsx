@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import BottomNav from '@/components/ui/BottomNav'
@@ -48,8 +48,7 @@ function timeAgo(iso: string) {
 
 export default function SosPage() {
   const router      = useRouter()
-  const supabaseRef = useRef(createClient())
-  const supabase    = supabaseRef.current
+  const [supabase]  = useState(createClient)
 
   const [userId,    setUserId]    = useState<string | null>(null)
   const [alerts,    setAlerts]    = useState<LostPet[]>([])
@@ -104,7 +103,7 @@ export default function SosPage() {
       setUserId(data.user?.id ?? null)
       if (data.user?.email) setFEmail(e => e || data.user!.email!)
     })
-    load()
+    ;(async () => { await load() })()
   }, [supabase, load])
 
   const pickPhoto = (f: File | null) => {

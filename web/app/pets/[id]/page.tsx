@@ -1,11 +1,12 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import {
   ArrowLeft, Heart, MapPin, ExternalLink, Phone, Globe,
-  Clock, DollarSign, Users, Check, Loader2, X, Send,
+  DollarSign, Users, Check, Loader2, X, Send,
   ChevronLeft, ChevronRight,
 } from 'lucide-react'
 import type { Pet } from '@/types'
@@ -131,7 +132,7 @@ export default function PetDetailPage() {
       <div className="min-h-screen flex flex-col items-center justify-center gap-4 px-4">
         <span className="text-5xl">🐾</span>
         <p className="text-white font-semibold">Pet not found.</p>
-        <a href="/" className="text-sm text-white/70 hover:text-white underline">← Back to browse</a>
+        <Link href="/" className="text-sm text-white/70 hover:text-white underline">← Back to browse</Link>
       </div>
     )
   }

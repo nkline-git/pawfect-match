@@ -302,7 +302,6 @@ export default function CommunityPage() {
 
     // Batch-fetch profiles for all unique authors
     const userIds = [...new Set(posts.map((p: { user_id: string }) => p.user_id))]
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const profileMap = new Map<string, PostProfile>()
     if (userIds.length > 0) {
       const { data: profileRows } = await supabase
@@ -348,8 +347,12 @@ export default function CommunityPage() {
     setLoadingEvts(false)
   }, [supabase])
 
-  useEffect(() => { fetchPosts() }, [fetchPosts])
-  useEffect(() => { fetchEvents() }, [fetchEvents])
+  useEffect(() => {
+    (async () => { await fetchPosts() })()
+  }, [fetchPosts])
+  useEffect(() => {
+    (async () => { await fetchEvents() })()
+  }, [fetchEvents])
 
   // Like handler — optimistic UI; the persistent counter on community_posts
   // is maintained by a DB trigger on post_likes (010_post_likes_trigger.sql),
@@ -742,14 +745,14 @@ export default function CommunityPage() {
             <p className="text-xs font-semibold text-gray-700 leading-tight">Run a rescue?</p>
             <p className="text-[10px] leading-tight" style={{ color: '#e05a4e' }}>Post your animals free →</p>
           </a>
-          <a
+          <Link
             href="/stores/register"
             className="flex flex-col items-center gap-1 bg-white rounded-2xl shadow-sm px-3 py-3 text-center hover:shadow-md transition-shadow"
           >
             <span className="text-xl">🏪</span>
             <p className="text-xs font-semibold text-gray-700 leading-tight">Own a pet store?</p>
             <p className="text-[10px] leading-tight" style={{ color: '#e05a4e' }}>Create your page →</p>
-          </a>
+          </Link>
         </div>
 
         </div>{/* end scrollable */}

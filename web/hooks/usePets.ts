@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { Pet, PetSpecies } from '@/types'
 
@@ -14,10 +14,9 @@ export function usePets(options: UsePetsOptions = {}) {
   const [pets, setPets]       = useState<Pet[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError]     = useState<string | null>(null)
-  // Stable client ref — createBrowserClient returns a new object each call,
-  // so we pin it to a ref to avoid infinite useCallback/useEffect re-runs.
-  const supabaseRef = useRef(createClient())
-  const supabase = supabaseRef.current
+  // Stable client — createBrowserClient returns a new object each call,
+  // so we pin it via lazy useState init to avoid infinite useCallback/useEffect re-runs.
+  const [supabase] = useState(createClient)
 
   const fetchPets = useCallback(async () => {
     setLoading(true)
@@ -45,17 +44,18 @@ export function usePets(options: UsePetsOptions = {}) {
     )
     setPets(rows)
     setLoading(false)
-  }, [options.species, options.status, options.rescueId])
+  }, [supabase, options.species, options.status, options.rescueId])
 
-  useEffect(() => { fetchPets() }, [fetchPets])
+  useEffect(() => {
+    (async () => { await fetchPets() })()
+  }, [fetchPets])
 
   return { pets, loading, error, refetch: fetchPets }
 }
 
 export function useSavedPets() {
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set())
-  const supabaseRef = useRef(createClient())
-  const supabase = supabaseRef.current
+  const [supabase] = useState(createClient)
 
   useEffect(() => {
     const load = async () => {

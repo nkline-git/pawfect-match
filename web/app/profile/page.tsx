@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useProfile } from '@/hooks/useProfile'
@@ -36,8 +36,7 @@ const POPULAR_BREEDS = [
 
 export default function ProfilePage() {
   const router  = useRouter()
-  const supabaseRef = useRef(createClient())
-  const supabase    = supabaseRef.current
+  const [supabase] = useState(createClient)
   const { profile, loading, updateProfile } = useProfile()
 
   const [authed, setAuthed]     = useState<boolean | null>(null)
@@ -71,6 +70,8 @@ export default function ProfilePage() {
   // Populate form when profile loads
   useEffect(() => {
     if (profile) {
+      // Intentional: mirrors fetched profile into local editable-form state.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setFirstName(profile.first_name)
       setCity(profile.city)
       setBio(profile.bio ?? '')
@@ -158,9 +159,9 @@ export default function ProfilePage() {
 
         {/* Header */}
         <div className="flex items-center gap-3 mb-4">
-          <a href="/" className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center text-white hover:bg-white/30 transition-colors">
+          <Link href="/" className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center text-white hover:bg-white/30 transition-colors">
             <ArrowLeft size={18} />
-          </a>
+          </Link>
           <h1 className="text-lg font-bold text-white">
             {isSetup ? 'Set up your profile' : 'Your profile'}
           </h1>

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { PetStore } from '@/types'
 
@@ -8,8 +8,7 @@ export function useStore() {
   const [store, setStore]     = useState<PetStore | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError]     = useState<string | null>(null)
-  const supabaseRef = useRef(createClient())
-  const supabase = supabaseRef.current
+  const [supabase] = useState(createClient)
 
   const fetchStore = useCallback(async () => {
     setLoading(true)
@@ -25,9 +24,11 @@ export function useStore() {
     if (error && error.code !== 'PGRST116') setError(error.message)
     setStore(data)
     setLoading(false)
-  }, [])
+  }, [supabase])
 
-  useEffect(() => { fetchStore() }, [fetchStore])
+  useEffect(() => {
+    (async () => { await fetchStore() })()
+  }, [fetchStore])
 
   const updateStore = async (updates: Partial<PetStore>) => {
     const { data: { user } } = await supabase.auth.getUser()

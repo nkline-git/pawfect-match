@@ -129,12 +129,13 @@ export default function AdminPage() {
   const fetchRescues = useCallback(async () => {
     // published/approval_requested_at arrive with migration 011 — fall back
     // to the older column list until it's applied
-    let { data, error } = await supabase
+    const first = await supabase
       .from('rescues')
       .select('id, name, ein, city, email, website, verified, published, approval_requested_at, created_at')
       .order('created_at', { ascending: false })
       .limit(100)
-    if (error?.code === '42703') {
+    let data = first.data
+    if (first.error?.code === '42703') {
       const fallback = await supabase
         .from('rescues')
         .select('id, name, ein, city, email, website, verified, created_at')
@@ -156,11 +157,12 @@ export default function AdminPage() {
   const fetchStores = useCallback(async () => {
     // featured arrives with migration 014 — fall back to the older column
     // list until it's applied
-    let { data, error } = await supabase
+    const first = await supabase
       .from('pet_stores')
       .select('id, name, city, verified, featured, created_at')
       .order('created_at', { ascending: false })
-    if (error?.code === '42703') {
+    let data = first.data
+    if (first.error?.code === '42703') {
       const fallback = await supabase
         .from('pet_stores')
         .select('id, name, city, verified, created_at')
@@ -187,7 +189,11 @@ export default function AdminPage() {
   }
 
   useEffect(() => {
-    if (authed) { fetchReports(); fetchRescues(); fetchAds(); fetchStores() }
+    if (authed) {
+      (async () => {
+        await Promise.all([fetchReports(), fetchRescues(), fetchAds(), fetchStores()])
+      })()
+    }
   }, [authed, fetchReports, fetchRescues, fetchAds, fetchStores])
 
   const resetAdForm = () => {
@@ -794,7 +800,7 @@ export default function AdminPage() {
                   {/* Notes */}
                   {report.notes && (
                     <p className="text-xs text-gray-600 bg-gray-50 rounded-lg px-2.5 py-2 mb-2">
-                      "{report.notes}"
+                      &quot;{report.notes}&quot;
                     </p>
                   )}
 

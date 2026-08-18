@@ -111,6 +111,7 @@ export default function AnimalDetailSheet({
   // Lazy-load photos only if not already cached from the card prefetch
   useEffect(() => {
     if (animal.isLocal || (initialPhotos && initialPhotos.length > 0)) return
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setPhotosLoading(true)
     fetch(`/api/rescuegroups/animal/${animal.id}`)
       .then(r => r.json())

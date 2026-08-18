@@ -68,7 +68,9 @@ function StoreEventsManager({ storeId, userId }: { storeId: string; userId: stri
     setAvailable(true)
     setEvents((data ?? []) as StoreEvent[])
   }
-  useEffect(() => { load() // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    (async () => { await load() })()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [storeId])
 
   const addEvent = async () => {
@@ -225,7 +227,9 @@ function ProductsManager({ storeId }: { storeId: string }) {
     setAvailable(true)
     setProducts((data ?? []) as StoreProduct[])
   }
-  useEffect(() => { load() // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    (async () => { await load() })()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [storeId])
 
   const addProduct = async () => {
@@ -421,6 +425,8 @@ export default function StoreDashboardPage() {
   // Populate form when store data loads
   useEffect(() => {
     if (store) {
+      // Intentional: mirrors fetched store into local editable-form state.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setLogo(store.logo)
       setCover(store.cover_color)
       setName(store.name)
@@ -481,13 +487,13 @@ export default function StoreDashboardPage() {
       <div className="min-h-screen flex flex-col items-center justify-center gap-4 px-4">
         <span className="text-5xl">🏪</span>
         <p className="text-white font-semibold text-center">No store profile found.</p>
-        <a
+        <Link
           href="/stores/register"
           className="px-6 py-3 rounded-xl text-white text-sm font-semibold"
           style={{ backgroundColor: '#e05a4e' }}
         >
           Create your store page →
-        </a>
+        </Link>
       </div>
     )
   }

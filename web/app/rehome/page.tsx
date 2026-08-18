@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { geocodeCity } from '@/lib/geocode'
@@ -21,8 +21,7 @@ const COMMON_TRAITS = ['Friendly', 'House-trained', 'Good with kids', 'Good with
 
 export default function RehomePage() {
   const router      = useRouter()
-  const supabaseRef = useRef(createClient())
-  const supabase    = supabaseRef.current
+  const [supabase]  = useState(createClient)
 
   const [userId, setUserId]   = useState<string | null>(null)
   const [userEmail, setUserEmail] = useState('')

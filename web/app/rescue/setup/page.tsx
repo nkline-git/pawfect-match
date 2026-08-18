@@ -42,6 +42,8 @@ function RescueSetupForm() {
       try {
         const stash = JSON.parse(sessionStorage.getItem('pawfect_pending_rescue') ?? 'null')
         if (stash?.ein) {
+          // Intentional: one-time hydration from sessionStorage on mount.
+          // eslint-disable-next-line react-hooks/set-state-in-effect
           setEin(stash.ein)
           setOrgName(stash.orgName ?? '')
           if (!name && stash.orgName) setName(stash.orgName)

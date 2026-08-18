@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Eye, EyeOff, Loader2 } from 'lucide-react'
@@ -222,7 +223,7 @@ export default function LoginPage() {
             </a>
 
             {/* Local pet shop */}
-            <a
+            <Link
               href="/stores/register"
               className="flex flex-col items-center gap-1.5 px-3 py-3 rounded-xl border border-gray-200 hover:border-[#e05a4e] hover:bg-red-50 transition-all group text-center"
             >
@@ -231,16 +232,16 @@ export default function LoginPage() {
                 Local pet shop
               </p>
               <p className="text-[10px] text-gray-400 leading-tight">Sign up free →</p>
-            </a>
+            </Link>
           </div>
         </div>
       </div>
 
       {/* Back to browse */}
       <p className="text-center text-sm text-white/80 mt-4">
-        <a href="/" className="hover:text-white transition-colors">
+        <Link href="/" className="hover:text-white transition-colors">
           ← Browse pets without signing in
-        </a>
+        </Link>
       </p>
 
       {/* Legal links */}

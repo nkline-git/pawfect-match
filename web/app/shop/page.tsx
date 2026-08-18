@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import Link from 'next/link'
 import { Star, ExternalLink, MapPin, Loader2, Phone, Globe, ChevronDown, ChevronUp, Navigation } from 'lucide-react'
 import BottomNav from '@/components/ui/BottomNav'
 import SponsoredBanner from '@/components/ui/SponsoredBanner'
@@ -316,7 +317,7 @@ function PartnerStores() {
           <span className="text-sm text-gray-400">Loading…</span>
         </div>
       ) : stores.length === 0 ? (
-        <a
+        <Link
           href="/stores/register"
           className="flex items-center gap-3 bg-white rounded-2xl shadow-sm px-4 py-3 hover:shadow-md transition-shadow"
         >
@@ -326,7 +327,7 @@ function PartnerStores() {
             <p className="text-xs text-gray-400">Create your free store page and reach local adopters</p>
           </div>
           <span className="text-xs font-semibold flex-shrink-0" style={{ color: '#e05a4e' }}>List it free →</span>
-        </a>
+        </Link>
       ) : (
         <div className="space-y-2 mb-2">
           {(expanded ? stores : stores.slice(0, 3)).map(s => (
@@ -392,36 +393,29 @@ function NearbyStores() {
   const [resolvedCity, setResolvedCity] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
 
-  // On mount: check localStorage first, then fall back to profile city
-  useEffect(() => {
-    const init = async () => {
-      // 1. Already-saved location (set from home page or previous shop search)
-      const saved = readSavedLocation()
-      if (saved) {
-        const savedState = parseStateFromCity(saved)
-        setCityInput(savedState ? stripStateFromCity(saved) : saved)
-        setStateInput(savedState)
-        geocodeAndFetch(saved)
-        return
-      }
-      // 2. Profile city for logged-in users
-      const { data: { user } } = await supabase.auth.getUser()
-      if (user) {
-        const { data: profile } = await supabase
-          .from('profiles').select('city').eq('id', user.id).single()
-        if (profile?.city) {
-          const profileState = parseStateFromCity(profile.city)
-          setCityInput(profileState ? stripStateFromCity(profile.city) : profile.city)
-          setStateInput(profileState)
-          geocodeAndFetch(profile.city)
-          return
-        }
-      }
-      setStatus('input') // no location anywhere — show manual input
+  // Overpass (OpenStreetMap) is a free, shared resource that genuinely
+  // 504s under real load (confirmed server-side: back-to-back requests
+  // failed then succeeded). Routed through our own API route so it can
+  // retry once and cache successful responses at the CDN — repeat/nearby
+  // searches then never touch Overpass at all.
+  const fetchStores = async (lat: number, lon: number) => {
+    setStatus('fetching')
+    try {
+      // Round coordinates so nearby searches share the same CDN cache entry
+      const p = new URLSearchParams({ lat: lat.toFixed(2), lon: lon.toFixed(2) })
+      const res = await fetch(`/api/nearby-stores?${p}`)
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const { stores: rawStores } = await res.json()
+      const parsed: Store[] = (rawStores ?? [])
+        .map((s: Store) => ({ ...s, distance: haversine(lat, lon, s.lat, s.lon) }))
+        .sort((a: Store, b: Store) => a.distance - b.distance)
+      setStores(parsed)
+      setStatus('done')
+    } catch {
+      setStatus('error')
+      setErrorMsg('Could not load nearby stores. Please try again.')
     }
-    init()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }
 
   const geocodeAndFetch = async (cityStr: string) => {
     const trimmed = cityStr.trim()
@@ -456,29 +450,36 @@ function NearbyStores() {
     }
   }
 
-  // Overpass (OpenStreetMap) is a free, shared resource that genuinely
-  // 504s under real load (confirmed server-side: back-to-back requests
-  // failed then succeeded). Routed through our own API route so it can
-  // retry once and cache successful responses at the CDN — repeat/nearby
-  // searches then never touch Overpass at all.
-  const fetchStores = async (lat: number, lon: number) => {
-    setStatus('fetching')
-    try {
-      // Round coordinates so nearby searches share the same CDN cache entry
-      const p = new URLSearchParams({ lat: lat.toFixed(2), lon: lon.toFixed(2) })
-      const res = await fetch(`/api/nearby-stores?${p}`)
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      const { stores: rawStores } = await res.json()
-      const parsed: Store[] = (rawStores ?? [])
-        .map((s: Store) => ({ ...s, distance: haversine(lat, lon, s.lat, s.lon) }))
-        .sort((a: Store, b: Store) => a.distance - b.distance)
-      setStores(parsed)
-      setStatus('done')
-    } catch {
-      setStatus('error')
-      setErrorMsg('Could not load nearby stores. Please try again.')
+  // On mount: check localStorage first, then fall back to profile city
+  useEffect(() => {
+    const init = async () => {
+      // 1. Already-saved location (set from home page or previous shop search)
+      const saved = readSavedLocation()
+      if (saved) {
+        const savedState = parseStateFromCity(saved)
+        setCityInput(savedState ? stripStateFromCity(saved) : saved)
+        setStateInput(savedState)
+        geocodeAndFetch(saved)
+        return
+      }
+      // 2. Profile city for logged-in users
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        const { data: profile } = await supabase
+          .from('profiles').select('city').eq('id', user.id).single()
+        if (profile?.city) {
+          const profileState = parseStateFromCity(profile.city)
+          setCityInput(profileState ? stripStateFromCity(profile.city) : profile.city)
+          setStateInput(profileState)
+          geocodeAndFetch(profile.city)
+          return
+        }
+      }
+      setStatus('input') // no location anywhere — show manual input
     }
-  }
+    init()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const independents = stores.filter(s => !s.chain)
   const chains       = stores.filter(s => s.chain)

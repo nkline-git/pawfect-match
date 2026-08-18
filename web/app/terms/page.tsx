@@ -96,7 +96,7 @@ export default function TermsPage() {
           <section className="space-y-2">
             <h2 className="font-semibold text-gray-900 text-base">7. Disclaimer of Warranties</h2>
             <p>
-              Pawfect Match is provided "as is" without warranties of any kind. We make no
+              Pawfect Match is provided &quot;as is&quot; without warranties of any kind. We make no
               guarantees that the service will be uninterrupted, error-free, or that any
               particular animal listing will be accurate or available. Your use of the service
               is at your own risk.
@@ -117,8 +117,8 @@ export default function TermsPage() {
             <h2 className="font-semibold text-gray-900 text-base">9. Changes to These Terms</h2>
             <p>
               We may update these Terms from time to time. Continued use of the service after
-              changes constitutes your acceptance of the new Terms. We will update the "last
-              updated" date at the top of this page when we make changes.
+              changes constitutes your acceptance of the new Terms. We will update the &quot;last
+              updated&quot; date at the top of this page when we make changes.
             </p>
           </section>
 

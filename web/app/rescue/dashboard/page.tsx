@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useRescue } from '@/hooks/useRescue'
@@ -11,7 +11,7 @@ import {
   Calendar, MapPin, Trash2,
 } from 'lucide-react'
 import Link from 'next/link'
-import type { Pet, PetSpecies, Rescue } from '@/types'
+import type { PetSpecies, Rescue } from '@/types'
 
 const LOGO_OPTIONS = ['🏠', '🐾', '🐕', '🐱', '🐰', '🦮', '🐕‍🦺', '🏡', '💛', '🌟']
 const BANNER_GRADIENTS = [
@@ -108,7 +108,9 @@ function EventsManager({ rescueId, userId }: { rescueId: string; userId: string 
     if (!error) setEvents((data ?? []) as RescueEvent[])
     setLoading(false)
   }
-  useEffect(() => { load() // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    (async () => { await load() })()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rescueId])
 
   const addEvent = async () => {
@@ -376,8 +378,7 @@ function PublishGate({
 
 export default function RescueDashboardPage() {
   const router        = useRouter()
-  const supabaseRef   = useRef(createClient())
-  const supabase      = supabaseRef.current
+  const [supabase]    = useState(createClient)
   const { rescue, loading: rescueLoading, updateRescue } = useRescue()
   const { pets, loading: petsLoading, refetch } = usePets({ rescueId: rescue?.id })
 
@@ -419,6 +420,8 @@ export default function RescueDashboardPage() {
   // Populate profile form when rescue loads
   useEffect(() => {
     if (rescue) {
+      // Intentional: mirrors fetched rescue into local editable-form state.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setPLogo(rescue.logo)
       setPBanner(rescue.banner_gradient ?? BANNER_GRADIENTS[0].value)
       setPName(rescue.name)
@@ -629,7 +632,7 @@ export default function RescueDashboardPage() {
             <span className="text-amber-500 mt-0.5">⏳</span>
             <div>
               <p className="text-sm font-semibold text-amber-800">Verification pending</p>
-              <p className="text-xs text-amber-600">Our team is reviewing your EIN and 501(c)(3) status. You'll receive a verified badge once approved. Your listings are visible in the meantime.</p>
+              <p className="text-xs text-amber-600">Our team is reviewing your EIN and 501(c)(3) status. You&apos;ll receive a verified badge once approved. Your listings are visible in the meantime.</p>
             </div>
           </div>
         )}
@@ -709,7 +712,7 @@ export default function RescueDashboardPage() {
                       <p className="text-xs text-gray-500">{app.profile?.city} · applied for <strong>{app.pet?.name}</strong></p>
                       {app.message && (
                         <p className="text-xs text-gray-600 mt-1.5 bg-gray-50 rounded-lg px-2.5 py-1.5 line-clamp-3">
-                          "{app.message}"
+                          &quot;{app.message}&quot;
                         </p>
                       )}
                       {!app.message && app.profile?.bio && (

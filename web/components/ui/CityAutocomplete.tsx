@@ -27,6 +27,7 @@ export default function CityAutocomplete({
   useEffect(() => {
     if (skipNextFetch.current) { skipNextFetch.current = false; return }
     const q = value.trim()
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (q.length < 2) { setSuggestions([]); setOpen(false); return }
 
     const timer = setTimeout(async () => {

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { Eye, EyeOff, Loader2 } from 'lucide-react'
 
@@ -166,7 +167,7 @@ export default function SignupPage() {
       </div>
 
       <p className="text-center text-sm text-white/80 mt-4">
-        <a href="/" className="hover:text-white transition-colors">← Browse pets without signing in</a>
+        <Link href="/" className="hover:text-white transition-colors">← Browse pets without signing in</Link>
       </p>
     </div>
   )

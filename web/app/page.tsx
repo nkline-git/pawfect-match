@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import {
   Bookmark, User, X, RotateCcw, Heart,
-  MapPin, ExternalLink, SlidersHorizontal,
+  MapPin, SlidersHorizontal,
   ChevronDown, Globe, ChevronLeft, ChevronRight, Pencil, Search,
 } from 'lucide-react'
 import { usePets, useSavedPets } from '@/hooks/usePets'
@@ -12,71 +12,9 @@ import BottomNav from '@/components/ui/BottomNav'
 import AnimalDetailSheet, {
   SPECIES_BG, SPECIES_EMOJI, TAG_COLORS, shortBreed, formatAge,
 } from '@/components/AnimalDetailSheet'
-import type { PetSpecies, PetPreferences, Pet, SavedRGAnimal, UnifiedPet } from '@/types'
+import type { PetSpecies, SavedRGAnimal, UnifiedPet } from '@/types'
 import { RG_SAVED_KEY, RG_SEEN_KEY, HIDE_MATCH_POPUP_KEY } from '@/types'
-
-
-// Haversine distance in miles (client-side, for local pet filtering)
-function haversineMiles(lat1: number, lon1: number, lat2: number, lon2: number) {
-  const R = 3959
-  const dLat = (lat2 - lat1) * Math.PI / 180
-  const dLon = (lon2 - lon1) * Math.PI / 180
-  const a = Math.sin(dLat / 2) ** 2 +
-    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
-}
-
-// ── Helpers ───────────────────────────────────────────────────────────
-function applyPreferences(pets: Pet[], prefs: PetPreferences | null): Pet[] {
-  if (!prefs) return pets
-  return pets.filter(p => {
-    if (prefs.species.length > 0 && !prefs.species.includes(p.species)) return false
-    // Breed: case-insensitive partial match (e.g. "Poodle" matches "Poodle Mix")
-    if (prefs.breeds && prefs.breeds.length > 0 && p.breed) {
-      const breedLower = p.breed.toLowerCase()
-      if (!prefs.breeds.some(b => breedLower.includes(b.toLowerCase()) || b.toLowerCase().includes(breedLower))) return false
-    }
-    if (prefs.size.length > 0 && p.size && !prefs.size.includes(p.size)) return false
-    if (prefs.energy.length > 0 && p.energy && !prefs.energy.includes(p.energy)) return false
-    if (prefs.good_with_kids === true && !p.good_with.includes('Kids')) return false
-    if (prefs.good_with_dogs === true && !p.good_with.includes('Dogs')) return false
-    if (prefs.good_with_cats === true && !p.good_with.includes('Cats')) return false
-    return true
-  })
-}
-
-function localPetToUnified(pet: Pet): UnifiedPet {
-  // Surface good_with as personality tags so cards + match reasons pick them up
-  const goodWithTags: string[] = []
-  if (pet.good_with.includes('Kids')) goodWithTags.push('Good with kids')
-  if (pet.good_with.includes('Dogs')) goodWithTags.push('Dog-friendly')
-  if (pet.good_with.includes('Cats')) goodWithTags.push('Cat-friendly')
-  const mergedTags = [...pet.traits, ...goodWithTags.filter(t => !pet.traits.includes(t))]
-  const isRehoming = !pet.rescue_id && !!pet.owner_id
-  return {
-    id:          pet.id,
-    name:        pet.name,
-    type:        pet.species,
-    breed:       pet.breed,
-    age:         pet.age,
-    gender:      pet.gender,
-    size:        pet.size,
-    description: pet.description
-      ?? (isRehoming && pet.rehome_reason ? `Looking for a new home: ${pet.rehome_reason}` : null),
-    photo:       pet.photos[0] ?? null,
-    photos:      pet.photos ?? [],
-    url:         `/pets/${pet.id}`,
-    orgUrl:      null,
-    orgEmail:    isRehoming ? (pet.contact_email ?? null) : null,
-    orgPhone:    null,
-    city:        pet.rescue?.city ?? pet.city ?? 'Nearby',
-    orgName:     pet.rescue?.name ?? (isRehoming ? '💛 Owner rehoming' : 'Local Rescue'),
-    tags:        mergedTags,
-    isLocal:     true,
-    rescueLat:   pet.rescue?.lat ?? pet.lat ?? null,
-    rescueLon:   pet.rescue?.lon ?? pet.lon ?? null,
-  }
-}
+import { haversineMiles, applyPreferences, localPetToUnified } from '@/lib/matching'
 
 
 // Haptic feedback — silently ignored on unsupported browsers / iOS
@@ -227,13 +165,13 @@ export default function BrowsePage() {
   // Track whether the user set a manual city THIS session — only then does it
   // beat their profile city. A stale localStorage city (e.g. written weeks ago
   // or by the shop page) must never silently override a logged-in profile.
-  const sessionCityRef = useRef(false)
+  const [sessionCityIsManual, setSessionCityIsManual] = useState(false)
 
   // Effective search location:
   //   Logged-in: this-session manual override > profile city > stale localStorage > fallback
   //   Guest:     manual/localStorage city > fallback
   const searchCity = profile?.city
-    ? (sessionCityRef.current && guestCity ? guestCity : profile.city)
+    ? (sessionCityIsManual && guestCity ? guestCity : profile.city)
     : (guestCity || 'Wichita, KS')
 
   // Radius priority:
@@ -248,13 +186,30 @@ export default function BrowsePage() {
 
   const saveGuestCity = (city: string) => {
     const trimmed = city.trim()
-    sessionCityRef.current = true   // user explicitly set this — beats profile city
+    setSessionCityIsManual(true)   // user explicitly set this — beats profile city
     setGuestCity(trimmed)
     if (typeof window !== 'undefined') {
       if (trimmed) localStorage.setItem('pawfect_city', trimmed)
       else localStorage.removeItem('pawfect_city')
     }
     setShowLocInput(false)
+  }
+
+  // ── Geolocation ───────────────────────────────────────────────────
+  const requestGeolocation = () => {
+    if (!navigator.geolocation) return
+    navigator.geolocation.getCurrentPosition(async pos => {
+      try {
+        const r = await fetch(
+          `https://nominatim.openstreetmap.org/reverse?lat=${pos.coords.latitude}&lon=${pos.coords.longitude}&format=json`,
+          { headers: { 'User-Agent': 'PawfectMatch/1.0 (pet-adoption-app)' } }
+        )
+        const d = await r.json()
+        const city  = d.address?.city ?? d.address?.town ?? d.address?.village ?? d.address?.county
+        const state = d.address?.state_code ?? d.address?.state
+        if (city) saveGuestCity(state ? `${city}, ${state}` : city)
+      } catch { /* noop */ }
+    }, () => { /* user denied */ })
   }
 
   // Auto-use geolocation silently if permission was already granted (no prompt needed)
@@ -369,7 +324,10 @@ export default function BrowsePage() {
 
     const localUnified = filteredLocal.map(localPetToUnified)
 
-    // Reset expand state + pagination on fresh searches
+    // Reset expand state + pagination on fresh searches. Intentional
+    // synchronous reset before the AbortController-guarded fetch below —
+    // restructuring this out of the effect would break search-cancellation.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setHasExpanded(false)
     setExpandedToRadius(null)
     setRgOffset(0)
@@ -438,7 +396,6 @@ export default function BrowsePage() {
       })
       .finally(() => { if (!ac.signal.aborted) setRgLoading(false) })
     return () => ac.abort()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pets, speciesFilter, prefs, searchCity, searchRadius, retryTick, profileLoading])
 
   // ── Auto-load more when queue is getting low (< 15 animals left) ─
@@ -457,6 +414,7 @@ export default function BrowsePage() {
   // Whenever the active card changes, reset the photo index and pre-fetch
   // all photos for RG animals (active + next 7) so tapping cycles through them.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setCardPhotoIdx(0)
 
     // Pre-fetch photos for the current card + next 7 cards
@@ -554,23 +512,6 @@ export default function BrowsePage() {
     setIdx(i => Math.max(i - 1, 0))
   }
 
-  // ── Geolocation ───────────────────────────────────────────────────
-  const requestGeolocation = () => {
-    if (!navigator.geolocation) return
-    navigator.geolocation.getCurrentPosition(async pos => {
-      try {
-        const r = await fetch(
-          `https://nominatim.openstreetmap.org/reverse?lat=${pos.coords.latitude}&lon=${pos.coords.longitude}&format=json`,
-          { headers: { 'User-Agent': 'PawfectMatch/1.0 (pet-adoption-app)' } }
-        )
-        const d = await r.json()
-        const city  = d.address?.city ?? d.address?.town ?? d.address?.village ?? d.address?.county
-        const state = d.address?.state_code ?? d.address?.state
-        if (city) saveGuestCity(state ? `${city}, ${state}` : city)
-      } catch { /* noop */ }
-    }, () => { /* user denied */ })
-  }
-
   // ── Swipe ─────────────────────────────────────────────────────────
   const SWIPE_THRESHOLD = 80
   const handleTouchStart = (e: React.TouchEvent) => {
@@ -599,6 +540,7 @@ export default function BrowsePage() {
   // Reset shimmer/error state when active photo changes.
   // For cached images onLoad never fires — check complete on next tick after DOM updates.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setImgLoaded(false)
     setCardImgError(false)
     const id = setTimeout(() => {
@@ -965,13 +907,14 @@ export default function BrowsePage() {
                     </div>
                   ))}
                   <div className="flex items-center justify-center gap-3 mb-1">
-                    <button onClick={handlePass}
+                    <button onClick={handlePass} aria-label="Pass on this pet"
                       className="w-12 h-12 rounded-full bg-white border-2 border-red-200 flex items-center justify-center text-red-400 hover:bg-red-50 hover:border-red-300 transition-all shadow-sm hover:shadow">
                       <X size={20} />
                     </button>
                     <button
                       onClick={handleUndo}
                       disabled={idx === 0}
+                      aria-label="Undo last swipe"
                       className="w-10 h-10 rounded-full bg-white border border-gray-200 flex items-center justify-center transition-all shadow-sm disabled:opacity-30 disabled:cursor-not-allowed text-gray-400 hover:bg-gray-50 disabled:hover:bg-white"
                     >
                       <RotateCcw size={16} />
@@ -979,11 +922,12 @@ export default function BrowsePage() {
                     {/* Info → open detail modal */}
                     <button
                       onClick={() => setSelected(pet)}
+                      aria-label="View pet details"
                       className="w-10 h-10 rounded-full bg-white border border-gray-200 flex items-center justify-center text-gray-400 hover:bg-gray-50 transition-all shadow-sm"
                     >
                       <ChevronDown size={16} />
                     </button>
-                    <button onClick={handleLike}
+                    <button onClick={handleLike} aria-label="Like this pet"
                       className="w-12 h-12 rounded-full border-2 flex items-center justify-center transition-all shadow-sm hover:shadow"
                       style={{
                         borderColor: '#e05a4e',
@@ -1127,7 +1071,7 @@ export default function BrowsePage() {
                     className="w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold text-white flex-shrink-0 mt-0.5"
                     style={{ backgroundColor: '#e05a4e' }}
                   >1</span>
-                  <span>Check out {matchedPet.name}'s full profile and adoption details</span>
+                  <span>Check out {matchedPet.name}&apos;s full profile and adoption details</span>
                 </li>
                 <li className="flex gap-3 items-start">
                   <span

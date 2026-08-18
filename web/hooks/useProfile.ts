@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { Profile } from '@/types'
 
@@ -8,8 +8,7 @@ export function useProfile() {
   const [profile, setProfile]   = useState<Profile | null>(null)
   const [loading, setLoading]   = useState(true)
   const [error, setError]       = useState<string | null>(null)
-  const supabaseRef = useRef(createClient())
-  const supabase = supabaseRef.current
+  const [supabase] = useState(createClient)
 
   const fetchProfile = useCallback(async () => {
     setLoading(true)
@@ -25,9 +24,14 @@ export function useProfile() {
     if (error && error.code !== 'PGRST116') setError(error.message)
     setProfile(data)
     setLoading(false)
-  }, [])
+  }, [supabase])
 
-  useEffect(() => { fetchProfile() }, [fetchProfile])
+  useEffect(() => {
+    (async () => {
+      await fetchProfile()
+    })()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const updateProfile = async (updates: Partial<Profile>) => {
     const { data: { user } } = await supabase.auth.getUser()
