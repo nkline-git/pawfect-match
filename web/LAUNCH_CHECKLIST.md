@@ -2,6 +2,26 @@
 
 _Last updated: August 18, 2026_
 
+## ✨ Added: breed autocomplete + fixed the location/radius "glitch"
+
+**Breed autocomplete.** The Filters panel's breed field went from a 24-breed
+quick-pick list with free-text entry to a live suggestion dropdown backed by
+a ~240-breed list (`lib/petOptions.ts` — full AKC dog roster + CFA/TICA cat
+breeds), ranked so prefix matches ("Corgi" typing "cor") beat mid-string
+matches. Catches typos and half-remembered names as you type instead of only
+after you've already spelled the whole thing right.
+
+**Location + radius, fixed to auto-update.** The city field was a bare text
+input with no validation — a typo or an ambiguous town name (there are a
+dozen Springfields) would silently break the distance search, which is the
+"glitch." Swapped in the same validated-suggestions `CityAutocomplete`
+already used on `/profile`, and picking a suggestion now applies immediately
+— no separate submit step. Distance moved into the same panel as a slider
+that also applies live (debounced so dragging doesn't fire a request per
+pixel) instead of only being adjustable from the separate Filters panel or
+`/profile`. Free-typing + Enter (for zips, which the city-only suggestion
+API doesn't always surface) still works as a fallback.
+
 ## 🐛 Fixed: layout breaking after client-side navigation
 
 Reported symptom: the header/bottom nav would end up off-screen after
@@ -48,9 +68,12 @@ wizard at `/onboarding` is untouched — still the better first-time experience.
 - `npx tsc --noEmit` — **0 errors**
 - `npm run build` — **passes clean, 32 routes** (was 28 — the app has grown since
   this doc was last accurate)
-- `npm test` — **60 unit tests pass** (was 31 — added 29 for the bulk-import parser)
+- `npm test` — **67 unit tests pass** (was 31 — 29 for the bulk-import parser,
+  7 for the new breed-matching logic)
 - `npm run test:e2e` — **1/1 E2E smoke test passes**, confirmed still passing after
   the navigation/hydration fix above
+- Manually verified live in a browser: city autocomplete + auto-apply,
+  radius slider auto-commit, breed autocomplete — no console errors
 - Review the diff and commit before deploying: `git status` / `git diff`
 
 ## ✅ Automated tests — now exist (previously zero)
@@ -168,7 +191,8 @@ Your account (nick.kline0@gmail.com) is **admin** — visit `/admin` to verify r
 - Admin panel: rescue verification queue, content reports, moderation, featured stores
 - Error handling: network-failure banner with retry, graceful empty states
 - Quick Filters panel on the browse page (radius/size/energy/housing/good-with/breeds,
-  no navigation, works for guests and logged-in users)
+  no navigation, works for guests and logged-in users), with breed autocomplete
+  (~240 breeds) and validated-suggestion city search + a live-updating radius slider
 - Lint, typecheck, production build, unit tests, and one E2E smoke test all pass clean (32 routes)
 
 ## Nice-to-haves post-launch

@@ -13,6 +13,7 @@ import AnimalDetailSheet, {
   SPECIES_BG, SPECIES_EMOJI, TAG_COLORS, shortBreed, formatAge,
 } from '@/components/AnimalDetailSheet'
 import FiltersSheet from '@/components/ui/FiltersSheet'
+import CityAutocomplete from '@/components/ui/CityAutocomplete'
 import type { PetSpecies, PetPreferences, SavedRGAnimal, UnifiedPet } from '@/types'
 import { RG_SAVED_KEY, RG_SEEN_KEY, HIDE_MATCH_POPUP_KEY, GUEST_PREFS_KEY, GUEST_RADIUS_KEY } from '@/types'
 import { haversineMiles, applyPreferences, localPetToUnified } from '@/lib/matching'
@@ -108,6 +109,12 @@ export default function BrowsePage() {
   const [guestCity,    setGuestCity]    = useState<string>('')
   const [showLocInput, setShowLocInput] = useState(false)
   const [locInputVal,  setLocInputVal]  = useState('')
+  // Local draft so the slider tracks the finger/cursor instantly; the
+  // actual commit (which triggers a refetch) is debounced so dragging
+  // doesn't fire a request per pixel — that stutter was the "glitch."
+  const [radiusDraft, setRadiusDraft] = useState(100)
+  const radiusCommitTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => () => { if (radiusCommitTimer.current) clearTimeout(radiusCommitTimer.current) }, [])
 
   // Filters — logged-in users' choices live on their profile (prefs/radius
   // below); guests get the same fields persisted here instead, mirroring
@@ -230,15 +237,33 @@ export default function BrowsePage() {
     setIdx(0)
   }
 
+  // Radius-only update from the location bar's inline slider — same
+  // persistence path as applyFilters, but leaves preferences untouched and
+  // doesn't close anything (the slider lives inline, not in a sheet).
+  const commitRadius = async (newRadius: number) => {
+    if (profile) {
+      await updateProfile({
+        notification_prefs: { ...profile.notification_prefs, search_radius: newRadius },
+      })
+    } else {
+      setGuestRadiusOverride(newRadius)
+      try { localStorage.setItem(GUEST_RADIUS_KEY, String(newRadius)) } catch { /* noop */ }
+    }
+    setIdx(0)
+  }
+
+  // Commits the city and refetches — does not close the panel, so picking a
+  // suggestion and then adjusting the distance slider both apply before the
+  // user has to explicitly dismiss it.
   const saveGuestCity = (city: string) => {
     const trimmed = city.trim()
     setSessionCityIsManual(true)   // user explicitly set this — beats profile city
     setGuestCity(trimmed)
+    setLocInputVal(trimmed)        // keep the input in sync if the panel stays open (e.g. after geolocation)
     if (typeof window !== 'undefined') {
       if (trimmed) localStorage.setItem('pawfect_city', trimmed)
       else localStorage.removeItem('pawfect_city')
     }
-    setShowLocInput(false)
   }
 
   // ── Geolocation ───────────────────────────────────────────────────
@@ -666,42 +691,83 @@ export default function BrowsePage() {
           {/* Location bar — always visible, editable */}
           <div className="px-1 mb-2">
             {showLocInput ? (
-              <div className="bg-white rounded-xl shadow-md px-3 py-2 flex items-center gap-2">
-                <MapPin size={13} className="text-gray-400 flex-shrink-0" />
-                <input
-                  type="text"
-                  value={locInputVal}
-                  onChange={e => setLocInputVal(e.target.value)}
-                  onKeyDown={e => {
-                    if (e.key === 'Enter') saveGuestCity(locInputVal)
-                    if (e.key === 'Escape') setShowLocInput(false)
-                  }}
-                  placeholder="City, State or zip — e.g. Austin, TX or 92101"
-                  autoFocus
-                  className="flex-1 text-sm text-gray-800 outline-none placeholder:text-gray-400 bg-transparent"
-                />
-                <button
-                  onClick={() => requestGeolocation()}
-                  title="Use my location"
-                  className="w-7 h-7 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-600 flex-shrink-0"
-                >
-                  📍
-                </button>
-                <button
-                  onClick={() => saveGuestCity(locInputVal)}
-                  className="w-7 h-7 rounded-full flex items-center justify-center text-white flex-shrink-0"
-                  style={{ backgroundColor: '#e05a4e' }}
-                >
-                  <Search size={13} />
-                </button>
-                <button onClick={() => setShowLocInput(false)} className="text-gray-400 hover:text-gray-600 flex-shrink-0">
-                  <X size={15} />
-                </button>
+              <div className="bg-white rounded-xl shadow-md px-3 py-2.5 space-y-2.5">
+                <div className="flex items-center gap-2">
+                  <MapPin size={13} className="text-gray-400 flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <CityAutocomplete
+                      value={locInputVal}
+                      onChange={setLocInputVal}
+                      onSelect={saveGuestCity}
+                      onEnter={saveGuestCity}
+                      placeholder="City, State or zip — e.g. Austin, TX or 92101"
+                      autoFocus
+                    />
+                  </div>
+                  <button
+                    onClick={() => requestGeolocation()}
+                    title="Use my location"
+                    className="w-7 h-7 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-600 flex-shrink-0"
+                  >
+                    📍
+                  </button>
+                  <button
+                    onClick={() => saveGuestCity(locInputVal)}
+                    title="Search this location"
+                    className="w-7 h-7 rounded-full flex items-center justify-center text-white flex-shrink-0"
+                    style={{ backgroundColor: '#e05a4e' }}
+                  >
+                    <Search size={13} />
+                  </button>
+                  <button
+                    onClick={() => {
+                      // Flush rather than drop a still-pending debounced radius change
+                      if (radiusCommitTimer.current) {
+                        clearTimeout(radiusCommitTimer.current)
+                        if (radiusDraft !== searchRadius) commitRadius(radiusDraft)
+                      }
+                      setShowLocInput(false)
+                    }}
+                    className="text-gray-400 hover:text-gray-600 flex-shrink-0"
+                  >
+                    <X size={15} />
+                  </button>
+                </div>
+
+                {/* Distance — adjusts live, no separate save step */}
+                <div className="px-0.5">
+                  <div className="flex items-center justify-between mb-0.5">
+                    <label className="text-xs font-medium text-gray-500">Distance</label>
+                    <span className="text-xs font-semibold" style={{ color: '#e05a4e' }}>{radiusDraft} mi</span>
+                  </div>
+                  <input
+                    type="range"
+                    min={10}
+                    max={500}
+                    step={10}
+                    value={radiusDraft}
+                    onChange={e => {
+                      const next = Number(e.target.value)
+                      setRadiusDraft(next)
+                      if (radiusCommitTimer.current) clearTimeout(radiusCommitTimer.current)
+                      radiusCommitTimer.current = setTimeout(() => commitRadius(next), 400)
+                    }}
+                    className="w-full accent-[#e05a4e]"
+                  />
+                </div>
               </div>
             ) : (
               <div className="flex items-center">
                 <button
-                  onClick={() => { setLocInputVal(guestCity || profile?.city || ''); setShowLocInput(true) }}
+                  onClick={() => {
+                    setLocInputVal(guestCity || profile?.city || '')
+                    // 2000mi is the "no preference set" nationwide default for
+                    // guests with no city — the slider itself tops out at
+                    // 500mi (matching the Filters panel), so clamp the seed
+                    // to keep the displayed number and thumb position in sync.
+                    setRadiusDraft(Math.min(searchRadius, 500))
+                    setShowLocInput(true)
+                  }}
                   className="flex items-center gap-1.5 text-white/70 text-xs hover:text-white/90 transition-colors group"
                 >
                   <MapPin size={11} />

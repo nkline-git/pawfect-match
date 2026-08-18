@@ -1,8 +1,8 @@
 'use client'
 
-import { useState } from 'react'
-import { X, RotateCcw, Plus } from 'lucide-react'
-import { SIZE_OPTIONS, ENERGY_OPTIONS, HOUSING_OPTIONS, GOOD_WITH_OPTIONS, POPULAR_BREEDS } from '@/lib/petOptions'
+import { useState, useRef, useEffect } from 'react'
+import { X, RotateCcw, Plus, PawPrint } from 'lucide-react'
+import { SIZE_OPTIONS, ENERGY_OPTIONS, HOUSING_OPTIONS, GOOD_WITH_OPTIONS, POPULAR_BREEDS, matchBreeds } from '@/lib/petOptions'
 import type { PetPreferences } from '@/types'
 
 const EMPTY_PREFS: PetPreferences = {
@@ -23,6 +23,19 @@ export default function FiltersSheet({
   const [prefs, setPrefs]       = useState<PetPreferences>(initialPrefs ?? EMPTY_PREFS)
   const [radius, setRadius]     = useState(initialRadius)
   const [breedInput, setBreedInput] = useState('')
+  const [breedSuggestOpen, setBreedSuggestOpen] = useState(false)
+  const [breedHighlight, setBreedHighlight] = useState(-1)
+  const breedBoxRef = useRef<HTMLDivElement>(null)
+  const breedMatches = matchBreeds(breedInput, prefs.breeds)
+
+  // Close the breed dropdown on an outside click
+  useEffect(() => {
+    const onDown = (e: MouseEvent) => {
+      if (breedBoxRef.current && !breedBoxRef.current.contains(e.target as Node)) setBreedSuggestOpen(false)
+    }
+    document.addEventListener('mousedown', onDown)
+    return () => document.removeEventListener('mousedown', onDown)
+  }, [])
 
   const toggleSize = (value: string) =>
     setPrefs(p => ({ ...p, size: p.size.includes(value) ? p.size.filter(v => v !== value) : [...p.size, value] }))
@@ -41,6 +54,8 @@ export default function FiltersSheet({
     if (!trimmed || prefs.breeds.includes(trimmed)) return
     setPrefs(p => ({ ...p, breeds: [...p.breeds, trimmed] }))
     setBreedInput('')
+    setBreedSuggestOpen(false)
+    setBreedHighlight(-1)
   }
   const removeBreed = (breed: string) =>
     setPrefs(p => ({ ...p, breeds: p.breeds.filter(b => b !== breed) }))
@@ -184,13 +199,24 @@ export default function FiltersSheet({
                 ))}
               </div>
             )}
-            <div className="flex gap-2 mb-2">
+            <div ref={breedBoxRef} className="relative flex gap-2 mb-2">
               <input
                 type="text"
                 value={breedInput}
-                onChange={e => setBreedInput(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addBreed(breedInput) } }}
-                placeholder="Type a breed and press Enter…"
+                onChange={e => { setBreedInput(e.target.value); setBreedSuggestOpen(true); setBreedHighlight(-1) }}
+                onFocus={() => { if (breedMatches.length > 0) setBreedSuggestOpen(true) }}
+                onKeyDown={e => {
+                  if (breedSuggestOpen && breedMatches.length > 0) {
+                    if (e.key === 'ArrowDown') { e.preventDefault(); setBreedHighlight(h => (h + 1) % breedMatches.length); return }
+                    if (e.key === 'ArrowUp')   { e.preventDefault(); setBreedHighlight(h => (h - 1 + breedMatches.length) % breedMatches.length); return }
+                    if (e.key === 'Escape')    { setBreedSuggestOpen(false); return }
+                  }
+                  if (e.key === 'Enter') {
+                    e.preventDefault()
+                    addBreed(breedHighlight >= 0 ? breedMatches[breedHighlight] : breedInput)
+                  }
+                }}
+                placeholder="Type a breed — we'll catch typos…"
                 className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none placeholder:text-gray-400"
               />
               <button
@@ -201,6 +227,25 @@ export default function FiltersSheet({
               >
                 <Plus size={16} />
               </button>
+
+              {breedSuggestOpen && breedMatches.length > 0 && (
+                <div className="absolute z-10 left-0 right-11 top-full mt-1 bg-white border border-gray-100 rounded-xl shadow-lg overflow-hidden">
+                  {breedMatches.map((b, i) => (
+                    <button
+                      key={b}
+                      type="button"
+                      onMouseDown={e => { e.preventDefault(); addBreed(b) }}
+                      onMouseEnter={() => setBreedHighlight(i)}
+                      className={`w-full flex items-center gap-2 px-3.5 py-2.5 text-sm text-left transition-colors ${
+                        i === breedHighlight ? 'bg-red-50 text-gray-900' : 'text-gray-700'
+                      }`}
+                    >
+                      <PawPrint size={13} className="text-gray-400 flex-shrink-0" />
+                      {b}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
             <div className="flex flex-wrap gap-1.5 max-h-20 overflow-y-auto">
               {POPULAR_BREEDS.filter(b => !prefs.breeds.includes(b)).map(b => (

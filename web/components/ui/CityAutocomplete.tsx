@@ -11,11 +11,23 @@ type Suggestion = { key: string; label: string }
 export default function CityAutocomplete({
   value,
   onChange,
+  onSelect,
+  onEnter,
   placeholder = 'San Diego, CA',
+  autoFocus = false,
 }: {
   value: string
   onChange: (city: string) => void
+  // Fires only when a suggestion is actually picked (click or arrow+Enter) —
+  // distinct from onChange, which also fires on every keystroke. Callers
+  // that want to auto-apply the moment a validated place is chosen (rather
+  // than waiting for a separate submit) should use this instead of onChange.
+  onSelect?: (city: string) => void
+  // Fires on Enter when no suggestion is highlighted (freehand typing —
+  // e.g. a zip code, which the city-only suggestion API may not surface).
+  onEnter?: (typedValue: string) => void
   placeholder?: string
+  autoFocus?: boolean
 }) {
   const [suggestions, setSuggestions] = useState<Suggestion[]>([])
   const [open,        setOpen]        = useState(false)
@@ -75,16 +87,19 @@ export default function CityAutocomplete({
   const select = (s: Suggestion) => {
     skipNextFetch.current = true
     onChange(s.label)
+    onSelect?.(s.label)
     setOpen(false)
     setSuggestions([])
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (!open || suggestions.length === 0) return
-    if (e.key === 'ArrowDown') { e.preventDefault(); setHighlight(h => (h + 1) % suggestions.length) }
-    if (e.key === 'ArrowUp')   { e.preventDefault(); setHighlight(h => (h - 1 + suggestions.length) % suggestions.length) }
-    if (e.key === 'Enter' && highlight >= 0) { e.preventDefault(); select(suggestions[highlight]) }
-    if (e.key === 'Escape') setOpen(false)
+    if (open && suggestions.length > 0) {
+      if (e.key === 'ArrowDown') { e.preventDefault(); setHighlight(h => (h + 1) % suggestions.length); return }
+      if (e.key === 'ArrowUp')   { e.preventDefault(); setHighlight(h => (h - 1 + suggestions.length) % suggestions.length); return }
+      if (e.key === 'Enter' && highlight >= 0) { e.preventDefault(); select(suggestions[highlight]); return }
+      if (e.key === 'Escape') { setOpen(false); return }
+    }
+    if (e.key === 'Enter') onEnter?.(value)
   }
 
   return (
@@ -97,6 +112,7 @@ export default function CityAutocomplete({
         onFocus={e => { e.target.style.borderColor = '#e05a4e'; if (suggestions.length > 0) setOpen(true) }}
         onBlur={e => e.target.style.borderColor = '#e5e7eb'}
         placeholder={placeholder}
+        autoFocus={autoFocus}
         className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none transition-all placeholder:text-gray-400"
       />
       {open && (
