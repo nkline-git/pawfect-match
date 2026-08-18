@@ -4,6 +4,18 @@
   --coral:       #e05a4e;
   --coral-light: #f0837a;
   --coral-dark:  #c44b40;
+  /* Real viewport height, kept in sync by ViewportHeightFix — falls back to
+     100dvh for the first paint (before that JS runs) and for browsers where
+     the observer never fires. See ViewportHeightFix.tsx for why 100dvh
+     alone isn't enough after a client-side route change. */
+  --app-vh: 100dvh;
+}
+
+/* App-shell pages (browse/shop/community/saved/profile/sos/rescue dashboard)
+   pin to this instead of h-dvh directly. */
+.app-shell-height {
+  height: 100dvh;       /* fallback for browsers without CSS var support */
+  height: var(--app-vh);
 }
 
 @theme inline {

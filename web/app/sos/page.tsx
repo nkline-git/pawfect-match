@@ -173,7 +173,7 @@ export default function SosPage() {
   const shown = alerts.filter(a => a.status === tab)
 
   return (
-    <div className="h-dvh flex items-start justify-center px-3 py-2 overflow-hidden">
+    <div className="app-shell-height flex items-start justify-center px-3 py-2 overflow-hidden">
       <div className="w-full max-w-[390px] h-full flex flex-col overflow-hidden">
 
         {/* Header */}

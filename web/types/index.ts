@@ -295,6 +295,11 @@ export const RG_SEEN_KEY  = 'pawfect_seen_rg'
 export const PENDING_PREFS_KEY = 'pawfect_pending_prefs'
 // Set when the user opts out of the it's-a-match popup on every like
 export const HIDE_MATCH_POPUP_KEY = 'pawfect_hide_match_popup'
+// Guest-set filters (size/energy/breeds/etc. + search radius) from the
+// browse page's Filters panel — logged-in users get the same fields saved
+// to their profile instead via updateProfile.
+export const GUEST_PREFS_KEY  = 'pawfect_guest_prefs'
+export const GUEST_RADIUS_KEY = 'pawfect_guest_radius'
 
 // ── API helpers ──────────────────────────────────────────────────
 export interface ApiResponse<T> {

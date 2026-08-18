@@ -397,7 +397,7 @@ export default function CommunityPage() {
     new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
 
   return (
-    <div className="h-dvh flex items-start justify-center px-3 py-2 overflow-hidden">
+    <div className="app-shell-height flex items-start justify-center px-3 py-2 overflow-hidden">
       <div className="w-full max-w-[390px] h-full flex flex-col overflow-hidden">
 
         {/* Header */}

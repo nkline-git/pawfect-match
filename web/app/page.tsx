@@ -12,8 +12,9 @@ import BottomNav from '@/components/ui/BottomNav'
 import AnimalDetailSheet, {
   SPECIES_BG, SPECIES_EMOJI, TAG_COLORS, shortBreed, formatAge,
 } from '@/components/AnimalDetailSheet'
-import type { PetSpecies, SavedRGAnimal, UnifiedPet } from '@/types'
-import { RG_SAVED_KEY, RG_SEEN_KEY, HIDE_MATCH_POPUP_KEY } from '@/types'
+import FiltersSheet from '@/components/ui/FiltersSheet'
+import type { PetSpecies, PetPreferences, SavedRGAnimal, UnifiedPet } from '@/types'
+import { RG_SAVED_KEY, RG_SEEN_KEY, HIDE_MATCH_POPUP_KEY, GUEST_PREFS_KEY, GUEST_RADIUS_KEY } from '@/types'
 import { haversineMiles, applyPreferences, localPetToUnified } from '@/lib/matching'
 
 
@@ -56,10 +57,7 @@ export default function BrowsePage() {
   const [selected,         setSelected]         = useState<UnifiedPet | null>(null)
   const [matchedPet,       setMatchedPet]       = useState<UnifiedPet | null>(null)
   // Opt-out for the it's-a-match popup — liked pets still go to Saved
-  const [hideMatchPopup,   setHideMatchPopup]   = useState(() => {
-    if (typeof window !== 'undefined') return !!localStorage.getItem(HIDE_MATCH_POPUP_KEY)
-    return false
-  })
+  const [hideMatchPopup,   setHideMatchPopup]   = useState(false)
   const toggleHideMatchPopup = (hide: boolean) => {
     setHideMatchPopup(hide)
     try {
@@ -107,23 +105,45 @@ export default function BrowsePage() {
   }
 
   // Location state — persisted in localStorage for guests
-  const [guestCity,    setGuestCity]    = useState<string>(() => {
-    if (typeof window !== 'undefined') return localStorage.getItem('pawfect_city') ?? ''
-    return ''
-  })
+  const [guestCity,    setGuestCity]    = useState<string>('')
   const [showLocInput, setShowLocInput] = useState(false)
   const [locInputVal,  setLocInputVal]  = useState('')
 
+  // Filters — logged-in users' choices live on their profile (prefs/radius
+  // below); guests get the same fields persisted here instead, mirroring
+  // how guestCity works, so filtering doesn't require an account.
+  const [showFilters, setShowFilters] = useState(false)
+  const [guestPrefs, setGuestPrefs] = useState<PetPreferences | null>(null)
+  const [guestRadiusOverride, setGuestRadiusOverride] = useState<number | null>(null)
+
   // First-visit swipe hint (dismissed after any interaction)
-  const [showSwipeHint, setShowSwipeHint] = useState(() => {
-    if (typeof window !== 'undefined') return !localStorage.getItem('pawfect_interacted')
-    return false
-  })
+  const [showSwipeHint, setShowSwipeHint] = useState(false)
   const dismissHint = () => {
     if (!showSwipeHint) return
     setShowSwipeHint(false)
     try { localStorage.setItem('pawfect_interacted', '1') } catch { /* noop */ }
   }
+
+  // All of the above default to their SSR-safe "no browser data yet" value
+  // and get their real value here instead of in a useState initializer —
+  // reading localStorage synchronously during the initial render mismatches
+  // the server-rendered HTML (which never has access to it) and triggers a
+  // hydration error, which forces React to throw away and re-render the
+  // affected subtree. That's visibly disruptive on a page shaped like this
+  // one (fixed-height app shell) and is a likely cause of "the layout looks
+  // wrong after navigating" reports — the old `typeof window` guard did
+  // nothing (`window` exists on the client during hydration too).
+  useEffect(() => {
+    try {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setHideMatchPopup(!!localStorage.getItem(HIDE_MATCH_POPUP_KEY))
+      setShowSwipeHint(!localStorage.getItem('pawfect_interacted'))
+      setGuestCity(localStorage.getItem('pawfect_city') ?? '')
+      setGuestPrefs(JSON.parse(localStorage.getItem(GUEST_PREFS_KEY) ?? 'null'))
+      const savedRadius = localStorage.getItem(GUEST_RADIUS_KEY)
+      setGuestRadiusOverride(savedRadius ? Number(savedRadius) : null)
+    } catch { /* noop */ }
+  }, [])
 
   // Card photo shimmer + error state
   const [imgLoaded,    setImgLoaded]    = useState(false)
@@ -152,15 +172,19 @@ export default function BrowsePage() {
 
   const { pets, loading: localLoading }  = usePets()
   const { savedIds, toggleSave }         = useSavedPets()
-  const { profile, loading: profileLoading } = useProfile()
+  const { profile, loading: profileLoading, updateProfile } = useProfile()
 
   // Ref mirror so the feed effect can exclude already-saved local pets
   // without re-running (and refetching everything) on every like
   const savedIdsRef = useRef(savedIds)
   useEffect(() => { savedIdsRef.current = savedIds }, [savedIds])
 
-  const prefs  = profile?.preferences ?? null
+  const prefs  = profile?.preferences ?? guestPrefs
   const radius = profile?.notification_prefs?.search_radius ?? 100
+  const hasActiveFilters = !!prefs && (
+    prefs.size.length > 0 || prefs.energy.length > 0 || prefs.breeds.length > 0 ||
+    !!prefs.housing || prefs.good_with_kids === true || prefs.good_with_dogs === true || prefs.good_with_cats === true
+  )
 
   // Track whether the user set a manual city THIS session — only then does it
   // beat their profile city. A stale localStorage city (e.g. written weeks ago
@@ -176,13 +200,35 @@ export default function BrowsePage() {
 
   // Radius priority:
   //   1. Logged-in user → always use their profile slider (even if guestCity is set)
-  //   2. Guest with a typed city → 500 mi
-  //   3. Complete guest with no city → US-wide 2000 mi
+  //   2. Guest who set a radius via the Filters panel → that, always
+  //   3. Guest with a typed city → 500 mi
+  //   4. Complete guest with no city → US-wide 2000 mi
   const searchRadius = profile
     ? radius               // profile slider value is always respected for logged-in users
-    : guestCity
+    : guestRadiusOverride ?? (guestCity
       ? 500                // guest manually typed a city
-      : 2000               // no location at all — show everything
+      : 2000)              // no location at all — show everything
+
+  // Applies a filter change from the Filters panel — persists to the
+  // profile for logged-in users, to localStorage for guests, no page
+  // navigation either way.
+  const applyFilters = async (newPrefs: PetPreferences, newRadius: number) => {
+    if (profile) {
+      await updateProfile({
+        preferences: newPrefs,
+        notification_prefs: { ...profile.notification_prefs, search_radius: newRadius },
+      })
+    } else {
+      setGuestPrefs(newPrefs)
+      setGuestRadiusOverride(newRadius)
+      try {
+        localStorage.setItem(GUEST_PREFS_KEY, JSON.stringify(newPrefs))
+        localStorage.setItem(GUEST_RADIUS_KEY, String(newRadius))
+      } catch { /* noop */ }
+    }
+    setShowFilters(false)
+    setIdx(0)
+  }
 
   const saveGuestCity = (city: string) => {
     const trimmed = city.trim()
@@ -571,7 +617,7 @@ export default function BrowsePage() {
   // ── Render ────────────────────────────────────────────────────────
   return (
     <>
-      <div className="h-dvh flex items-start justify-center px-3 py-2 overflow-hidden">
+      <div className="app-shell-height flex items-start justify-center px-3 py-2 overflow-hidden">
         <div className="w-full max-w-[390px] h-full flex flex-col overflow-hidden">
 
           {/* Header */}
@@ -584,16 +630,17 @@ export default function BrowsePage() {
               </span>
             </div>
             <div className="flex items-center gap-3">
-              {prefs && (
-                <a
-                  href="/onboarding"
-                  title="Edit your pet preferences"
-                  className="flex items-center justify-center w-8 h-8 rounded-full transition-colors"
-                  style={{ color: '#e05a4e' }}
-                >
-                  <SlidersHorizontal size={16} />
-                </a>
-              )}
+              <button
+                onClick={() => setShowFilters(true)}
+                title="Filters"
+                className="relative flex items-center justify-center w-8 h-8 rounded-full transition-colors"
+                style={{ color: '#e05a4e' }}
+              >
+                <SlidersHorizontal size={16} />
+                {hasActiveFilters && (
+                  <span className="absolute top-0.5 right-0.5 w-2 h-2 rounded-full" style={{ backgroundColor: '#e05a4e' }} />
+                )}
+              </button>
               <a href="/saved" className="text-gray-400 hover:text-gray-600">
                 <Bookmark size={20} />
               </a>
@@ -997,16 +1044,17 @@ export default function BrowsePage() {
                     Start over
                   </button>
 
-                  {prefs && (
-                    <a href="/onboarding"
+                  {hasActiveFilters && (
+                    <button
+                      onClick={() => setShowFilters(true)}
                       className="px-5 py-2.5 rounded-full text-sm font-semibold border border-gray-200 text-gray-600 hover:bg-gray-50 text-center">
-                      Adjust your preferences
-                    </a>
+                      Adjust your filters
+                    </button>
                   )}
                   {!profile && (
                     <a href="/login"
                       className="px-5 py-2.5 rounded-full text-sm font-semibold border border-gray-200 text-gray-600 hover:bg-gray-50 text-center">
-                      Sign in to set your location &amp; preferences
+                      Sign in to save your location &amp; preferences
                     </a>
                   )}
                 </div>
@@ -1025,6 +1073,16 @@ export default function BrowsePage() {
           onClose={() => setSelected(null)}
           initialPhotos={cardPhotosCache[selected.id]}
           prefs={prefs}
+        />
+      )}
+
+      {/* Filters panel — everything editable in one place, no page navigation */}
+      {showFilters && (
+        <FiltersSheet
+          initialPrefs={prefs}
+          initialRadius={searchRadius}
+          onApply={applyFilters}
+          onClose={() => setShowFilters(false)}
         />
       )}
 

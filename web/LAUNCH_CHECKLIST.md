@@ -1,6 +1,44 @@
 # 🚀 Pawfect Match — Launch Checklist
 
-_Last updated: August 17, 2026_
+_Last updated: August 18, 2026_
+
+## 🐛 Fixed: layout breaking after client-side navigation
+
+Reported symptom: the header/bottom nav would end up off-screen after
+navigating between pages, requiring a scroll to reach either. Root cause,
+confirmed by reproducing it: `app/page.tsx` initialized several pieces of
+state (guest city, guest filters, the match-popup opt-out, the first-visit
+swipe hint) by reading `localStorage` **synchronously inside `useState`'s
+initializer**, guarded by `typeof window !== 'undefined'`. That guard doesn't
+do what it looks like it does — `window` exists on the client during
+hydration too, so the client's first render already reflects the stored
+value while the server's never could, and React detects the mismatch as a
+hydration error. When that happens React throws away and regenerates the
+affected part of the tree client-side, which is exactly the kind of visible
+layout hiccup that was reported. Fixed by defaulting all of that state to
+its SSR-safe empty value and loading the real value in a `useEffect` instead
+(runs client-only, after hydration, so there's nothing to mismatch).
+
+Also hardened `h-dvh` (used by every app-shell page's outer container)
+against the separate, better-known mobile issue where `100dvh` can get stuck
+at a stale value after an SPA route change, especially inside WebViews —
+relevant since this app is meant to ship wrapped as a Play Store TWA / iOS
+PWA per `STORE_RELEASE.md`. Added `ViewportHeightFix` (in the root layout),
+which tracks the real viewport via `visualViewport` and republishes it as a
+CSS var (`--app-vh`) that every app-shell page now sizes to instead of `dvh`
+directly, recalculated on resize, orientation change, and every route change.
+
+## ✨ Added: quick Filters panel on the browse page
+
+Editing search filters used to mean leaving the browse page for the
+`/onboarding` wizard (species/size/energy/housing/good-with, one step at a
+time) and, separately, `/profile` for search radius. Now a "Filters" button
+in the browse page's header opens one panel — radius, size, energy, housing,
+good-with, and breeds, all in one scroll, saved with a single tap and no
+page navigation. Works for guests too (persisted to localStorage) as well as
+logged-in users (persisted to their profile, same fields `/onboarding` and
+`/profile` already read/write, so nothing gets out of sync). The full guided
+wizard at `/onboarding` is untouched — still the better first-time experience.
 
 ## ✅ Code quality gates — all clean
 
@@ -10,11 +48,10 @@ _Last updated: August 17, 2026_
 - `npx tsc --noEmit` — **0 errors**
 - `npm run build` — **passes clean, 32 routes** (was 28 — the app has grown since
   this doc was last accurate)
-- `npm test` — **31 unit tests pass** (see below)
-- `npm run test:e2e` — **1/1 E2E smoke test passes** (see below)
-- **All of the above is uncommitted** — 29 files modified, 7 new (`lib/matching.ts`
-  + 3 test files, `vitest.config.mts`, `playwright.config.ts`, `e2e/`). Review
-  the diff and commit before deploying: `git status` / `git diff`
+- `npm test` — **60 unit tests pass** (was 31 — added 29 for the bulk-import parser)
+- `npm run test:e2e` — **1/1 E2E smoke test passes**, confirmed still passing after
+  the navigation/hydration fix above
+- Review the diff and commit before deploying: `git status` / `git diff`
 
 ## ✅ Automated tests — now exist (previously zero)
 
@@ -130,10 +167,16 @@ Your account (nick.kline0@gmail.com) is **admin** — visit `/admin` to verify r
 - Legal: Privacy Policy, Terms of Service, affiliate disclosure, 13+ policy
 - Admin panel: rescue verification queue, content reports, moderation, featured stores
 - Error handling: network-failure banner with retry, graceful empty states
+- Quick Filters panel on the browse page (radius/size/energy/housing/good-with/breeds,
+  no navigation, works for guests and logged-in users)
 - Lint, typecheck, production build, unit tests, and one E2E smoke test all pass clean (32 routes)
 
 ## Nice-to-haves post-launch
 
+- Minor duplication: `SIZE_OPTIONS`/`ENERGY_OPTIONS`/etc. now live in
+  `lib/petOptions.ts` for the new Filters panel, but `/onboarding` and the
+  breed-picker on `/profile` still have their own local copies of the same
+  lists. Low-risk cleanup to point them at the shared file, not urgent.
 - **Edit an existing pet listing.** There's currently no edit UI at all —
   only add, duplicate, and mark-adopted. This matters most right after a
   bulk import: rows without a `photo_urls` value land with no photo, and the
