@@ -110,7 +110,9 @@ Your account (nick.kline0@gmail.com) is **admin** — visit `/admin` to verify r
 4. Lands on `/rescue/setup` with everything pre-filled → customizes logo/banner/mission
 5. Dashboard: adds pets fast — multi-photo upload, "Add & add another" carries
    over species/breed/size/fee/traits for the next listing, "Duplicate" clones
-   an existing listing for littermates — plus creates adoption events, reviews applications
+   an existing listing for littermates, and **"Import from spreadsheet"** takes
+   a CSV export of their existing animal list (Excel/Sheets/Numbers all export
+   CSV directly) and adds every row at once — plus creates adoption events, reviews applications
 6. Their animals appear **first** in every user's browse queue with a "Local rescue" badge
 7. Their public page (`/rescues/[id]`) is their branded mini-site
 
@@ -132,6 +134,12 @@ Your account (nick.kline0@gmail.com) is **admin** — visit `/admin` to verify r
 
 ## Nice-to-haves post-launch
 
+- **Edit an existing pet listing.** There's currently no edit UI at all —
+  only add, duplicate, and mark-adopted. This matters most right after a
+  bulk import: rows without a `photo_urls` value land with no photo, and the
+  only way to fix that today is Duplicate + manual re-entry (then delete the
+  original, which also isn't supported yet — you'd mark it adopted instead).
+  Worth building before pushing bulk import hard with real shelters.
 - Broader test coverage: component tests for the match modal/swipe mechanics,
   more E2E paths (real signup+adopt, dashboards) — see gate above for what exists today
 - Wire the new `npm test` / `npm run test:e2e` into CI (e.g. a GitHub Actions

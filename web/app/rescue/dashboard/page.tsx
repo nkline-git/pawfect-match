@@ -8,9 +8,10 @@ import { usePets } from '@/hooks/usePets'
 import {
   PlusCircle, Loader2, Check, X, LogOut,
   Users, Heart, Home, Bell, UserCog, ExternalLink,
-  Calendar, MapPin, Trash2, Copy,
+  Calendar, MapPin, Trash2, Copy, Upload,
 } from 'lucide-react'
 import Link from 'next/link'
+import BulkImportPets from '@/components/rescue/BulkImportPets'
 import type { Pet, PetSpecies, Rescue } from '@/types'
 
 const LOGO_OPTIONS = ['🏠', '🐾', '🐕', '🐱', '🐰', '🦮', '🐕‍🦺', '🏡', '💛', '🌟']
@@ -420,6 +421,7 @@ export default function RescueDashboardPage() {
   const [userId, setUserId]     = useState<string | null>(null)
   const [tab, setTab]           = useState<'listings' | 'applications' | 'events' | 'profile'>('listings')
   const [showForm, setShowForm] = useState(false)
+  const [showBulkImport, setShowBulkImport] = useState(false)
   const [form, setForm]         = useState<NewPet>({ ...EMPTY_PET })
   const [saving, setSaving]     = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
@@ -818,18 +820,38 @@ export default function RescueDashboardPage() {
           </div>
         )}
 
-        {/* Add pet button */}
-        {tab === 'listings' && !showForm && (
-          <button
-            onClick={() => setShowForm(true)}
-            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-white text-sm font-semibold mb-4 transition-all"
-            style={{ backgroundColor: '#e05a4e' }}
-            onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#c44b40')}
-            onMouseLeave={e => (e.currentTarget.style.backgroundColor = '#e05a4e')}
-          >
-            <PlusCircle size={16} />
-            Add new pet listing
-          </button>
+        {/* Add pet / bulk import buttons */}
+        {tab === 'listings' && !showForm && !showBulkImport && (
+          <div className="flex gap-2 mb-4">
+            <button
+              onClick={() => setShowForm(true)}
+              className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-white text-sm font-semibold transition-all"
+              style={{ backgroundColor: '#e05a4e' }}
+              onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#c44b40')}
+              onMouseLeave={e => (e.currentTarget.style.backgroundColor = '#e05a4e')}
+            >
+              <PlusCircle size={16} />
+              Add new pet
+            </button>
+            <button
+              onClick={() => setShowBulkImport(true)}
+              className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl border-2 text-sm font-semibold transition-all"
+              style={{ borderColor: '#e05a4e', color: '#e05a4e' }}
+              title="Have a spreadsheet of all your animals? Import them all at once."
+            >
+              <Upload size={16} />
+              Import from spreadsheet
+            </button>
+          </div>
+        )}
+
+        {/* Bulk import panel */}
+        {showBulkImport && rescue && (
+          <BulkImportPets
+            rescue={rescue}
+            onImported={refetch}
+            onClose={() => setShowBulkImport(false)}
+          />
         )}
 
         {/* Add pet form */}
