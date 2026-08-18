@@ -108,7 +108,9 @@ Your account (nick.kline0@gmail.com) is **admin** — visit `/admin` to verify r
 2. Enters org name + EIN → verified
 3. Signs up (email or Google) — their EIN survives the signup round-trip
 4. Lands on `/rescue/setup` with everything pre-filled → customizes logo/banner/mission
-5. Dashboard: adds pets (with photos), creates adoption events, reviews applications
+5. Dashboard: adds pets fast — multi-photo upload, "Add & add another" carries
+   over species/breed/size/fee/traits for the next listing, "Duplicate" clones
+   an existing listing for littermates — plus creates adoption events, reviews applications
 6. Their animals appear **first** in every user's browse queue with a "Local rescue" badge
 7. Their public page (`/rescues/[id]`) is their branded mini-site
 

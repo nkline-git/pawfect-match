@@ -8,10 +8,10 @@ import { usePets } from '@/hooks/usePets'
 import {
   PlusCircle, Loader2, Check, X, LogOut,
   Users, Heart, Home, Bell, UserCog, ExternalLink,
-  Calendar, MapPin, Trash2,
+  Calendar, MapPin, Trash2, Copy,
 } from 'lucide-react'
 import Link from 'next/link'
-import type { PetSpecies, Rescue } from '@/types'
+import type { Pet, PetSpecies, Rescue } from '@/types'
 
 const LOGO_OPTIONS = ['🏠', '🐾', '🐕', '🐱', '🐰', '🦮', '🐕‍🦺', '🏡', '💛', '🌟']
 const BANNER_GRADIENTS = [
@@ -61,8 +61,8 @@ type NewPet = {
   description: string
   fee: string
   traits: string[]
-  photo: File | null
-  photoPreview: string | null
+  photos: File[]
+  photoPreviews: string[]
 }
 
 // ── Events manager: adoption events, fundraisers, volunteer days ──
@@ -266,7 +266,41 @@ function EventsManager({ rescueId, userId }: { rescueId: string; userId: string 
 const EMPTY_PET: NewPet = {
   name: '', species: 'dog', breed: '', age: '', gender: 'Male',
   size: 'Medium', description: '', fee: '', traits: [],
-  photo: null, photoPreview: null,
+  photos: [], photoPreviews: [],
+}
+
+// Fields that tend to repeat across a batch (a litter, or several animals
+// pulled from the same intake) — kept when starting the next listing so
+// staff aren't re-picking the same species/breed/size/traits every time.
+// Fields that are almost always unique per-animal (name, age, description,
+// photos) reset to blank.
+function nextBatchPet(prev: NewPet): NewPet {
+  return {
+    ...EMPTY_PET,
+    species: prev.species,
+    breed:   prev.breed,
+    gender:  prev.gender,
+    size:    prev.size,
+    fee:     prev.fee,
+    traits:  prev.traits,
+  }
+}
+
+// Prefill the add-pet form from an existing listing — for littermates or
+// near-identical intakes. Name and photos always start blank since those
+// are never actually shared between two animals.
+function duplicatePet(pet: Pet): NewPet {
+  return {
+    ...EMPTY_PET,
+    species:     pet.species,
+    breed:       pet.breed ?? '',
+    age:         pet.age ?? '',
+    gender:      pet.gender,
+    size:        (pet.size ?? 'Medium') as NewPet['size'],
+    description: pet.description ?? '',
+    fee:         pet.fee != null ? String(pet.fee / 100) : '',
+    traits:      pet.traits,
+  }
 }
 
 // Draft rescues (no EIN yet) see this instead of the pending-review banner:
@@ -389,6 +423,7 @@ export default function RescueDashboardPage() {
   const [form, setForm]         = useState<NewPet>({ ...EMPTY_PET })
   const [saving, setSaving]     = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
+  const [justAdded, setJustAdded] = useState<string | null>(null)
   const [applications, setApplications] = useState<Application[]>([])
   const [appsLoading, setAppsLoading]   = useState(false)
 
@@ -491,30 +526,33 @@ export default function RescueDashboardPage() {
       ? form.traits.filter(x => x !== t)
       : [...form.traits, t])
 
-  const handleAddPet = async () => {
+  const handleAddPet = async (keepOpenForNext: boolean) => {
     if (!form.name.trim()) { setFormError('Pet name is required.'); return }
     if (!rescue)           { setFormError('No rescue profile found.'); return }
 
     setSaving(true)
     setFormError(null)
 
-    // Upload photo if provided
+    // Upload all photos in parallel
     let photos: string[] = []
-    if (form.photo) {
-      const ext  = form.photo.name.split('.').pop()
-      const path = `${rescue.id}/${Date.now()}.${ext}`
-      const { error: uploadError } = await supabase.storage
-        .from('pet-photos')
-        .upload(path, form.photo, { upsert: true })
-
-      if (uploadError) {
+    if (form.photos.length > 0) {
+      const uploads = await Promise.all(form.photos.map(async (file, i) => {
+        const ext  = file.name.split('.').pop()
+        const path = `${rescue.id}/${Date.now()}-${i}.${ext}`
+        const { error: uploadError } = await supabase.storage
+          .from('pet-photos')
+          .upload(path, file, { upsert: true })
+        if (uploadError) return { error: uploadError }
+        const { data: urlData } = supabase.storage.from('pet-photos').getPublicUrl(path)
+        return { url: urlData.publicUrl }
+      }))
+      const failed = uploads.find(u => u.error)
+      if (failed?.error) {
         setSaving(false)
-        setFormError(`Photo upload failed: ${uploadError.message}. Make sure the "pet-photos" bucket exists in Supabase Storage and is set to Public.`)
+        setFormError(`Photo upload failed: ${failed.error.message}. Make sure the "pet-photos" bucket exists in Supabase Storage and is set to Public.`)
         return
       }
-
-      const { data: urlData } = supabase.storage.from('pet-photos').getPublicUrl(path)
-      photos = [urlData.publicUrl]
+      photos = uploads.map(u => u.url!).filter(Boolean)
     }
 
     const feeInCents = form.fee ? Math.round(parseFloat(form.fee) * 100) : null
@@ -543,8 +581,14 @@ export default function RescueDashboardPage() {
       stats: { ...rescue.stats, animals: rescue.stats.animals + 1 },
     }).eq('id', rescue.id)
 
-    setForm({ ...EMPTY_PET })
-    setShowForm(false)
+    if (keepOpenForNext) {
+      setJustAdded(form.name.trim())
+      setTimeout(() => setJustAdded(null), 4000)
+      setForm(nextBatchPet(form))
+    } else {
+      setForm({ ...EMPTY_PET })
+      setShowForm(false)
+    }
     refetch()
   }
 
@@ -793,11 +837,19 @@ export default function RescueDashboardPage() {
           <div className="bg-white rounded-2xl shadow-lg p-5 mb-4">
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-bold text-gray-900">New pet listing</h2>
-              <button onClick={() => { setShowForm(false); setForm({ ...EMPTY_PET }); setFormError(null) }}
+              <button onClick={() => { setShowForm(false); setForm({ ...EMPTY_PET }); setFormError(null); setJustAdded(null) }}
                 className="text-gray-400 hover:text-gray-600">
                 <X size={18} />
               </button>
             </div>
+
+            {justAdded && (
+              <div className="bg-green-50 border border-green-200 text-green-800 text-xs rounded-lg px-3 py-2 mb-3 flex items-center gap-1.5">
+                <Check size={13} className="flex-shrink-0" />
+                Added {justAdded}! Species, breed, size, fee &amp; traits carried
+                over below — just fill in the name and photos for the next one.
+              </div>
+            )}
 
             <div className="space-y-3">
               <div>
@@ -927,44 +979,54 @@ export default function RescueDashboardPage() {
                 </div>
               </div>
 
-              {/* Photo upload */}
+              {/* Photo upload — multiple, adopters get a gallery like every other listing */}
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1.5">Photo <span className="text-gray-400 font-normal">(optional)</span></label>
-                {form.photoPreview ? (
-                  <div className="relative">
-                    <img
-                      src={form.photoPreview}
-                      alt="Preview"
-                      className="w-full h-36 object-cover rounded-xl"
-                    />
-                    <button
-                      onClick={() => setForm(f => ({ ...f, photo: null, photoPreview: null }))}
-                      className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/50 flex items-center justify-center text-white hover:bg-black/70"
-                    >
-                      <X size={14} />
-                    </button>
-                  </div>
-                ) : (
-                  <label className="flex flex-col items-center justify-center h-24 border-2 border-dashed border-gray-200 rounded-xl cursor-pointer hover:border-[#e05a4e] hover:bg-red-50/30 transition-all">
-                    <span className="text-2xl mb-1">📷</span>
-                    <span className="text-xs text-gray-400">Click to upload a photo</span>
+                <label className="block text-xs font-medium text-gray-600 mb-1.5">
+                  Photos <span className="text-gray-400 font-normal">(optional, add as many as you have)</span>
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  {form.photoPreviews.map((src, i) => (
+                    <div key={src} className="relative">
+                      <img src={src} alt="" className="w-full h-20 object-cover rounded-lg" />
+                      <button
+                        onClick={() => setForm(f => ({
+                          ...f,
+                          photos: f.photos.filter((_, j) => j !== i),
+                          photoPreviews: f.photoPreviews.filter((_, j) => j !== i),
+                        }))}
+                        className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/50 flex items-center justify-center text-white hover:bg-black/70"
+                      >
+                        <X size={11} />
+                      </button>
+                      {i === 0 && (
+                        <span className="absolute bottom-1 left-1 bg-black/50 text-white text-[9px] px-1.5 py-0.5 rounded-full">
+                          Cover
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                  <label className="flex flex-col items-center justify-center h-20 border-2 border-dashed border-gray-200 rounded-lg cursor-pointer hover:border-[#e05a4e] hover:bg-red-50/30 transition-all">
+                    <span className="text-xl">📷</span>
+                    <span className="text-[10px] text-gray-400">Add</span>
                     <input
                       type="file"
                       accept="image/*"
+                      multiple
                       className="hidden"
                       onChange={e => {
-                        const file = e.target.files?.[0] ?? null
-                        if (file) {
+                        const files = Array.from(e.target.files ?? [])
+                        if (files.length > 0) {
                           setForm(f => ({
                             ...f,
-                            photo: file,
-                            photoPreview: URL.createObjectURL(file),
+                            photos: [...f.photos, ...files],
+                            photoPreviews: [...f.photoPreviews, ...files.map(file => URL.createObjectURL(file))],
                           }))
                         }
+                        e.target.value = ''
                       }}
                     />
                   </label>
-                )}
+                </div>
               </div>
 
               {formError && (
@@ -973,15 +1035,27 @@ export default function RescueDashboardPage() {
                 </div>
               )}
 
-              <button
-                onClick={handleAddPet}
-                disabled={saving}
-                className="w-full py-2.5 rounded-xl text-white text-sm font-semibold disabled:opacity-50 flex items-center justify-center gap-2"
-                style={{ backgroundColor: '#e05a4e' }}
-              >
-                {saving && <Loader2 size={14} className="animate-spin" />}
-                Add listing
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => handleAddPet(true)}
+                  disabled={saving}
+                  title="Save this one and start the next with species, breed, size & traits already filled in"
+                  className="flex-1 py-2.5 rounded-xl text-sm font-semibold disabled:opacity-50 flex items-center justify-center gap-2 border-2"
+                  style={{ borderColor: '#e05a4e', color: '#e05a4e' }}
+                >
+                  {saving && <Loader2 size={14} className="animate-spin" />}
+                  Add &amp; add another
+                </button>
+                <button
+                  onClick={() => handleAddPet(false)}
+                  disabled={saving}
+                  className="flex-1 py-2.5 rounded-xl text-white text-sm font-semibold disabled:opacity-50 flex items-center justify-center gap-2"
+                  style={{ backgroundColor: '#e05a4e' }}
+                >
+                  {saving && <Loader2 size={14} className="animate-spin" />}
+                  Add &amp; close
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -1206,6 +1280,20 @@ export default function RescueDashboardPage() {
                     </span>
                   </p>
                 </div>
+                <button
+                  onClick={() => {
+                    setForm(duplicatePet(pet))
+                    setFormError(null)
+                    setJustAdded(null)
+                    setShowForm(true)
+                    window.scrollTo({ top: 0, behavior: 'smooth' })
+                  }}
+                  className="flex-shrink-0 text-xs text-gray-400 hover:text-[#e05a4e] transition-colors flex flex-col items-center gap-0.5"
+                  title="Duplicate — start a new listing with the same species, breed, size & traits (for littermates)"
+                >
+                  <Copy size={16} />
+                  <span>Duplicate</span>
+                </button>
                 {pet.status === 'available' && (
                   <button
                     onClick={() => markAdopted(pet.id)}
