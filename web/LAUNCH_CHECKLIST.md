@@ -1,6 +1,48 @@
 # 🚀 Pawfect Match — Launch Checklist
 
-_Last updated: August 18, 2026_
+_Last updated: August 23, 2026_
+
+## ✅ Cleanup pass: CI, image optimization, component tests, edit-pet, security
+
+Five previously-optional items, now done:
+
+- **CI wired up** (`.github/workflows/ci.yml`) — lint/typecheck/unit-tests/build
+  now run automatically on every push/PR, not just when someone remembers to
+  run them locally. A separate `workflow_dispatch`-only job runs the E2E test
+  on demand (it hits the real Supabase/RescueGroups backend — no test/staging
+  env exists — so it's opt-in, not automatic; needs `NEXT_PUBLIC_SUPABASE_URL`,
+  `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `RESCUEGROUPS_API_KEY` added as repo secrets
+  before it'll run).
+- **All 20 `<img>` → `next/image` lint warnings fixed**, with real care about
+  where each photo comes from: full optimization for first-party (Supabase
+  Storage) and fixed-domain (Unsplash, OSM static maps) sources;
+  `unoptimized` mode for RescueGroups pet photos and admin-pasted URLs
+  (sponsored ads, store products) where there's no single guaranteed CDN
+  host to allowlist safely; left as plain `<img>` (correctly — next/image
+  can't render these) for `blob:` URL file-upload previews.
+- **First component test coverage** — `FiltersSheet` (15 tests) and
+  `AnimalDetailSheet` (25 tests, including the `shortBreed`/`formatAge` pure
+  functions). Along the way, fixed a real gap: React Testing Library's
+  auto-cleanup between tests wasn't wired up under Vitest, so every
+  component test after the first in a file would've silently rendered on
+  top of the previous test's leftover DOM.
+- **Edit-pet UI** — rescues can now edit an existing listing in place
+  (reuses the add-pet form, pre-filled; existing photos shown alongside new
+  uploads, independently removable). Previously the only options were add,
+  duplicate, and mark-adopted.
+- **Next.js 16.2.6 → 16.3.2** (patch release) — fixes the postcss/sharp
+  vulnerabilities bundled inside Next itself, plus 3 more unrelated
+  dev-tooling ones via `npm audit fix`. **0 vulnerabilities now, was 6.**
+  The upgrade also deprecated `runtime = 'edge'`, which three image-generation
+  routes were using — removed per Next's own migration guidance (just delete
+  the export, `nodejs` is the default); two of those routes now prerender as
+  static instead of dynamic as a side effect.
+
+All five committed as separate commits, verified with the full check-loop
+(lint/typecheck/unit-tests/build/E2E) after each, plus live-browser
+confirmation for the two highest-risk ones (image conversion, Next.js
+upgrade). The edit-pet UI is the one exception — reviewed carefully by hand
+instead, since exercising it live needs a rescue-account login.
 
 ## ✨ Added: breed autocomplete + fixed the location/radius "glitch"
 
@@ -193,7 +235,9 @@ Your account (nick.kline0@gmail.com) is **admin** — visit `/admin` to verify r
 - Quick Filters panel on the browse page (radius/size/energy/housing/good-with/breeds,
   no navigation, works for guests and logged-in users), with breed autocomplete
   (~240 breeds) and validated-suggestion city search + a live-updating radius slider
-- Lint, typecheck, production build, unit tests, and one E2E smoke test all pass clean (32 routes)
+- Lint, typecheck, production build, unit tests, E2E smoke test, and `npm audit`
+  (0 vulnerabilities) all pass clean (35 routes)
+- CI runs lint/typecheck/tests/build automatically on every push (`.github/workflows/ci.yml`)
 
 ## Nice-to-haves post-launch
 
@@ -201,18 +245,12 @@ Your account (nick.kline0@gmail.com) is **admin** — visit `/admin` to verify r
   `lib/petOptions.ts` for the new Filters panel, but `/onboarding` and the
   breed-picker on `/profile` still have their own local copies of the same
   lists. Low-risk cleanup to point them at the shared file, not urgent.
-- **Edit an existing pet listing.** There's currently no edit UI at all —
-  only add, duplicate, and mark-adopted. This matters most right after a
-  bulk import: rows without a `photo_urls` value land with no photo, and the
-  only way to fix that today is Duplicate + manual re-entry (then delete the
-  original, which also isn't supported yet — you'd mark it adopted instead).
-  Worth building before pushing bulk import hard with real shelters.
-- Broader test coverage: component tests for the match modal/swipe mechanics,
-  more E2E paths (real signup+adopt, dashboards) — see gate above for what exists today
-- Wire the new `npm test` / `npm run test:e2e` into CI (e.g. a GitHub Actions
-  workflow) so they run on every push, not just manually
+- Broader test coverage: only 2 components have tests so far (FiltersSheet,
+  AnimalDetailSheet); more E2E paths beyond the one golden path (real
+  signup+adopt, the rescue/store dashboards, the new edit-pet flow)
+- Delete-pet support — editing and marking-adopted exist now, but there's
+  still no way to remove a listing outright
 - Real IRS/Candid EIN verification API (currently format-check + manual admin approval)
 - Analytics + error tracking (e.g. Vercel Analytics, Sentry)
 - Real store product photos (currently emoji + optional photo URL)
 - Push notifications for new matching pets
-- `<img>` → `next/image` conversion (20 lint warnings flag this; perf-only, not blocking)
