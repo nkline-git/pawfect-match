@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import Image from 'next/image'
 import {
   Bookmark, User, X, RotateCcw, Heart,
   MapPin, SlidersHorizontal,
@@ -921,11 +922,15 @@ export default function BrowsePage() {
                       {!imgLoaded && (
                         <div className="absolute inset-0 bg-gray-200 animate-pulse" />
                       )}
-                      <img
+                      <Image
                         ref={cardImgRef}
                         src={currentCardPhoto}
                         alt={pet.name}
-                        className="w-full h-full object-cover object-top"
+                        fill
+                        unoptimized
+                        sizes="390px"
+                        priority
+                        className="object-cover object-top"
                         style={{ opacity: imgLoaded ? 1 : 0, transition: 'opacity 0.2s' }}
                         onLoad={() => setImgLoaded(true)}
                         onError={() => { setImgLoaded(true); setCardImgError(true) }}
@@ -1169,10 +1174,10 @@ export default function BrowsePage() {
               const matchPhoto = cardPhotosCache[matchedPet.id]?.[0] ?? matchedPet.photos?.[0] ?? matchedPet.photo
               return matchPhoto ? (
                 <div
-                  className="h-44 overflow-hidden"
+                  className="h-44 overflow-hidden relative"
                   style={{ background: SPECIES_BG[matchedPet.type] ?? SPECIES_BG.other }}
                 >
-                  <img src={matchPhoto} alt={matchedPet.name} className="w-full h-full object-cover" />
+                  <Image src={matchPhoto} alt={matchedPet.name} fill unoptimized sizes="340px" className="object-cover" />
                 </div>
               ) : null
             })()}

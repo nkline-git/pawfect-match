@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Image from 'next/image'
 import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import {
@@ -23,15 +24,6 @@ const SPECIES_BG: Record<string, string> = {
   small_animal: 'linear-gradient(135deg,#f5f0d5,#e8e0c4)',
   farm:         'linear-gradient(135deg,#f0e8d5,#e0d5c4)',
   other:        'linear-gradient(135deg,#f5d5e8,#e8c4d5)',
-}
-
-const EVENT_TYPE_LABELS: Record<string, string> = {
-  adoption_event: '🐾 Adoption Event',
-  fundraiser:     '💰 Fundraiser',
-  volunteer_day:  '🤝 Volunteer Day',
-  training:       '🎓 Training',
-  meetup:         '☕ Meetup',
-  other:          '📅 Event',
 }
 
 type RescueEvent = {
@@ -356,7 +348,7 @@ export default function RescuePublicPage() {
                     style={{ background: SPECIES_BG[pet.species] ?? SPECIES_BG.other }}
                   >
                     {pet.photos[0] ? (
-                      <img src={pet.photos[0]} alt={pet.name} className="w-full h-full object-cover" />
+                      <Image src={pet.photos[0]} alt={pet.name} fill sizes="180px" className="object-cover" />
                     ) : (
                       <span className="text-4xl">{SPECIES_EMOJI[pet.species] ?? '🐾'}</span>
                     )}

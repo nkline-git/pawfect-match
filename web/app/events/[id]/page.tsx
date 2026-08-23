@@ -1,11 +1,12 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Image from 'next/image'
 import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import {
-  ArrowLeft, MapPin, Clock, ExternalLink,
-  Loader2, Calendar, Users,
+  ArrowLeft, MapPin, ExternalLink,
+  Loader2, Calendar,
 } from 'lucide-react'
 import Link from 'next/link'
 import type { PawfectEvent } from '@/types'
@@ -97,7 +98,9 @@ export default function EventDetailPage() {
 
           {/* Image or banner */}
           {event.image_url ? (
-            <img src={event.image_url} alt={event.title} className="w-full h-44 object-cover" />
+            <div className="relative w-full h-44">
+              <Image src={event.image_url} alt={event.title} fill unoptimized sizes="390px" className="object-cover" />
+            </div>
           ) : (
             <div
               className="w-full h-32 flex items-center justify-center"

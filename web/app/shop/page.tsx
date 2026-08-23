@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { Star, ExternalLink, MapPin, Loader2, Phone, Globe, ChevronDown, ChevronUp, Navigation } from 'lucide-react'
 import BottomNav from '@/components/ui/BottomNav'
 import SponsoredBanner from '@/components/ui/SponsoredBanner'
@@ -122,11 +123,12 @@ function ProductCard({ p }: { p: Product }) {
     >
       <div className="h-32 relative overflow-hidden bg-gray-50">
         {photo && imgOk ? (
-          <img
+          <Image
             src={photo}
             alt={p.name}
-            className="w-full h-full object-cover"
-            loading="lazy"
+            fill
+            sizes="180px"
+            className="object-cover"
             onError={() => setImgOk(false)}
           />
         ) : (
@@ -181,11 +183,12 @@ function StoreCard({ store }: { store: Store }) {
       {/* Map thumbnail */}
       <div className="relative overflow-hidden" style={{ height: 100 }}>
         {mapOk ? (
-          <img
+          <Image
             src={mapUrl}
             alt=""
-            className="w-full h-full object-cover"
-            loading="lazy"
+            fill
+            sizes="390px"
+            className="object-cover"
             onError={() => setMapOk(false)}
           />
         ) : (

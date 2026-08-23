@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import Image from 'next/image'
 import { createClient } from '@/lib/supabase/client'
 import { ExternalLink } from 'lucide-react'
 import type { AdPlacement, SponsoredAd } from '@/types'
@@ -61,9 +62,12 @@ export default function SponsoredBanner({ placement }: { placement: AdPlacement 
         Sponsored
       </span>
       {ad.image_url && imgOk ? (
-        <img
+        <Image
           src={ad.image_url}
           alt=""
+          width={44}
+          height={44}
+          unoptimized
           className="w-11 h-11 rounded-xl object-cover flex-shrink-0"
           onError={() => setImgOk(false)}
         />

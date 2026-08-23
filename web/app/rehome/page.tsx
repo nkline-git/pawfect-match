@@ -165,6 +165,8 @@ export default function RehomePage() {
             <label className="block text-sm font-medium text-gray-700 mb-2">Photo</label>
             {photoPreview ? (
               <div className="relative rounded-xl overflow-hidden h-44">
+                {/* blob: URL local file preview — next/image can't render these */}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={photoPreview} alt="preview" className="w-full h-full object-cover" />
                 <button
                   onClick={() => pickPhoto(null)}

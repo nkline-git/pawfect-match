@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useRescue } from '@/hooks/useRescue'
@@ -1009,6 +1010,8 @@ export default function RescueDashboardPage() {
                 <div className="grid grid-cols-3 gap-2">
                   {form.photoPreviews.map((src, i) => (
                     <div key={src} className="relative">
+                      {/* blob: URL local file preview — next/image can't render these */}
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={src} alt="" className="w-full h-20 object-cover rounded-lg" />
                       <button
                         onClick={() => setForm(f => ({
@@ -1284,9 +1287,9 @@ export default function RescueDashboardPage() {
           ) : (
             pets.map(pet => (
               <div key={pet.id} className="bg-white rounded-xl p-4 shadow-sm flex items-center gap-3">
-                <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center text-2xl flex-shrink-0">
+                <div className="relative w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center text-2xl flex-shrink-0">
                   {pet.photos[0]
-                    ? <img src={pet.photos[0]} alt="" className="w-full h-full object-cover rounded-full" />
+                    ? <Image src={pet.photos[0]} alt="" fill sizes="48px" className="object-cover rounded-full" />
                     : SPECIES_EMOJI[pet.species] ?? '🐾'
                   }
                 </div>

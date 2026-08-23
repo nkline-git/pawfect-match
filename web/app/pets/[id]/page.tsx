@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import {
@@ -174,7 +175,7 @@ export default function PetDetailPage() {
                 style={{ height: 300, background: SPECIES_BG[pet.species] ?? SPECIES_BG.other }}
               >
                 {photos.length > 0 ? (
-                  <img src={photos[safeIdx]} alt={pet.name} className="w-full h-full object-cover" />
+                  <Image src={photos[safeIdx]} alt={pet.name} fill unoptimized priority sizes="390px" className="object-cover" />
                 ) : (
                   <span className="text-[120px] select-none drop-shadow-sm">
                     {SPECIES_EMOJI[pet.species] ?? '🐾'}

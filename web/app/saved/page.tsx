@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Image from 'next/image'
 import { createClient } from '@/lib/supabase/client'
 import { Heart, MapPin, Loader2 } from 'lucide-react'
 import BottomNav from '@/components/ui/BottomNav'
@@ -162,11 +163,11 @@ export default function SavedPage() {
                   {/* Thumbnail */}
                   <Link href={`/pets/${pet.id}`} className="flex-shrink-0">
                     <div
-                      className="w-24 h-24 flex items-center justify-center"
+                      className="relative w-24 h-24 flex items-center justify-center"
                       style={{ background: SPECIES_BG[pet.species] ?? SPECIES_BG.other }}
                     >
                       {pet.photos?.[0] ? (
-                        <img src={pet.photos[0]} alt={pet.name} className="w-full h-full object-cover" />
+                        <Image src={pet.photos[0]} alt={pet.name} fill sizes="96px" className="object-cover" />
                       ) : (
                         <span className="text-4xl">{SPECIES_EMOJI[pet.species] ?? '🐾'}</span>
                       )}
@@ -222,11 +223,11 @@ export default function SavedPage() {
                         {/* Thumbnail — opens the detail sheet */}
                         <button
                           onClick={() => setSelected(rgToUnified(animal))}
-                          className="w-24 h-24 flex-shrink-0 flex items-center justify-center cursor-pointer"
+                          className="relative w-24 h-24 flex-shrink-0 flex items-center justify-center cursor-pointer"
                           style={{ background: SPECIES_BG[typeKey] ?? SPECIES_BG.other }}
                         >
                           {animal.photo ? (
-                            <img src={animal.photo} alt={animal.name} className="w-full h-full object-cover" />
+                            <Image src={animal.photo} alt={animal.name} fill unoptimized sizes="96px" className="object-cover" />
                           ) : (
                             <span className="text-4xl">{SPECIES_EMOJI[typeKey] ?? '🐾'}</span>
                           )}

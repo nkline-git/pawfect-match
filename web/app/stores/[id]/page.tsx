@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Image from 'next/image'
 import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import {
@@ -278,7 +279,7 @@ export default function StorePublicPage() {
                 <div key={p.id} className="bg-white rounded-2xl shadow-sm overflow-hidden flex flex-col">
                   <div className="h-24 relative overflow-hidden bg-gray-50 flex items-center justify-center">
                     {p.photo_url ? (
-                      <img src={p.photo_url} alt={p.name} className="w-full h-full object-cover" loading="lazy" />
+                      <Image src={p.photo_url} alt={p.name} fill unoptimized sizes="180px" className="object-cover" />
                     ) : (
                       <span className="text-4xl">{p.emoji}</span>
                     )}

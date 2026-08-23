@@ -3,6 +3,7 @@
 // Shared pet detail sheet + display helpers — used by the browse feed and
 // the Saved page (extracted from app/page.tsx)
 import { useState, useEffect } from 'react'
+import Image from 'next/image'
 import { X, ChevronLeft, ChevronRight, MapPin, ExternalLink, Globe } from 'lucide-react'
 import type { UnifiedPet, PetPreferences } from '@/types'
 
@@ -145,7 +146,14 @@ export default function AnimalDetailSheet({
         {/* Photo gallery */}
         <div className="relative h-60 flex items-center justify-center" style={{ background: bg }}>
           {photos.length > 0 ? (
-            <img src={photos[safeIdx]} alt={animal.name} className="w-full h-full object-cover object-top" />
+            <Image
+              src={photos[safeIdx]}
+              alt={animal.name}
+              fill
+              unoptimized
+              sizes="390px"
+              className="object-cover object-top"
+            />
           ) : (
             <span className="text-[90px]">🐾</span>
           )}

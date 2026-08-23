@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import BottomNav from '@/components/ui/BottomNav'
@@ -231,6 +232,8 @@ export default function SosPage() {
               <p className="text-sm font-bold text-gray-900">🚨 Report a lost pet</p>
               {fPreview ? (
                 <div className="relative rounded-xl overflow-hidden h-36">
+                  {/* blob: URL local file preview — next/image can't render these */}
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={fPreview} alt="preview" className="w-full h-full object-cover" />
                   <button onClick={() => pickPhoto(null)}
                     className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/50 text-white flex items-center justify-center">
@@ -316,9 +319,9 @@ export default function SosPage() {
                 <div key={a.id} className={`bg-white rounded-2xl shadow-sm overflow-hidden ${a.status === 'found' ? 'opacity-90' : ''}`}>
                   {/* Photo + status strip */}
                   <div className="flex">
-                    <div className="w-24 h-24 flex-shrink-0 bg-gray-100 flex items-center justify-center overflow-hidden">
+                    <div className="relative w-24 h-24 flex-shrink-0 bg-gray-100 flex items-center justify-center overflow-hidden">
                       {a.photo_url ? (
-                        <img src={a.photo_url} alt={a.name} className="w-full h-full object-cover" />
+                        <Image src={a.photo_url} alt={a.name} fill sizes="96px" className="object-cover" />
                       ) : (
                         <span className="text-3xl">{SPECIES_EMOJI[a.species] ?? '🐾'}</span>
                       )}
