@@ -1,0 +1,89 @@
+name: CI
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+  workflow_dispatch:
+
+jobs:
+  check:
+    name: Lint, typecheck, test, build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Build
+        # Build-time placeholders only — nothing here needs to be real.
+        # Every page is client-rendered and reads these at request time, not
+        # build time, so the build never actually calls Supabase/RescueGroups.
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key
+          SUPABASE_SERVICE_ROLE_KEY: placeholder-service-role-key
+          RESCUEGROUPS_API_KEY: placeholder-key
+          NEXT_PUBLIC_APP_URL: https://example.com
+        run: npm run build
+
+  e2e:
+    name: E2E smoke test (manual — hits the real backend)
+    # Manual only: unlike the job above, this drives a real dev server against
+    # your actual Supabase project and the real RescueGroups API (there's no
+    # test/staging backend). Running it on every push would burn RescueGroups
+    # quota and could flake on real data/network conditions, so it's opt-in —
+    # trigger it from the Actions tab ("Run workflow") when you want it.
+    #
+    # Requires repo secrets (Settings → Secrets and variables → Actions):
+    #   NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    #   RESCUEGROUPS_API_KEY (same values as web/.env.local)
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+
+      - name: Run E2E test
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          RESCUEGROUPS_API_KEY: ${{ secrets.RESCUEGROUPS_API_KEY }}
+        run: npx playwright test
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: web/playwright-report/
+          retention-days: 7
