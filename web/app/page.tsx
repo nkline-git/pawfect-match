@@ -18,6 +18,7 @@ import CityAutocomplete from '@/components/ui/CityAutocomplete'
 import type { PetSpecies, PetPreferences, SavedRGAnimal, UnifiedPet } from '@/types'
 import { RG_SAVED_KEY, RG_SEEN_KEY, HIDE_MATCH_POPUP_KEY, GUEST_PREFS_KEY, GUEST_RADIUS_KEY } from '@/types'
 import { haversineMiles, applyPreferences, localPetToUnified } from '@/lib/matching'
+import { RADIUS_MIN, RADIUS_STEP, RADIUS_ANY, SLIDER_ANY, radiusToSlider, sliderToRadius, formatRadius } from '@/lib/radius'
 
 
 // Haptic feedback — silently ignored on unsupported browsers / iOS
@@ -739,16 +740,17 @@ export default function BrowsePage() {
                 <div className="px-0.5">
                   <div className="flex items-center justify-between mb-0.5">
                     <label className="text-xs font-medium text-gray-500">Distance</label>
-                    <span className="text-xs font-semibold" style={{ color: '#e05a4e' }}>{radiusDraft} mi</span>
+                    <span className="text-xs font-semibold" style={{ color: '#e05a4e' }}>{formatRadius(radiusDraft)}</span>
                   </div>
                   <input
                     type="range"
-                    min={10}
-                    max={500}
-                    step={10}
-                    value={radiusDraft}
+                    aria-label="Distance"
+                    min={RADIUS_MIN}
+                    max={SLIDER_ANY}
+                    step={RADIUS_STEP}
+                    value={radiusToSlider(radiusDraft)}
                     onChange={e => {
-                      const next = Number(e.target.value)
+                      const next = sliderToRadius(Number(e.target.value))
                       setRadiusDraft(next)
                       if (radiusCommitTimer.current) clearTimeout(radiusCommitTimer.current)
                       radiusCommitTimer.current = setTimeout(() => commitRadius(next), 400)
@@ -762,11 +764,7 @@ export default function BrowsePage() {
                 <button
                   onClick={() => {
                     setLocInputVal(guestCity || profile?.city || '')
-                    // 2000mi is the "no preference set" nationwide default for
-                    // guests with no city — the slider itself tops out at
-                    // 500mi (matching the Filters panel), so clamp the seed
-                    // to keep the displayed number and thumb position in sync.
-                    setRadiusDraft(Math.min(searchRadius, 500))
+                    setRadiusDraft(searchRadius)
                     setShowLocInput(true)
                   }}
                   className="flex items-center gap-1.5 text-white/70 text-xs hover:text-white/90 transition-colors group"
@@ -778,7 +776,9 @@ export default function BrowsePage() {
                       : searchCity}
                   </span>
                   {(profile?.city || guestCity) && (
-                    <span className="text-white/40">· within {searchRadius} mi</span>
+                    <span className="text-white/40">
+                      · {searchRadius >= RADIUS_ANY ? 'any distance' : `within ${searchRadius} mi`}
+                    </span>
                   )}
                   <Pencil size={10} className="ml-0.5 opacity-60 group-hover:opacity-100 transition-opacity" />
                 </button>

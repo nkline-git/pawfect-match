@@ -21,7 +21,24 @@ function setup(overrides: { initialPrefs?: PetPreferences | null; initialRadius?
 describe('FiltersSheet', () => {
   it('seeds the radius display from initialRadius', () => {
     setup({ initialRadius: 250 })
-    expect(screen.getByText('250 miles')).toBeInTheDocument()
+    expect(screen.getByText('250 mi')).toBeInTheDocument()
+  })
+
+  it('shows a nationwide (2000 mi) search as "Any distance" with the slider at its top notch', () => {
+    setup({ initialRadius: 2000 })
+    expect(screen.getByText('Any distance')).toBeInTheDocument()
+    const slider = screen.getByRole('slider') as HTMLInputElement
+    expect(slider.value).toBe(slider.max)
+  })
+
+  it('dragging the slider to the top notch applies a nationwide search', async () => {
+    const user = userEvent.setup()
+    const { onApply } = setup()
+    const slider = screen.getByRole('slider') as HTMLInputElement
+    fireEvent.change(slider, { target: { value: slider.max } })
+    expect(screen.getByText('Any distance')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: /Show matching pets/ }))
+    expect(onApply).toHaveBeenLastCalledWith(expect.anything(), 2000)
   })
 
   it('applies with no active filters shows plain "Show matching pets"', () => {
@@ -137,7 +154,7 @@ describe('FiltersSheet', () => {
 
     expect(screen.getByRole('button', { name: 'Reset' })).toBeEnabled()
     await user.click(screen.getByRole('button', { name: 'Reset' }))
-    expect(screen.getByText('100 miles')).toBeInTheDocument()
+    expect(screen.getByText('100 mi')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Show matching pets' })).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'Show matching pets' }))
@@ -157,7 +174,7 @@ describe('FiltersSheet', () => {
     const { onApply } = setup()
 
     fireEvent.change(screen.getByRole('slider'), { target: { value: '350' } })
-    expect(screen.getByText('350 miles')).toBeInTheDocument()
+    expect(screen.getByText('350 mi')).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: /Show matching pets/ }))
     expect(onApply).toHaveBeenLastCalledWith(expect.anything(), 350)

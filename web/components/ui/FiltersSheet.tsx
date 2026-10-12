@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { X, RotateCcw, Plus, PawPrint } from 'lucide-react'
 import { SIZE_OPTIONS, ENERGY_OPTIONS, HOUSING_OPTIONS, GOOD_WITH_OPTIONS, POPULAR_BREEDS, matchBreeds } from '@/lib/petOptions'
+import { RADIUS_MIN, RADIUS_STEP, SLIDER_ANY, radiusToSlider, sliderToRadius, formatRadius } from '@/lib/radius'
 import type { PetPreferences } from '@/types'
 
 const EMPTY_PREFS: PetPreferences = {
@@ -93,20 +94,21 @@ export default function FiltersSheet({
           {/* Search radius */}
           <div>
             <label className="block text-sm font-semibold text-gray-800 mb-1.5">
-              Search radius — <span style={{ color: '#e05a4e' }}>{radius} miles</span>
+              Search radius — <span style={{ color: '#e05a4e' }}>{formatRadius(radius)}</span>
             </label>
             <input
               type="range"
-              min={10}
-              max={500}
-              step={10}
-              value={radius}
-              onChange={e => setRadius(Number(e.target.value))}
+              aria-label="Search radius"
+              min={RADIUS_MIN}
+              max={SLIDER_ANY}
+              step={RADIUS_STEP}
+              value={radiusToSlider(radius)}
+              onChange={e => setRadius(sliderToRadius(Number(e.target.value)))}
               className="w-full accent-[#e05a4e]"
             />
             <div className="flex justify-between text-[11px] text-gray-400 mt-0.5">
               <span>10 mi</span>
-              <span>500 mi</span>
+              <span>Any</span>
             </div>
           </div>
 
