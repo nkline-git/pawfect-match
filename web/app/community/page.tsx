@@ -334,6 +334,8 @@ export default function CommunityPage() {
       .from('events')
       .select('id, title, event_type, location, starts_at, rescue_id, rescue:rescues(name, logo)')
       .eq('status', 'active')
+      // Upcoming only — past events shouldn't read as things to attend
+      .gte('starts_at', new Date().toISOString())
       .order('starts_at', { ascending: true })
       .limit(30)
     if (error?.code === '42P01') { setLoadingEvts(false); return }
@@ -608,8 +610,8 @@ export default function CommunityPage() {
               {!loadingPosts && posts.filter(p => filterTopic === 'all' || p.topic === filterTopic).length === 0 && !dbMissing && (
                 <div className="flex-1 flex flex-col items-center justify-center py-16 text-center">
                   <span className="text-5xl mb-3">🐾</span>
-                  <p className="text-sm font-semibold text-gray-700 mb-1">No posts yet</p>
-                  <p className="text-xs text-gray-400">
+                  <p className="text-sm font-semibold text-gray-800 mb-1">No posts yet</p>
+                  <p className="text-xs text-gray-700">
                     {userId ? 'Be the first to start a conversation!' : 'Sign in to be the first to post!'}
                   </p>
                 </div>
@@ -663,8 +665,8 @@ export default function CommunityPage() {
               ) : events.length === 0 ? (
                 <div className="flex-1 flex flex-col items-center justify-center py-16 text-center">
                   <span className="text-5xl mb-3">📅</span>
-                  <p className="text-sm font-semibold text-gray-700 mb-1">No upcoming events</p>
-                  <p className="text-xs text-gray-400">
+                  <p className="text-sm font-semibold text-gray-800 mb-1">No upcoming events</p>
+                  <p className="text-xs text-gray-700">
                     {userId ? 'Be the first to post one!' : 'Sign in to post an event.'}
                   </p>
                 </div>

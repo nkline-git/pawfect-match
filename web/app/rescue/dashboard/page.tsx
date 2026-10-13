@@ -332,10 +332,10 @@ function editPetForm(pet: Pet): NewPet {
 // publish by adding the EIN now, or request a manual review that lands in
 // the admin dashboard + the site owner's inbox
 function PublishGate({
-  rescue, updateRescue,
+  rescue, onPublished,
 }: {
   rescue: Rescue
-  updateRescue: (u: Partial<Rescue>) => Promise<{ error: string | null }>
+  onPublished: () => void
 }) {
   const [einInput,   setEinInput]   = useState('')
   const [publishing, setPublishing] = useState(false)
@@ -354,9 +354,22 @@ function PublishGate({
     if (digits.length !== 9) { setError('Enter a valid 9-digit EIN (XX-XXXXXXX).'); return }
     setPublishing(true)
     setError(null)
-    const { error: err } = await updateRescue({ ein: einInput, published: true })
-    setPublishing(false)
-    if (err) setError(err)
+    // The EIN is checked server-side against IRS 501(c)(3) records before
+    // the page goes live (see app/api/rescue/publish)
+    try {
+      const res  = await fetch('/api/rescue/publish', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ein: einInput }),
+      })
+      const json = await res.json()
+      if (!res.ok) { setError(json.error ?? 'Could not publish. Please try again.'); return }
+      onPublished()
+    } catch {
+      setError('Network error. Please try again.')
+    } finally {
+      setPublishing(false)
+    }
   }
 
   const requestApproval = async () => {
@@ -438,7 +451,7 @@ function PublishGate({
 export default function RescueDashboardPage() {
   const router        = useRouter()
   const [supabase]    = useState(createClient)
-  const { rescue, loading: rescueLoading, updateRescue } = useRescue()
+  const { rescue, loading: rescueLoading, updateRescue, refetch: refetchRescue } = useRescue()
   const { pets, loading: petsLoading, refetch } = usePets({ rescueId: rescue?.id })
 
   const [authed, setAuthed]     = useState<boolean | null>(null)
@@ -702,7 +715,7 @@ export default function RescueDashboardPage() {
 
         {/* Draft publish gate / verification badge */}
         {rescue.published === false ? (
-          <PublishGate rescue={rescue} updateRescue={updateRescue} />
+          <PublishGate rescue={rescue} onPublished={refetchRescue} />
         ) : !rescue.verified && (
           <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-4 flex items-start gap-2">
             <span className="text-amber-500 mt-0.5">⏳</span>

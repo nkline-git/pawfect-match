@@ -3,12 +3,13 @@
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { Star, ExternalLink, MapPin, Loader2, Phone, Globe, ChevronDown, ChevronUp, Navigation } from 'lucide-react'
+import { ExternalLink, MapPin, Loader2, Phone, Globe, ChevronDown, ChevronUp, Navigation } from 'lucide-react'
 import BottomNav from '@/components/ui/BottomNav'
 import SponsoredBanner from '@/components/ui/SponsoredBanner'
 import CityStateSearch from '@/components/ui/CityStateSearch'
 import { parseStateFromCity, stripStateFromCity } from '@/lib/usStates'
 import { createClient } from '@/lib/supabase/client'
+import { geocodeCity } from '@/lib/geocode'
 
 // Big-box chain classification now happens server-side (app/api/nearby-stores)
 function haversine(lat1: number, lon1: number, lat2: number, lon2: number) {
@@ -47,123 +48,55 @@ const CATEGORIES = [
   { label: 'Travel',   value: 'travel',   icon: '🚗' },
 ]
 
+// Curated list of real, widely-sold products. Each links to a Chewy.com
+// search for that product, where the actual price, stock, and reviews are
+// shown. No prices, ratings, review counts, or deal badges are stored here:
+// they change constantly and can't be kept accurate from a static list.
 type Product = {
   id: string; category: string; name: string; sub: string
-  price: number; compare: number | null; emoji: string
-  brand: string; rating: number; reviews: number
-  badge: string | null; url: string
+  emoji: string; brand: string; url: string
 }
 
 const PRODUCTS: Product[] = [
-  { id:'1',  category:'food',     name:"Hill's Science Diet",          sub:'Adult Chicken & Barley',       price:5499, compare:6999, emoji:'🥩', brand:"Hill's",        rating:4.8, reviews:2341,  badge:'21% off',         url:'https://www.chewy.com/s?query=hills+science+diet' },
-  { id:'2',  category:'food',     name:'Blue Buffalo Life Protection', sub:'Adult Chicken & Brown Rice',   price:4899, compare:5999, emoji:'🐟', brand:'Blue Buffalo',  rating:4.7, reviews:8142,  badge:'Best seller',     url:'https://www.chewy.com/s?query=blue+buffalo+life+protection' },
-  { id:'3',  category:'food',     name:'Purina Pro Plan',              sub:'High Protein Salmon & Rice',   price:5299, compare:null, emoji:'🥣', brand:'Purina',        rating:4.9, reviews:15203, badge:'Vet recommended', url:'https://www.chewy.com/s?query=purina+pro+plan+salmon' },
-  { id:'4',  category:'food',     name:'Royal Canin Indoor',           sub:'Adult Dry Cat Food',           price:4199, compare:4999, emoji:'🐱', brand:'Royal Canin',   rating:4.6, reviews:6782,  badge:null,              url:'https://www.chewy.com/s?query=royal+canin+indoor+adult' },
-  { id:'5',  category:'toys',     name:'KONG Classic',                 sub:'Durable Rubber Chew Toy',      price:1299, compare:1699, emoji:'🎾', brand:'KONG',          rating:4.9, reviews:18432, badge:'#1 Best seller',  url:'https://www.chewy.com/s?query=kong+classic' },
-  { id:'6',  category:'toys',     name:'Chuckit! Ultra Ball',          sub:'High Bounce Fetch Ball 2-pk',  price:899,  compare:null, emoji:'⚽', brand:'Chuckit!',      rating:4.8, reviews:5621,  badge:null,              url:'https://www.chewy.com/s?query=chuckit+ultra+ball' },
-  { id:'7',  category:'toys',     name:'Nina Ottosson Dog Puzzle',     sub:'Interactive Level 2',          price:2299, compare:2799, emoji:'🧩', brand:'Outward Hound', rating:4.7, reviews:3104,  badge:'Staff pick',      url:'https://www.chewy.com/s?query=nina+ottosson+dog+puzzle' },
-  { id:'8',  category:'toys',     name:'Yeowww! Catnip Banana',        sub:'Organic Catnip Toy',           price:799,  compare:null, emoji:'🍌', brand:'Yeowww!',       rating:4.8, reviews:9231,  badge:'Cat favorite',    url:'https://www.chewy.com/s?query=yeowww+catnip+banana' },
-  { id:'9',  category:'beds',     name:'PetFusion Ultimate Lounge',    sub:'Memory Foam Dog Bed, Large',   price:8999, compare:10999,emoji:'🛏️', brand:'PetFusion',    rating:4.8, reviews:4892,  badge:'18% off',         url:'https://www.chewy.com/s?query=petfusion+ultimate+lounge' },
-  { id:'10', category:'beds',     name:'K&H Thermo-Kitty Heated',      sub:'Self-Warming Cat Bed',         price:4499, compare:5499, emoji:'🌡️', brand:'K&H',          rating:4.6, reviews:2103,  badge:null,              url:'https://www.chewy.com/s?query=kh+thermo+kitty' },
-  { id:'11', category:'grooming', name:'FURminator Deshedding Tool',   sub:'Long Hair Large Dog',          price:3299, compare:3999, emoji:'✂️', brand:'FURminator',   rating:4.7, reviews:22401, badge:'17% off',         url:'https://www.chewy.com/s?query=furminator+deshedding' },
-  { id:'12', category:'grooming', name:"Burt's Bees Dog Shampoo",      sub:'Hypoallergenic, Tearless',     price:999,  compare:null, emoji:'🛁', brand:"Burt's Bees",   rating:4.6, reviews:3812,  badge:null,              url:'https://www.chewy.com/s?query=burts+bees+dog+shampoo' },
-  { id:'13', category:'health',   name:'Zesty Paws Multivitamin',      sub:'Chewable Bites for Dogs',      price:2499, compare:2999, emoji:'💊', brand:'Zesty Paws',    rating:4.7, reviews:11234, badge:'Top pick',        url:'https://www.chewy.com/s?query=zesty+paws+multivitamin' },
-  { id:'14', category:'health',   name:'Vetri-Science Composure',      sub:'Calming Supplement for Dogs',  price:1899, compare:null, emoji:'🌿', brand:'Vetri-Science',  rating:4.5, reviews:1823, badge:null,              url:'https://www.chewy.com/s?query=vetri+science+composure' },
-  { id:'15', category:'travel',   name:'Kurgo Tru-Fit Harness',        sub:'Crash Tested Car Harness',     price:3499, compare:3999, emoji:'🚗', brand:'Kurgo',         rating:4.6, reviews:2891,  badge:null,              url:'https://www.chewy.com/s?query=kurgo+tru-fit+harness' },
-  { id:'16', category:'travel',   name:'Ruffwear Front Range Pack',    sub:'Dog Hiking Backpack',          price:5999, compare:6999, emoji:'🎒', brand:'Ruffwear',      rating:4.8, reviews:1204,  badge:'14% off',         url:'https://www.chewy.com/s?query=ruffwear+front+range+pack' },
+  { id:'1',  category:'food',     name:"Hill's Science Diet",          sub:'Adult Chicken & Barley',      emoji:'🥩', brand:"Hill's",        url:'https://www.chewy.com/s?query=hills+science+diet' },
+  { id:'2',  category:'food',     name:'Blue Buffalo Life Protection', sub:'Adult Chicken & Brown Rice',  emoji:'🐟', brand:'Blue Buffalo',  url:'https://www.chewy.com/s?query=blue+buffalo+life+protection' },
+  { id:'3',  category:'food',     name:'Purina Pro Plan',              sub:'High Protein Salmon & Rice',  emoji:'🥣', brand:'Purina',        url:'https://www.chewy.com/s?query=purina+pro+plan+salmon' },
+  { id:'4',  category:'food',     name:'Royal Canin Indoor',           sub:'Adult Dry Cat Food',          emoji:'🐱', brand:'Royal Canin',   url:'https://www.chewy.com/s?query=royal+canin+indoor+adult' },
+  { id:'5',  category:'toys',     name:'KONG Classic',                 sub:'Durable Rubber Chew Toy',     emoji:'🎾', brand:'KONG',          url:'https://www.chewy.com/s?query=kong+classic' },
+  { id:'6',  category:'toys',     name:'Chuckit! Ultra Ball',          sub:'High Bounce Fetch Ball',      emoji:'⚽', brand:'Chuckit!',      url:'https://www.chewy.com/s?query=chuckit+ultra+ball' },
+  { id:'7',  category:'toys',     name:'Nina Ottosson Dog Puzzle',     sub:'Interactive Puzzle Toy',      emoji:'🧩', brand:'Outward Hound', url:'https://www.chewy.com/s?query=nina+ottosson+dog+puzzle' },
+  { id:'8',  category:'toys',     name:'Yeowww! Catnip Banana',        sub:'Organic Catnip Toy',          emoji:'🍌', brand:'Yeowww!',       url:'https://www.chewy.com/s?query=yeowww+catnip+banana' },
+  { id:'9',  category:'beds',     name:'PetFusion Ultimate Lounge',    sub:'Memory Foam Dog Bed',         emoji:'🛏️', brand:'PetFusion',     url:'https://www.chewy.com/s?query=petfusion+ultimate+lounge' },
+  { id:'10', category:'beds',     name:'K&H Thermo-Kitty',             sub:'Self-Warming Cat Bed',        emoji:'🌡️', brand:'K&H',           url:'https://www.chewy.com/s?query=kh+thermo+kitty' },
+  { id:'11', category:'grooming', name:'FURminator Deshedding Tool',   sub:'For Long-Hair Dogs',          emoji:'✂️', brand:'FURminator',    url:'https://www.chewy.com/s?query=furminator+deshedding' },
+  { id:'12', category:'grooming', name:"Burt's Bees Dog Shampoo",      sub:'Hypoallergenic, Tearless',    emoji:'🛁', brand:"Burt's Bees",   url:'https://www.chewy.com/s?query=burts+bees+dog+shampoo' },
+  { id:'13', category:'health',   name:'Zesty Paws Multivitamin',      sub:'Chewable Bites for Dogs',     emoji:'💊', brand:'Zesty Paws',    url:'https://www.chewy.com/s?query=zesty+paws+multivitamin' },
+  { id:'14', category:'health',   name:'Vetri-Science Composure',      sub:'Calming Supplement for Dogs', emoji:'🌿', brand:'Vetri-Science', url:'https://www.chewy.com/s?query=vetri+science+composure' },
+  { id:'15', category:'travel',   name:'Kurgo Tru-Fit Harness',        sub:'Car Safety Harness',          emoji:'🚗', brand:'Kurgo',         url:'https://www.chewy.com/s?query=kurgo+tru-fit+harness' },
+  { id:'16', category:'travel',   name:'Ruffwear Front Range Pack',    sub:'Dog Hiking Backpack',         emoji:'🎒', brand:'Ruffwear',      url:'https://www.chewy.com/s?query=ruffwear+front+range+pack' },
 ]
-
-// ── Product photos: Unsplash (emoji fallback on load error) ────────
-const PRODUCT_PHOTOS: Record<string, string> = {
-  '1':  'https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=400&h=280&fit=crop&q=80', // dog at bowl
-  '2':  'https://images.unsplash.com/photo-1568640347023-a616a30bc3bd?w=400&h=280&fit=crop&q=80', // dog eating
-  '3':  'https://images.unsplash.com/photo-1589924691995-400dc9a3fb8e?w=400&h=280&fit=crop&q=80', // pet food
-  '4':  'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=400&h=280&fit=crop&q=80', // cat close-up
-  '5':  'https://images.unsplash.com/photo-1535930891776-0c2dfb7fda1a?w=400&h=280&fit=crop&q=80', // dog with toy
-  '6':  'https://images.unsplash.com/photo-1543466835-00a7907e9de1?w=400&h=280&fit=crop&q=80',    // golden retriever
-  '7':  'https://images.unsplash.com/photo-1548199973-03cce0bbc87b?w=400&h=280&fit=crop&q=80',    // two huskies
-  '8':  'https://images.unsplash.com/photo-1560743641-3914f2c45636?w=400&h=280&fit=crop&q=80',    // cat lying
-  '9':  'https://images.unsplash.com/photo-1583511655826-05700442b31b?w=400&h=280&fit=crop&q=80', // dog in bed
-  '10': 'https://images.unsplash.com/photo-1573246123716-6b1782bfc499?w=400&h=280&fit=crop&q=80', // sleeping cat
-  '11': 'https://images.unsplash.com/photo-1591946614720-90a587da4a36?w=400&h=280&fit=crop&q=80', // dog groomed
-  '12': 'https://images.unsplash.com/photo-1446071103084-c257b5f70672?w=400&h=280&fit=crop&q=80', // dog bath
-  '13': 'https://images.unsplash.com/photo-1576201836106-db1758fd1c97?w=400&h=280&fit=crop&q=80', // vet with dog
-  '14': 'https://images.unsplash.com/photo-1450778869180-41d0601e046e?w=400&h=280&fit=crop&q=80', // calm dogs
-  '15': 'https://images.unsplash.com/photo-1601758125946-6ec2ef64daf8?w=400&h=280&fit=crop&q=80', // dog in car
-  '16': 'https://images.unsplash.com/photo-1508068096726-f4c7c7d68696?w=400&h=280&fit=crop&q=80', // dog hiking
-}
-
-// ── Star rating ────────────────────────────────────────────────────
-function Stars({ rating }: { rating: number }) {
-  return (
-    <div className="flex items-center gap-0.5">
-      {[1,2,3,4,5].map(i => (
-        <Star key={i} size={10}
-          fill={i <= Math.round(rating) ? '#f59e0b' : 'none'}
-          stroke={i <= Math.round(rating) ? '#f59e0b' : '#d1d5db'}
-        />
-      ))}
-    </div>
-  )
-}
-
-function fmt(cents: number) { return `$${(cents / 100).toFixed(2)}` }
 
 // ── Product card ───────────────────────────────────────────────────
 function ProductCard({ p }: { p: Product }) {
-  const [imgOk, setImgOk] = useState(true)
-  const photo = PRODUCT_PHOTOS[p.id]
-
   return (
     <a
       href={p.url}
       target="_blank"
-      rel="noreferrer"
-      className="bg-white rounded-2xl shadow-sm overflow-hidden flex flex-col hover:shadow-md transition-shadow"
+      rel="noopener noreferrer"
+      className="bg-white rounded-2xl shadow-sm overflow-hidden flex flex-col hover:shadow-md transition-shadow focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#e05a4e]"
     >
-      <div className="h-32 relative overflow-hidden bg-gray-50">
-        {photo && imgOk ? (
-          <Image
-            src={photo}
-            alt={p.name}
-            fill
-            sizes="180px"
-            className="object-cover"
-            onError={() => setImgOk(false)}
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center">
-            <span className="text-5xl">{p.emoji}</span>
-          </div>
-        )}
-        {p.badge && (
-          <span
-            className="absolute top-2 left-2 text-[10px] font-bold px-1.5 py-0.5 rounded-full text-white"
-            style={{ backgroundColor: p.badge.includes('%') ? '#22c55e' : '#e05a4e' }}
-          >
-            {p.badge}
-          </span>
-        )}
+      <div className="h-24 bg-gray-50 flex items-center justify-center" aria-hidden="true">
+        <span className="text-5xl">{p.emoji}</span>
       </div>
       <div className="p-2.5 flex flex-col flex-1">
         <p className="text-[10px] text-gray-400 mb-0.5">{p.brand}</p>
         <p className="text-xs font-semibold text-gray-900 leading-tight line-clamp-2 mb-1">{p.name}</p>
-        <p className="text-[10px] text-gray-400 line-clamp-1 mb-1.5">{p.sub}</p>
-        <div className="flex items-center gap-1 mb-1.5">
-          <Stars rating={p.rating} />
-          <span className="text-[10px] text-gray-400">({p.reviews.toLocaleString()})</span>
-        </div>
-        <div className="mt-auto">
-          <div className="flex items-baseline gap-1.5">
-            <span className="text-sm font-bold text-gray-900">{fmt(p.price)}</span>
-            {p.compare && <span className="text-[10px] text-gray-400 line-through">{fmt(p.compare)}</span>}
-          </div>
-          <div
-            className="mt-1.5 w-full py-1.5 rounded-xl text-white text-[11px] font-semibold text-center flex items-center justify-center gap-1"
-            style={{ backgroundColor: '#e05a4e' }}
-          >
-            Shop on Chewy <ExternalLink size={9} />
-          </div>
+        <p className="text-[10px] text-gray-400 line-clamp-1 mb-2">{p.sub}</p>
+        <div
+          className="mt-auto w-full py-1.5 rounded-xl text-white text-[11px] font-semibold text-center flex items-center justify-center gap-1"
+          style={{ backgroundColor: '#e05a4e' }}
+        >
+          See price on Chewy <ExternalLink size={9} />
         </div>
       </div>
     </a>
@@ -426,27 +359,15 @@ function NearbyStores() {
     setStatus('geocoding')
     setResolvedCity(trimmed)
     try {
-      const isZip = /^\d{5}(-\d{4})?$/.test(trimmed)
-      const params = new URLSearchParams({
-        q:            trimmed,
-        format:       'json',
-        limit:        '1',
-        countrycodes: 'us',
-        ...(isZip ? { postalcode: trimmed, country: 'US' } : {}),
-      })
-      const geoRes = await fetch(
-        `https://nominatim.openstreetmap.org/search?${params}`,
-        { headers: { 'Accept-Language': 'en-US,en', 'User-Agent': 'PawfectMatch/1.0' } }
-      )
-      const geoJson = await geoRes.json()
-      if (!geoJson.length) {
+      const coords = await geocodeCity(trimmed)
+      if (!coords) {
         setStatus('error')
         setErrorMsg(`Couldn't find "${trimmed}". Try "City, State" or a 5-digit zip code.`)
         return
       }
       // Save to shared location storage so home page + RescueGroups search stays in sync
       writeSavedLocation(trimmed)
-      await fetchStores(parseFloat(geoJson[0].lat), parseFloat(geoJson[0].lon))
+      await fetchStores(coords.lat, coords.lon)
     } catch {
       setStatus('error')
       setErrorMsg('Could not look up that location. Check your connection and try again.')
@@ -643,18 +564,6 @@ export default function ShopPage() {
           {/* Nearby stores from OpenStreetMap */}
           <NearbyStores />
 
-          {/* Discount banner */}
-          <div
-            className="rounded-2xl p-4 mb-3 flex items-center gap-3"
-            style={{ background: 'linear-gradient(135deg,#e05a4e,#c44b40)' }}
-          >
-            <span className="text-4xl">🐾</span>
-            <div className="text-white">
-              <p className="font-bold text-sm">New adopter discount</p>
-              <p className="text-xs opacity-80">20% off your first order with code <strong>PAWFECT20</strong></p>
-            </div>
-          </div>
-
           {/* Category filter */}
           <div className="flex gap-2 mb-3 overflow-x-auto scrollbar-none px-1">
             {CATEGORIES.map(c => (
@@ -680,9 +589,11 @@ export default function ShopPage() {
             ))}
           </div>
 
-          {/* Affiliate disclosure — FTC required */}
+          {/* What these links are — no affiliate tracking is attached to them.
+              If affiliate links are added later, restore an FTC disclosure here. */}
           <p className="text-[10px] text-gray-400 text-center px-4 pb-4 pt-2 leading-relaxed">
-            Affiliate disclosure: Pawfect Match may earn a commission from qualifying purchases made through links on this page, at no extra cost to you.
+            Product links open Chewy.com, where current prices, availability, and reviews are listed.
+            Pawfect Match isn&apos;t paid for these links.
           </p>
 
         </div>{/* end scrollable */}

@@ -11,13 +11,14 @@ import { usePets, useSavedPets } from '@/hooks/usePets'
 import { useProfile } from '@/hooks/useProfile'
 import BottomNav from '@/components/ui/BottomNav'
 import AnimalDetailSheet, {
-  SPECIES_BG, SPECIES_EMOJI, TAG_COLORS, shortBreed, formatAge,
+  SPECIES_BG, SPECIES_EMOJI, TAG_COLORS, shortBreed, formatAge, adoptionLink,
 } from '@/components/AnimalDetailSheet'
 import FiltersSheet from '@/components/ui/FiltersSheet'
 import CityAutocomplete from '@/components/ui/CityAutocomplete'
 import type { PetSpecies, PetPreferences, SavedRGAnimal, UnifiedPet } from '@/types'
 import { RG_SAVED_KEY, RG_SEEN_KEY, HIDE_MATCH_POPUP_KEY, GUEST_PREFS_KEY, GUEST_RADIUS_KEY } from '@/types'
 import { haversineMiles, applyPreferences, localPetToUnified } from '@/lib/matching'
+import { prefsToParams } from '@/lib/rescuegroups'
 import { RADIUS_MIN, RADIUS_STEP, RADIUS_ANY, SLIDER_ANY, radiusToSlider, sliderToRadius, formatRadius } from '@/lib/radius'
 
 
@@ -311,6 +312,7 @@ export default function BrowsePage() {
         radius:   String(newRadius),
       })
       if (speciesFilter) p.set('type', speciesFilter)
+      for (const [k, v] of Object.entries(prefsToParams(prefs))) p.set(k, v)
 
       const res  = await fetch(`/api/rescuegroups?${p}`)
       const data = await res.json()
@@ -354,6 +356,7 @@ export default function BrowsePage() {
         radius:   String(searchRadius),
       })
       if (speciesFilter) p.set('type', speciesFilter)
+      for (const [k, v] of Object.entries(prefsToParams(prefs))) p.set(k, v)
 
       const res  = await fetch(`/api/rescuegroups?${p}`)
       const data = await res.json()
@@ -416,6 +419,9 @@ export default function BrowsePage() {
       radius:   String(searchRadius),
     })
     if (speciesFilter) params.set('type', speciesFilter)
+    // The adopter's Filters (size, energy, breed, good-with) apply to
+    // RescueGroups pets too, not just local listings
+    for (const [k, v] of Object.entries(prefsToParams(prefs))) params.set(k, v)
 
     const ac = new AbortController()
     fetch(`/api/rescuegroups?${params}`, { signal: ac.signal })
@@ -556,6 +562,7 @@ export default function BrowsePage() {
             photo: cardPhotosCache[pet.id]?.[0] ?? pet.photo,
             orgName: pet.orgName,
             orgUrl: pet.orgUrl, orgEmail: pet.orgEmail, orgPhone: pet.orgPhone,
+            listingUrl: pet.listingUrl ?? null, adoptionUrl: pet.adoptionUrl ?? null,
             city: pet.city, savedAt: new Date().toISOString(),
           }
           localStorage.setItem(RG_SAVED_KEY, JSON.stringify([entry, ...existing]))
@@ -1229,16 +1236,16 @@ export default function BrowsePage() {
                   >
                     View {matchedPet.name}&apos;s profile &amp; apply →
                   </a>
-                ) : matchedPet.orgUrl ? (
+                ) : adoptionLink(matchedPet) ? (
                   <a
-                    href={matchedPet.orgUrl.startsWith('http') ? matchedPet.orgUrl : `https://${matchedPet.orgUrl}`}
+                    href={adoptionLink(matchedPet)!.href}
                     target="_blank"
-                    rel="noreferrer"
+                    rel="noopener noreferrer"
                     className="block py-3 rounded-xl text-white font-semibold text-sm text-center"
                     style={{ backgroundColor: '#e05a4e' }}
                     onClick={() => setMatchedPet(null)}
                   >
-                    Visit {matchedPet.orgName}&apos;s website →
+                    {adoptionLink(matchedPet)!.label} →
                   </a>
                 ) : (
                   <div className="py-3 px-4 rounded-xl text-center bg-gray-50 border border-gray-200">

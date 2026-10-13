@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import type { Rescue, Pet } from '@/types'
+import { safeUrl } from '@/lib/rescuegroups'
 
 const SPECIES_EMOJI: Record<string, string> = {
   dog: '🐕', cat: '🐱', rabbit: '🐰', bird: '🦜',
@@ -197,7 +198,7 @@ export default function RescuePublicPage() {
                 </a>
               )}
               {rescue.website && (
-                <a href={rescue.website} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 py-1">
+                <a href={safeUrl(rescue.website) ?? '#'} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 py-1">
                   <Globe size={14} className="text-gray-400 flex-shrink-0" />
                   {rescue.website.replace(/^https?:\/\//, '')}
                   <ExternalLink size={11} className="text-gray-400" />

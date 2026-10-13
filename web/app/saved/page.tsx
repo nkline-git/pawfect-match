@@ -3,11 +3,11 @@
 import { useEffect, useState } from 'react'
 import Image from 'next/image'
 import { createClient } from '@/lib/supabase/client'
-import { Heart, MapPin, Loader2 } from 'lucide-react'
+import { Heart, MapPin, Loader2, User } from 'lucide-react'
 import BottomNav from '@/components/ui/BottomNav'
 import SponsoredBanner from '@/components/ui/SponsoredBanner'
 import Link from 'next/link'
-import AnimalDetailSheet, { shortBreed, formatAge } from '@/components/AnimalDetailSheet'
+import AnimalDetailSheet, { shortBreed, formatAge, adoptionLink } from '@/components/AnimalDetailSheet'
 import type { Pet, SavedRGAnimal, UnifiedPet } from '@/types'
 import { RG_SAVED_KEY } from '@/types'
 import { Globe } from 'lucide-react'
@@ -43,8 +43,10 @@ function rgToUnified(a: SavedRGAnimal): UnifiedPet {
     description: null,
     photo:       a.photo,
     photos:      a.photo ? [a.photo] : [],
-    url:         a.orgUrl ?? '',
+    url:         a.listingUrl ?? a.adoptionUrl ?? a.orgUrl ?? '',
     orgUrl:      a.orgUrl,
+    listingUrl:  a.listingUrl ?? null,
+    adoptionUrl: a.adoptionUrl ?? null,
     orgEmail:    a.orgEmail,
     orgPhone:    a.orgPhone,
     city:        a.city,
@@ -56,8 +58,12 @@ function rgToUnified(a: SavedRGAnimal): UnifiedPet {
 
 type SavedPetRow = { pet: Pet & { rescue?: { name: string; city: string; logo: string } | null } }
 
+// Live availability of a saved rescue-network pet, as reported by RescueGroups
+type RgStatus = 'available' | 'pending' | 'unavailable' | 'unknown'
+
 export default function SavedPage() {
-  const supabase = createClient()
+  const [supabase] = useState(createClient)
+  const [rgStatus, setRgStatus] = useState<Record<string, RgStatus>>({})
 
   const [rows, setRows]           = useState<SavedPetRow[]>([])
   const [loading, setLoading]     = useState(true)
@@ -82,11 +88,34 @@ export default function SavedPage() {
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
 
-      setRows((data ?? []) as unknown as SavedPetRow[])
+      // A saved pet whose listing was deleted comes back as pet: null
+      setRows(((data ?? []) as unknown as SavedPetRow[]).filter(r => r.pet))
       setLoading(false)
     }
     load()
   }, [supabase])
+
+  // Re-check each saved rescue-network pet against RescueGroups so adopted
+  // or removed animals aren't presented as still available. Only checks
+  // ids not already checked this visit.
+  useEffect(() => {
+    const unchecked = rgSaved.map(a => a.id).filter(id => !(id in rgStatus)).slice(0, 40)
+    if (unchecked.length === 0) return
+    let cancelled = false
+    ;(async () => {
+      const results = await Promise.all(unchecked.map(async id => {
+        try {
+          const r = await fetch(`/api/rescuegroups/animal/${id}`)
+          const d = await r.json() as { status?: RgStatus }
+          return [id, d.status ?? 'unknown'] as const
+        } catch {
+          return [id, 'unknown'] as const
+        }
+      }))
+      if (!cancelled) setRgStatus(prev => ({ ...prev, ...Object.fromEntries(results) }))
+    })()
+    return () => { cancelled = true }
+  }, [rgSaved, rgStatus])
 
   const unsave = async (petId: string) => {
     const { data: { user } } = await supabase.auth.getUser()
@@ -114,8 +143,8 @@ export default function SavedPage() {
               <span className="text-gray-900"> Pets</span>
             </span>
           </div>
-          <Link href="/profile" className="text-gray-400 hover:text-gray-600">
-            <span className="text-xl">👤</span>
+          <Link href="/profile" aria-label="Your profile" className="text-gray-400 hover:text-gray-600">
+            <User size={20} />
           </Link>
         </header>
 
@@ -177,14 +206,19 @@ export default function SavedPage() {
                   {/* Info */}
                   <div className="flex-1 px-3 py-2.5 min-w-0">
                     <Link href={`/pets/${pet.id}`}>
-                      <h3 className="font-bold text-gray-900">{pet.name}</h3>
+                      <h3 className="font-bold text-gray-900 truncate">{pet.name}</h3>
                       <p className="text-xs text-gray-500 truncate">
                         {[pet.breed, pet.age, pet.gender].filter(Boolean).join(' · ')}
                       </p>
+                      {pet.status !== 'available' && (
+                        <p className="text-[11px] font-medium text-amber-700 mt-0.5">
+                          {pet.status === 'adopted' ? 'Adopted — no longer available' : 'Adoption pending'}
+                        </p>
+                      )}
                       {pet.rescue && (
-                        <p className="flex items-center gap-1 text-xs text-gray-400 mt-1">
-                          <MapPin size={10} />
-                          {pet.rescue.city}
+                        <p className="flex items-center gap-1 text-xs text-gray-400 mt-1 min-w-0">
+                          <MapPin size={10} className="flex-shrink-0" />
+                          <span className="truncate">{pet.rescue.city}</span>
                         </p>
                       )}
                     </Link>
@@ -239,13 +273,19 @@ export default function SavedPage() {
                             onClick={() => setSelected(rgToUnified(animal))}
                             className="block w-full text-left cursor-pointer"
                           >
-                            <h3 className="font-bold text-gray-900">{animal.name}</h3>
+                            <h3 className="font-bold text-gray-900 truncate">{animal.name}</h3>
                             <p className="text-xs text-gray-500 truncate">
                               {[shortBreed(animal.breed), formatAge(animal.age), animal.gender].filter(Boolean).join(' · ')}
                             </p>
-                            <p className="flex items-center gap-1 text-xs text-gray-400 mt-0.5 truncate">
-                              <MapPin size={10} />
-                              {animal.orgName}{animal.city ? ` · ${animal.city}` : ''}
+                            {rgStatus[animal.id] === 'unavailable' && (
+                              <p className="text-[11px] font-medium text-gray-500 mt-0.5">No longer listed — may have been adopted</p>
+                            )}
+                            {rgStatus[animal.id] === 'pending' && (
+                              <p className="text-[11px] font-medium text-amber-700 mt-0.5">Adoption pending</p>
+                            )}
+                            <p className="flex items-center gap-1 text-xs text-gray-400 mt-0.5 min-w-0">
+                              <MapPin size={10} className="flex-shrink-0" />
+                              <span className="truncate">{animal.orgName}{animal.city ? ` · ${animal.city}` : ''}</span>
                             </p>
                           </button>
                           <div className="flex items-center gap-1.5 mt-2 flex-wrap">
@@ -256,9 +296,9 @@ export default function SavedPage() {
                             >
                               View
                             </button>
-                            {animal.orgUrl && (
+                            {rgStatus[animal.id] !== 'unavailable' && adoptionLink(rgToUnified(animal)) && (
                               <a
-                                href={animal.orgUrl}
+                                href={adoptionLink(rgToUnified(animal))!.href}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="text-xs font-semibold px-3 py-1 rounded-full text-white flex items-center gap-1"

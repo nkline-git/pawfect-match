@@ -14,7 +14,7 @@ describe('geocodeCity', () => {
   })
 
   it('parses lat/lon from a successful Nominatim response', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true,
       json: async () => [{ lat: '37.6872', lon: '-97.3301' }],
     }))
     const result = await geocodeCity('Wichita, KS')
@@ -22,7 +22,7 @@ describe('geocodeCity', () => {
   })
 
   it('returns null when Nominatim returns an empty array (no match)', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ json: async () => [] }))
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => [] }))
     expect(await geocodeCity('Nowhereville')).toBeNull()
   })
 
@@ -32,16 +32,31 @@ describe('geocodeCity', () => {
   })
 
   it('adds postalcode params for a 5-digit zip', async () => {
-    const fetchSpy = vi.fn().mockResolvedValue({ json: async () => [{ lat: '1', lon: '2' }] })
+    const fetchSpy = vi.fn().mockResolvedValue({ ok: true, json: async () => [{ lat: '1', lon: '2' }] })
     vi.stubGlobal('fetch', fetchSpy)
     await geocodeCity('67202')
     const url = new URL(fetchSpy.mock.calls[0][0])
     expect(url.searchParams.get('postalcode')).toBe('67202')
-    expect(url.searchParams.get('country')).toBe('US')
+    expect(url.searchParams.get('country')).toBe('us')
+    // Nominatim 400s when free-text q is mixed with structured fields
+    expect(url.searchParams.get('q')).toBeNull()
+  })
+
+  it('treats a ZIP+4 as its 5-digit zip', async () => {
+    const fetchSpy = vi.fn().mockResolvedValue({ ok: true, json: async () => [{ lat: '1', lon: '2' }] })
+    vi.stubGlobal('fetch', fetchSpy)
+    await geocodeCity('67202-1234')
+    const url = new URL(fetchSpy.mock.calls[0][0])
+    expect(url.searchParams.get('postalcode')).toBe('67202')
+  })
+
+  it('returns null on an HTTP error response', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, json: async () => ({ error: {} }) }))
+    expect(await geocodeCity('92101')).toBeNull()
   })
 
   it('does not add postalcode params for a city name', async () => {
-    const fetchSpy = vi.fn().mockResolvedValue({ json: async () => [{ lat: '1', lon: '2' }] })
+    const fetchSpy = vi.fn().mockResolvedValue({ ok: true, json: async () => [{ lat: '1', lon: '2' }] })
     vi.stubGlobal('fetch', fetchSpy)
     await geocodeCity('Wichita, KS')
     const url = new URL(fetchSpy.mock.calls[0][0])

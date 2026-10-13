@@ -124,6 +124,11 @@ export default function EventDetailPage() {
                   Cancelled
                 </span>
               )}
+              {event.status !== 'cancelled' && new Date(event.ends_at ?? event.starts_at) < new Date() && (
+                <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-gray-100 text-gray-500">
+                  This event has ended
+                </span>
+              )}
             </div>
 
             <h1 className="text-xl font-bold text-gray-900 mb-4">{event.title}</h1>

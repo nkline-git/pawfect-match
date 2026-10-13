@@ -238,6 +238,9 @@ export interface SavedRGAnimal {
   orgPhone: string | null
   city:     string
   savedAt:  string          // ISO timestamp
+  // Added Oct 2026 — older saved entries won't have these
+  listingUrl?:  string | null  // the animal's own listing page
+  adoptionUrl?: string | null  // the rescue's adoption application
 }
 
 // Unified animal shape (local DB pets + RescueGroups animals) — the common
@@ -253,8 +256,11 @@ export interface UnifiedPet {
   description: string | null
   photo: string | null
   photos: string[]
-  url: string           // RescueGroups listing URL (for RG pets) or /pets/:id (local)
+  url: string           // best real link: /pets/:id (local) or listing → application → org site (RG); '' if none
   orgUrl: string | null   // rescue's own website (if known)
+  listingUrl?: string | null  // RG: the animal's own listing page (if the rescue set one)
+  adoptionUrl?: string | null // RG: the rescue's adoption application page (if known)
+  updatedAt?: string | null   // RG: when the source listing was last updated
   orgEmail: string | null // rescue contact email (if known)
   orgPhone: string | null // rescue contact phone (if known)
   city: string

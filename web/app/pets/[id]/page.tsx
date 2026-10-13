@@ -11,6 +11,7 @@ import {
   ChevronLeft, ChevronRight,
 } from 'lucide-react'
 import type { Pet } from '@/types'
+import { safeUrl } from '@/lib/rescuegroups'
 
 const SPECIES_EMOJI: Record<string, string> = {
   dog: '🐕', cat: '🐱', rabbit: '🐰', bird: '🦜',
@@ -54,6 +55,7 @@ export default function PetDetailPage() {
   const [applied,        setApplied]        = useState(false)
   const [showApplyForm,  setShowApplyForm]  = useState(false)
   const [applyMessage,   setApplyMessage]   = useState('')
+  const [applyError,     setApplyError]     = useState<string | null>(null)
 
   useEffect(() => {
     const load = async () => {
@@ -109,13 +111,20 @@ export default function PetDetailPage() {
     if (!pet) return
 
     setApplying(true)
-    await supabase.from('applications').insert({
+    setApplyError(null)
+    const { error } = await supabase.from('applications').insert({
       user_id:  user.id,
       pet_id:   id,
       rescue_id: pet.rescue_id,
       message:  applyMessage.trim() || null,
     })
     setApplying(false)
+    // Only confirm once the application is actually stored — otherwise the
+    // adopter waits on a rescue that never received anything
+    if (error) {
+      setApplyError(`Your application wasn't sent (${error.message}). Please try again, or contact ${pet.rescue?.name ?? 'the rescue'} directly.`)
+      return
+    }
     setApplied(true)
     setShowApplyForm(false)
   }
@@ -353,7 +362,7 @@ export default function PetDetailPage() {
                 </a>
               )}
               {pet.rescue.website && (
-                <a href={pet.rescue.website} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900">
+                <a href={safeUrl(pet.rescue.website) ?? '#'} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900">
                   <Globe size={14} className="text-gray-400" />
                   Visit website
                   <ExternalLink size={11} className="text-gray-400" />
@@ -363,18 +372,38 @@ export default function PetDetailPage() {
           </div>
         )}
 
-        {/* Apply button */}
-        <button
-          onClick={() => { if (!applied) setShowApplyForm(true) }}
-          disabled={applied}
-          className="w-full py-4 rounded-2xl text-white font-semibold text-base transition-all disabled:opacity-80 flex items-center justify-center gap-2 shadow-lg"
-          style={{ backgroundColor: applied ? '#22c55e' : '#e05a4e' }}
-        >
-          {applied ? '✓ Application sent!' : `Apply to adopt ${pet.name}`}
-        </button>
-        <p className="text-center text-xs text-white/60 mt-2 mb-6">
-          The rescue will reach out to you directly.
-        </p>
+        {/* Availability — adopted/pending pets can't take new applications */}
+        {pet.status !== 'available' && (
+          <div className="bg-white rounded-2xl shadow-lg px-5 py-4 mb-6 text-center">
+            <p className="font-semibold text-gray-900">
+              {pet.status === 'adopted' ? `${pet.name} has been adopted 🎉` : `${pet.name}'s adoption is pending`}
+            </p>
+            <p className="text-xs text-gray-500 mt-1">
+              {pet.status === 'adopted' ? 'This listing is no longer available.' : 'The rescue isn’t taking new applications right now.'}
+            </p>
+            <Link href="/" className="inline-block mt-3 text-sm font-semibold" style={{ color: '#e05a4e' }}>
+              Browse other pets →
+            </Link>
+          </div>
+        )}
+
+        {/* Apply button — rescue listings only; owner-rehoming pets are
+            contacted by email above (applications require a rescue) */}
+        {pet.status === 'available' && pet.rescue && (
+          <>
+            <button
+              onClick={() => { if (!applied) setShowApplyForm(true) }}
+              disabled={applied}
+              className="w-full py-4 rounded-2xl text-white font-semibold text-base transition-all disabled:opacity-80 flex items-center justify-center gap-2 shadow-lg"
+              style={{ backgroundColor: applied ? '#22c55e' : '#e05a4e' }}
+            >
+              {applied ? '✓ Application sent!' : `Apply to adopt ${pet.name}`}
+            </button>
+            <p className="text-center text-xs text-white/60 mt-2 mb-6">
+              The rescue will reach out to you directly.
+            </p>
+          </>
+        )}
       </div>
     </div>
 
@@ -425,6 +454,12 @@ export default function PetDetailPage() {
               onBlur={e => e.target.style.borderColor = '#e5e7eb'}
             />
             <p className="text-[11px] text-gray-400 text-right mb-4">{applyMessage.length}/500</p>
+
+            {applyError && (
+              <div role="alert" className="bg-red-50 border border-red-200 text-red-700 text-xs rounded-lg px-3 py-2 mb-3">
+                {applyError}
+              </div>
+            )}
 
             <button
               onClick={handleApply}

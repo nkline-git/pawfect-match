@@ -1,6 +1,73 @@
 # 🚀 Pawfect Match — Launch Checklist
 
-_Last updated: August 23, 2026_
+_Last updated: October 12, 2026_
+
+## 🔍 Production audit (Oct 12, 2026): real pets only
+
+### Release blockers that need the owner's approval (not done automatically)
+
+1. **Delete fabricated demo data.** Run `supabase/cleanup/remove_demo_data.sql`
+   in the Supabase SQL editor. Removes the fake Heartland Paws Rescue (marked
+   Verified, 555 phone, invented EIN) + its 4 pets (stock photos), the
+   "Peanut" rehoming demo, the "Ziggy" lost-pet demo, the fake Dapper Dog store
+   + 4 products, 2 fake events, the junk "123" rescue + 2 pets, and the 3 demo
+   login accounts (their passwords were published in this public repo).
+2. **Apply migration `015_protect_verification.sql`.** Until it's applied, any
+   rescue or store owner can mark themselves Verified/Featured from the browser.
+3. **Fix the support email.** Privacy Policy and Terms list
+   `support@pawfectmatch.app`, but that domain doesn't exist — every privacy
+   or support request bounces. Choose a real address.
+4. **Deploy** (push to master).
+
+### What the audit found and fixed
+
+- **RescueGroups feed** (`lib/rescuegroups.ts`, `app/api/rescuegroups/route.ts`)
+  - Showed listings untouched since 2018–2019 as available → now only
+    listings updated in the last 180 days; adoption-pending excluded.
+  - Location search scanned an arbitrary 2,000 of ~55,000 animals nationwide
+    → now a real lat/lon box at RescueGroups + exact distance. (Their
+    `filterRadius` really is broken; the old request body was also missing
+    the required `data` wrapper.)
+  - Tags like "Good with kids" / "Vaccinated" / "Fixed" were guessed from
+    description keywords ("NOT good with kids" → "Good with kids") because
+    the structured field names in the code didn't exist → now only the
+    source's own fields (isKidsOk, isDogsOk, isCatsOk, isHousetrained, …).
+  - Adoption links fell back to a rescuegroups.org URL that 404s → now only
+    the animal's listing, the rescue's adoption page, or its website.
+    Rescue websites were never shown at all (wrong field names) → fixed.
+  - The Filters panel (size, energy, breed, good-with) only applied to local
+    pets, never RescueGroups pets → applied to both.
+  - Detail sheet shows source + last-updated date; Saved re-checks live
+    status and labels adopted/removed pets.
+- **Zip-code search never worked anywhere** (Nominatim 400s when `q` is mixed
+  with `postalcode`) → fixed in `lib/geocode.ts`; feed + Shop use it.
+- **Rescue "EIN verification" was simulated** (accepted any 9 digits) → now a
+  real IRS 501(c)(3) lookup via ProPublica (`lib/ein.ts`). Dashboard publish
+  goes through `/api/rescue/publish` (same check + admin notification).
+- **Shop** had invented prices, discounts, star ratings, review counts,
+  "Vet recommended" badges, stock dog photos as product images, and a fake
+  "PAWFECT20" coupon → all removed; cards link to Chewy for real prices.
+- **Pet profile**: "Application sent!" showed even when the insert failed;
+  Apply showed on adopted pets and on owner-rehoming pets (where it always
+  fails) → fixed. Rescue website links without https:// were broken → fixed.
+- **Community** listed past events as upcoming → upcoming only; event page
+  says "This event has ended".
+- **Security**: Next.js 16.3.2 → 16.3.8 (critical advisories incl. RCE in
+  `next/og` and image optimization, both used here). Production deps: 0
+  vulnerabilities. (5 "high" remain in a dev-only ESLint dependency, `braces`,
+  with no non-breaking fix upstream — never shipped to users.)
+- **Tests**: 142 unit/component (new: rescuegroups, ein, geocode zip, radius),
+  40 Playwright (golden path + every public page at 375/768/1280 px checking
+  console errors, failed requests, broken images, overflow, nav position).
+
+### Known, not changed (design decisions for the owner)
+
+- Secondary text is light gray on white or white on the taupe background in
+  many places — below WCAG AA contrast. Changing it app-wide would visibly
+  alter the design, so only the worst case (gray on taupe) was fixed.
+- EIN publishing proves the EIN is a real 501(c)(3), not that the account
+  represents it. The "Verified rescue" badge (admin-only after migration
+  015) is the identity check; the owner gets an email on every publish.
 
 ## ✅ Cleanup pass: CI, image optimization, component tests, edit-pet, security
 
@@ -194,13 +261,14 @@ You'll need to click through those yourself:
    - Add `https://yourdomain.com/api/auth/callback` to redirect URLs
 4. If using Google login: update the OAuth redirect in Google Cloud Console
 
-## Demo accounts (delete before real launch, or keep for demos)
+## Demo accounts — MUST be deleted before launch
 
-| Role | Email | Password |
-|------|-------|----------|
-| Adopter (has quiz preferences) | demo-adopter@pawfectmatch.app | DemoAdopter2026! |
-| Rescue org (Heartland Paws) | demo-rescue@pawfectmatch.app | DemoRescue2026! |
-| Store owner (Dapper Dog) | demo-store@pawfectmatch.app | DemoStore2026! |
+Three demo accounts (demo-adopter@, demo-rescue@, demo-store@pawfectmatch.app)
+own the fabricated Heartland Paws Rescue, its pets, the Dapper Dog store, the
+Peanut rehoming listing, and the Ziggy lost-pet alert. Their passwords were
+previously listed here, and this repository is public, so treat them as
+compromised: delete the accounts and their data (see
+`supabase/cleanup/remove_demo_data.sql`) rather than just changing passwords.
 
 Your account (nick.kline0@gmail.com) is **admin** — visit `/admin` to verify rescues and moderate reports.
 

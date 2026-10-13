@@ -1,8 +1,10 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
+import { lookupEin, einErrorMessage } from '@/lib/ein'
 
 // POST /api/rescue/verify
-// Verifies a nonprofit EIN against our records (and eventually a real IRS/Candid API)
+// Checks a nonprofit EIN against IRS Exempt Organizations records (via
+// ProPublica) before a rescue can build a published page with it.
 export async function POST(request: Request) {
   try {
     const { ein, orgName } = await request.json()
@@ -11,10 +13,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'EIN and organization name are required' }, { status: 400 })
     }
 
-    // Validate EIN format: XX-XXXXXXX (9 digits)
-    const digits = ein.replace(/\D/g, '')
-    if (digits.length !== 9) {
-      return NextResponse.json({ error: 'Invalid EIN format. Must be 9 digits (XX-XXXXXXX).' }, { status: 400 })
+    const result = await lookupEin(String(ein))
+    if (result.status !== 'ok') {
+      return NextResponse.json(
+        { error: einErrorMessage(result), reason: result.status },
+        { status: result.status === 'unavailable' ? 503 : 400 },
+      )
     }
 
     // Check if this EIN is already registered to another account
@@ -22,8 +26,8 @@ export async function POST(request: Request) {
     const { data: existing } = await supabase
       .from('rescues')
       .select('id, name')
-      .eq('ein', ein)
-      .single()
+      .eq('ein', result.ein)
+      .maybeSingle()
 
     if (existing) {
       return NextResponse.json(
@@ -32,16 +36,13 @@ export async function POST(request: Request) {
       )
     }
 
-    // TODO: Replace this simulation with a real IRS/Candid API call
-    // e.g. https://api.candid.org/v3/essentials/{ein}
-    // For now, accept any valid-format EIN
-    await new Promise(r => setTimeout(r, 800)) // simulate network latency
-
     return NextResponse.json({
       verified: true,
-      ein,
+      ein: result.ein,
       orgName,
-      message: 'Organization verified successfully',
+      irsName: result.name,
+      irsLocation: [result.city, result.state].filter(Boolean).join(', ') || null,
+      message: `Found ${result.name} in IRS nonprofit records`,
     })
   } catch {
     return NextResponse.json({ error: 'Verification failed. Please try again.' }, { status: 500 })

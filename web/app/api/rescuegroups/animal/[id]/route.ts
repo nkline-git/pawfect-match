@@ -51,8 +51,10 @@ export async function GET(
   const { id } = await params
   const apiKey = process.env.RESCUEGROUPS_API_KEY
 
-  if (!apiKey || !id) {
-    return NextResponse.json({ photos: [] })
+  // status: 'available' | 'pending' | 'unavailable' come straight from
+  // RescueGroups; 'unknown' means we couldn't ask (never treat that as gone)
+  if (!apiKey || !/^\d+$/.test(id ?? '')) {
+    return NextResponse.json({ photos: [], status: 'unknown', updatedAt: null })
   }
 
   const headers = {
@@ -61,16 +63,31 @@ export async function GET(
   }
 
   try {
-    const p = new URLSearchParams({ include: 'pictures' })
+    const p = new URLSearchParams({
+      include: 'pictures,statuses',
+      'fields[animals]': 'name,updatedDate,isAdoptionPending',
+    })
     const res = await fetch(`${RG_BASE}/animals/${id}?${p}`, {
       headers,
       cache: 'no-store',
+      signal: AbortSignal.timeout(10_000),
     })
-    if (!res.ok) return NextResponse.json({ photos: [] })
+    if (!res.ok) return NextResponse.json({ photos: [], status: 'unknown', updatedAt: null })
 
     const json = await res.json()
 
     const animalData = Array.isArray(json.data) ? json.data[0] : json.data
+    // A removed/adopted animal comes back as an empty result set
+    if (!animalData) {
+      return NextResponse.json({ photos: [], status: 'unavailable', updatedAt: null })
+    }
+    const statusName: string | undefined = (json.included ?? [])
+      .find((i: { type: string }) => i.type === 'statuses')?.attributes?.name
+    const status =
+      statusName !== 'Available'                       ? 'unavailable'
+      : animalData.attributes?.isAdoptionPending === true ? 'pending'
+      : 'available'
+    const updatedAt: string | null = animalData.attributes?.updatedDate ?? null
 
     const picRels = animalData?.relationships?.pictures?.data ?? []
     const picIds: string[] = Array.isArray(picRels)
@@ -109,8 +126,8 @@ export async function GET(
       .filter(Boolean)
       .slice(0, 12) as string[]
 
-    return NextResponse.json({ photos })
+    return NextResponse.json({ photos, status, updatedAt })
   } catch {
-    return NextResponse.json({ photos: [] })
+    return NextResponse.json({ photos: [], status: 'unknown', updatedAt: null })
   }
 }

@@ -28,6 +28,28 @@ export function formatAge(raw: string | null): string | null {
   return raw
 }
 
+// The one link that best moves an adopter toward THIS animal, most specific
+// first. RescueGroups pets only get links the source actually provided —
+// never a constructed URL (rescuegroups.org's generic detail page 404s).
+export function adoptionLink(pet: Pick<UnifiedPet, 'name' | 'orgName' | 'isLocal' | 'url' | 'listingUrl' | 'adoptionUrl' | 'orgUrl'>):
+  { href: string; label: string; external: boolean } | null {
+  if (pet.isLocal) return pet.url ? { href: pet.url, label: 'Full profile & apply', external: false } : null
+  if (pet.listingUrl)  return { href: pet.listingUrl,  label: `View ${pet.name}'s listing`, external: true }
+  if (pet.adoptionUrl) return { href: pet.adoptionUrl, label: `Apply with ${pet.orgName}`, external: true }
+  if (pet.orgUrl) {
+    const href = pet.orgUrl.startsWith('http') ? pet.orgUrl : `https://${pet.orgUrl}`
+    return { href, label: `Visit ${pet.orgName}'s website`, external: true }
+  }
+  return null
+}
+
+export function formatListingDate(iso: string | null | undefined): string | null {
+  if (!iso) return null
+  const d = new Date(iso)
+  if (isNaN(d.getTime())) return null
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+}
+
 // ── Constants ─────────────────────────────────────────────────────────
 export const SPECIES_BG: Record<string, string> = {
   dog:           'linear-gradient(135deg,#f5e6d3,#eddccc)',
@@ -108,6 +130,8 @@ export default function AnimalDetailSheet({
   const [photoIdx,      setPhotoIdx]      = useState(0)
   const [extraPhotos,   setExtraPhotos]   = useState<string[]>(initialPhotos ?? [])
   const [photosLoading, setPhotosLoading] = useState(false)
+  // Live status from RescueGroups — only known when this sheet fetched it
+  const [listingStatus, setListingStatus] = useState<'available' | 'pending' | 'unavailable' | 'unknown'>('unknown')
 
   // Lazy-load photos only if not already cached from the card prefetch
   useEffect(() => {
@@ -116,10 +140,11 @@ export default function AnimalDetailSheet({
     setPhotosLoading(true)
     fetch(`/api/rescuegroups/animal/${animal.id}`)
       .then(r => r.json())
-      .then((data: { photos?: string[] }) => {
+      .then((data: { photos?: string[]; status?: typeof listingStatus }) => {
         if (Array.isArray(data.photos) && data.photos.length > 0) {
           setExtraPhotos(data.photos)
         }
+        if (data.status) setListingStatus(data.status)
       })
       .catch(() => {})
       .finally(() => setPhotosLoading(false))
@@ -134,6 +159,7 @@ export default function AnimalDetailSheet({
   const safeIdx = Math.min(photoIdx, Math.max(0, photos.length - 1))
 
   const bg = SPECIES_BG[animal.type] ?? SPECIES_BG.other
+  const primary = adoptionLink(animal)
 
   return (
     <div className="fixed inset-0 z-50 flex items-end" onClick={onClose}>
@@ -248,13 +274,17 @@ export default function AnimalDetailSheet({
             </p>
 
             {/* Org + location + distance */}
-            <div className="flex items-center gap-1.5 text-sm text-gray-500 mb-4">
-              <MapPin size={13} className="text-gray-400 flex-shrink-0" />
-              <span>{animal.orgName}</span>
-              {animal.city && <span className="text-gray-400">· {animal.city}</span>}
-              {typeof animal.distance === 'number' && (
-                <span className="text-gray-400">· {animal.distance < 1 ? '<1' : animal.distance} mi</span>
-              )}
+            <div className="flex items-start gap-1.5 text-sm text-gray-500 mb-4">
+              <MapPin size={13} className="text-gray-400 flex-shrink-0 mt-[3px]" />
+              {/* One text run so long org names wrap naturally instead of
+                  each segment breaking into its own column */}
+              <p className="min-w-0">
+                {animal.orgName}
+                {animal.city && <span className="text-gray-400"> · {animal.city}</span>}
+                {typeof animal.distance === 'number' && (
+                  <span className="text-gray-400 whitespace-nowrap"> · {animal.distance < 1 ? '<1' : animal.distance} mi</span>
+                )}
+              </p>
             </div>
 
             {/* "Why we recommend" banner — only shown when user has preferences that match */}
@@ -288,6 +318,18 @@ export default function AnimalDetailSheet({
               </div>
             )}
 
+            {/* Live availability — shown only when RescueGroups says it changed */}
+            {!animal.isLocal && listingStatus === 'unavailable' && (
+              <div className="mb-4 bg-gray-50 border border-gray-200 text-gray-600 text-sm rounded-xl px-3.5 py-2.5">
+                {animal.name} is no longer listed as available — they may have been adopted.
+              </div>
+            )}
+            {!animal.isLocal && listingStatus === 'pending' && (
+              <div className="mb-4 bg-amber-50 border border-amber-200 text-amber-700 text-sm rounded-xl px-3.5 py-2.5">
+                {animal.name}&apos;s adoption is pending with {animal.orgName}.
+              </div>
+            )}
+
             {/* Description */}
             {animal.description && (
               <p className="text-sm text-gray-600 leading-relaxed mb-5">{animal.description}</p>
@@ -305,15 +347,15 @@ export default function AnimalDetailSheet({
               </a>
             ) : (
               <div className="flex flex-col gap-2">
-                {animal.orgUrl ? (
+                {primary ? (
                   <a
-                    href={animal.orgUrl.startsWith('http') ? animal.orgUrl : `https://${animal.orgUrl}`}
+                    href={primary.href}
                     target="_blank"
-                    rel="noreferrer"
+                    rel="noopener noreferrer"
                     className="flex items-center justify-center gap-2 w-full py-3.5 rounded-2xl text-white font-semibold shadow"
                     style={{ backgroundColor: '#e05a4e' }}
                   >
-                    Visit {animal.orgName}&apos;s website
+                    {primary.label}
                     <ExternalLink size={14} />
                   </a>
                 ) : (
@@ -347,7 +389,7 @@ export default function AnimalDetailSheet({
                         await navigator.share({
                           title: `${animal.name} needs a home!`,
                           text: `Meet ${animal.name} — a ${animal.breed ?? animal.type} from ${animal.orgName} looking for their forever home. Found on Pawfect Match!`,
-                          url: animal.orgUrl ?? animal.url,
+                          url: primary?.href ?? window.location.origin,
                         })
                       }
                     } catch { /* user cancelled or not supported */ }
@@ -356,6 +398,12 @@ export default function AnimalDetailSheet({
                 >
                   📤 Share {animal.name}
                 </button>
+                {/* Provenance — where this listing comes from and how fresh it is */}
+                <p className="text-[11px] text-gray-400 text-center pt-1">
+                  Listing from RescueGroups.org
+                  {formatListingDate(animal.updatedAt) && <> · updated {formatListingDate(animal.updatedAt)}</>}
+                  {' '}· confirm details with {animal.orgName}
+                </p>
               </div>
             )}
           </div>
@@ -384,4 +432,7 @@ export const TAG_COLORS: Record<string, string> = {
   'Leash-trained': 'bg-green-50 text-green-600',
   'Crate-trained': 'bg-stone-50 text-stone-600',
   'Apartment OK':  'bg-purple-50 text-purple-600',
+  'High energy':   'bg-orange-50 text-orange-600',
+  'Low energy':    'bg-teal-50 text-teal-600',
+  'Special needs': 'bg-sky-50 text-sky-700',
 }

@@ -24,7 +24,7 @@ test('browse, like a pet, get matched, and see a way to contact the rescue', asy
   // them directly" fallback. Assert whichever the current pet resolved to.
   const modal = page.locator('.fixed.inset-0.z-\\[60\\]')
   const viewProfileLink = modal.getByRole('link', { name: /profile & apply/i })
-  const contactCta = modal.getByRole('link', { name: /website|email|^\+?[\d ()-]+$/i })
+  const contactCta = modal.getByRole('link', { name: /listing|apply with|website|email|^📞|^\+?[\d ()-]+$/i })
   const contactFallbackText = modal.getByText(/Contact them to start/i)
 
   if (await viewProfileLink.count() > 0) {
