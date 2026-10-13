@@ -1045,6 +1045,7 @@ export default function RescueDashboardPage() {
                           ...f,
                           existingPhotos: f.existingPhotos.filter((_, j) => j !== i),
                         }))}
+                        aria-label="Remove photo"
                         className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/50 flex items-center justify-center text-white hover:bg-black/70"
                       >
                         <X size={11} />
@@ -1067,6 +1068,7 @@ export default function RescueDashboardPage() {
                           photos: f.photos.filter((_, j) => j !== i),
                           photoPreviews: f.photoPreviews.filter((_, j) => j !== i),
                         }))}
+                        aria-label="Remove photo"
                         className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/50 flex items-center justify-center text-white hover:bg-black/70"
                       >
                         <X size={11} />
