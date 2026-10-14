@@ -9,11 +9,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   const { data: pet } = await supabase
     .from('pets')
-    .select('name, breed, species')
+    .select('name, breed, species, rescue:rescues(published)')
     .eq('id', id)
     .single()
 
-  if (!pet) return { title: 'Pet Details' }
+  // Don't leak a draft rescue's pet through the page title / share preview
+  const rescue = Array.isArray(pet?.rescue) ? pet.rescue[0] : pet?.rescue
+  if (!pet || rescue?.published === false) return { title: 'Pet Details' }
 
   const subtitle = [pet.breed, pet.species].filter(Boolean).join(' · ')
   return {

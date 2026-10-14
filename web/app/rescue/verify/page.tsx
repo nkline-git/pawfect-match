@@ -73,7 +73,7 @@ export default function RescueVerifyPage() {
 
           {/* Steps */}
           <div className="flex items-center gap-2 mb-6">
-            {['Verify EIN', 'Set up profile', 'Go live'].map((step, i) => (
+            {['Verify EIN', 'Build your page', 'Get verified'].map((step, i) => (
               <div key={step} className="flex items-center gap-2">
                 <div className={`flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full ${
                   i === 0
@@ -164,8 +164,8 @@ export default function RescueVerifyPage() {
               Build your page now, verify later →
             </a>
             <p className="text-[11px] text-gray-400 mt-1.5 leading-relaxed">
-              You can set everything up today. Before your page goes live, add your
-              EIN or request a quick manual review from our team.
+              You can set everything up today. When you&apos;re ready, submit your page
+              for review — adding your EIN then speeds up verification.
             </p>
           </div>
         </div>

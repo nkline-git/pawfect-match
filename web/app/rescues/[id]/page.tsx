@@ -45,6 +45,8 @@ export default function RescuePublicPage() {
   const [pets,    setPets]    = useState<Pet[]>([])
   const [events,  setEvents]  = useState<RescueEvent[]>([])
   const [loading, setLoading] = useState(true)
+  // The rescue itself may preview its own draft page
+  const [isOwner, setIsOwner] = useState(false)
 
   // Animal directory: search + filters
   const [petQuery,      setPetQuery]      = useState('')
@@ -65,6 +67,8 @@ export default function RescuePublicPage() {
           .then(r => r)  // events table may not exist yet
       ])
 
+      const { data: { user } } = await supabase.auth.getUser()
+      setIsOwner(!!user && user.id === rescueRes.data?.user_id)
       setRescue(rescueRes.data)
       setPets((petsRes.data ?? []) as Pet[])
       if (!eventsRes.error) setEvents(eventsRes.data ?? [])
@@ -93,8 +97,8 @@ export default function RescuePublicPage() {
     )
   }
 
-  // Draft pages (built without an EIN, not yet approved) aren't public
-  if (rescue.published === false) {
+  // Draft pages aren't public until an admin verifies the rescue
+  if (rescue.published === false && !isOwner) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-4 px-4 text-center">
         <span className="text-5xl">📝</span>
@@ -126,6 +130,15 @@ export default function RescuePublicPage() {
           </button>
           <span className="text-white font-semibold truncate">{rescue.name}</span>
         </div>
+
+        {rescue.published === false && (
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 mb-4 text-center">
+            <p className="text-sm font-semibold text-amber-900">Private preview</p>
+            <p className="text-xs text-amber-800 mt-0.5">
+              This is how adopters will see your page. Only you can see it until your rescue is verified.
+            </p>
+          </div>
+        )}
 
         {/* Banner + Identity */}
         <div className="bg-white rounded-2xl shadow-lg overflow-hidden mb-4">

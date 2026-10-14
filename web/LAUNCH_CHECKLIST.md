@@ -13,7 +13,10 @@ _Last updated: October 12, 2026_
    + 4 products, 2 fake events, the junk "123" rescue + 2 pets, and the 3 demo
    login accounts (their passwords were published in this public repo).
 2. **Apply migration `015_protect_verification.sql`.** Until it's applied, any
-   rescue or store owner can mark themselves Verified/Featured from the browser.
+   rescue or store owner can mark themselves Verified/Featured (or publish
+   themselves) from the browser, and draft rescues' pets are readable through
+   the API. After it: only an admin's Verify publishes a rescue, and draft
+   pets are visible only to their own rescue.
 3. **Fix the support email.** Privacy Policy and Terms list
    `support@pawfectmatch.app`, but that domain doesn't exist — every privacy
    or support request bounces. Choose a real address.
@@ -42,8 +45,13 @@ _Last updated: October 12, 2026_
 - **Zip-code search never worked anywhere** (Nominatim 400s when `q` is mixed
   with `postalcode`) → fixed in `lib/geocode.ts`; feed + Shop use it.
 - **Rescue "EIN verification" was simulated** (accepted any 9 digits) → now a
-  real IRS 501(c)(3) lookup via ProPublica (`lib/ein.ts`). Dashboard publish
-  goes through `/api/rescue/publish` (same check + admin notification).
+  real IRS 501(c)(3) lookup via ProPublica (`lib/ein.ts`).
+- **Rescues build privately; only you publish.** Every rescue starts as a
+  draft: full profile + pets (incl. spreadsheet import), with private
+  previews of its page and listings. "Submit for review" (EIN optional,
+  IRS-checked) emails you the IRS record and pet count; only /admin → Verify
+  publishes. Previously an EIN at sign-up published instantly, unreviewed,
+  and a draft's pets could be opened by direct link.
 - **Shop** had invented prices, discounts, star ratings, review counts,
   "Vet recommended" badges, stock dog photos as product images, and a fake
   "PAWFECT20" coupon → all removed; cards link to Chewy for real prices.
@@ -65,9 +73,9 @@ _Last updated: October 12, 2026_
 - Secondary text is light gray on white or white on the taupe background in
   many places — below WCAG AA contrast. Changing it app-wide would visibly
   alter the design, so only the worst case (gray on taupe) was fixed.
-- EIN publishing proves the EIN is a real 501(c)(3), not that the account
-  represents it. The "Verified rescue" badge (admin-only after migration
-  015) is the identity check; the owner gets an email on every publish.
+- The EIN check proves the EIN is a real 501(c)(3), not that the account
+  represents it — that's what your review before clicking Verify is for
+  (e.g. call the number on the organization's own public website).
 
 ## ✅ Cleanup pass: CI, image optimization, component tests, edit-pet, security
 

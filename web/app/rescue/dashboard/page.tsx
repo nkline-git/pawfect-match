@@ -328,20 +328,21 @@ function editPetForm(pet: Pet): NewPet {
   }
 }
 
-// Draft rescues (no EIN yet) see this instead of the pending-review banner:
-// publish by adding the EIN now, or request a manual review that lands in
-// the admin dashboard + the site owner's inbox
+// Draft rescues see this instead of the pending-verification banner. Their
+// page and pets are private (hidden from adopters at the database level)
+// while they build; when ready they submit for review, optionally with an
+// EIN. Only an admin's Verify in /admin publishes the page.
 function PublishGate({
-  rescue, onPublished,
+  rescue, petCount, onSubmitted,
 }: {
   rescue: Rescue
-  onPublished: () => void
+  petCount: number
+  onSubmitted: () => void
 }) {
-  const [einInput,   setEinInput]   = useState('')
-  const [publishing, setPublishing] = useState(false)
-  const [requesting, setRequesting] = useState(false)
-  const [requested,  setRequested]  = useState(!!rescue.approval_requested_at)
+  const [einInput,   setEinInput]   = useState(rescue.ein ?? '')
+  const [submitting, setSubmitting] = useState(false)
   const [error,      setError]      = useState<string | null>(null)
+  const submitted = !!rescue.approval_requested_at
 
   const formatEin = (value: string) => {
     const digits = value.replace(/\D/g, '').slice(0, 9)
@@ -349,42 +350,45 @@ function PublishGate({
     return digits
   }
 
-  const publishWithEin = async () => {
+  const submitForReview = async () => {
     const digits = einInput.replace(/\D/g, '')
-    if (digits.length !== 9) { setError('Enter a valid 9-digit EIN (XX-XXXXXXX).'); return }
-    setPublishing(true)
+    if (digits.length > 0 && digits.length !== 9) {
+      setError('Enter a valid 9-digit EIN (XX-XXXXXXX), or leave it blank.')
+      return
+    }
+    setSubmitting(true)
     setError(null)
-    // The EIN is checked server-side against IRS 501(c)(3) records before
-    // the page goes live (see app/api/rescue/publish)
     try {
-      const res  = await fetch('/api/rescue/publish', {
+      // The EIN (if any) is checked server-side against IRS 501(c)(3) records
+      const res  = await fetch('/api/rescue/request-approval', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ein: einInput }),
+        body: JSON.stringify(digits.length === 9 && einInput !== rescue.ein ? { ein: einInput } : {}),
       })
       const json = await res.json()
-      if (!res.ok) { setError(json.error ?? 'Could not publish. Please try again.'); return }
-      onPublished()
+      if (!res.ok) { setError(json.error ?? 'Request failed. Please try again.'); return }
+      onSubmitted()
     } catch {
       setError('Network error. Please try again.')
     } finally {
-      setPublishing(false)
+      setSubmitting(false)
     }
   }
 
-  const requestApproval = async () => {
-    setRequesting(true)
-    setError(null)
-    try {
-      const res  = await fetch('/api/rescue/request-approval', { method: 'POST' })
-      const json = await res.json()
-      if (!res.ok) { setError(json.error ?? 'Request failed. Please try again.'); return }
-      setRequested(true)
-    } catch {
-      setError('Network error. Please try again.')
-    } finally {
-      setRequesting(false)
-    }
+  if (submitted) {
+    return (
+      <div className="bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3.5 mb-4 flex items-start gap-2">
+        <span className="text-lg mt-0.5">⏳</span>
+        <div>
+          <p className="text-sm font-bold text-amber-900">Submitted for review</p>
+          <p className="text-xs text-amber-800 leading-relaxed">
+            We&apos;re verifying your rescue{rescue.ein ? ` (EIN ${rescue.ein})` : ''}. Your page goes live
+            once approved. You can keep editing your profile and adding pets in the meantime —
+            everything stays private until then.
+          </p>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -392,58 +396,50 @@ function PublishGate({
       <div className="flex items-start gap-2 mb-3">
         <span className="text-lg">📝</span>
         <div>
-          <p className="text-sm font-bold text-gray-900">Your page is a draft</p>
+          <p className="text-sm font-bold text-gray-900">Your page is a private draft</p>
           <p className="text-xs text-gray-500 leading-relaxed">
-            Adopters can&apos;t see your rescue or its animals yet. Publish it one of two ways:
+            Adopters can&apos;t see your rescue or its animals yet. Finish your profile and add
+            your pets, then submit for review — we&apos;ll verify your rescue and publish it.
           </p>
         </div>
       </div>
 
-      {/* Option 1 — add EIN */}
-      <div className="mb-3">
-        <p className="text-xs font-semibold text-gray-700 mb-1.5">1 · Add your EIN</p>
-        <div className="flex gap-2">
-          <input
-            value={einInput}
-            onChange={e => setEinInput(formatEin(e.target.value))}
-            placeholder="XX-XXXXXXX"
-            className="flex-1 min-w-0 border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none font-mono tracking-widest placeholder:text-gray-400"
-            onFocus={e => e.target.style.borderColor = '#e05a4e'}
-            onBlur={e => e.target.style.borderColor = '#e5e7eb'}
-          />
-          <button
-            onClick={publishWithEin}
-            disabled={publishing || !einInput.trim()}
-            className="px-4 py-2 rounded-xl text-white text-xs font-semibold disabled:opacity-40 flex items-center gap-1.5 flex-shrink-0"
-            style={{ backgroundColor: '#e05a4e' }}
-          >
-            {publishing ? <Loader2 size={13} className="animate-spin" /> : 'Publish'}
-          </button>
-        </div>
+      {/* Readiness — guidance only, never blocks submitting */}
+      <ul className="text-xs text-gray-600 space-y-1 mb-3 pl-1">
+        <li className="flex items-center gap-1.5">
+          <span aria-hidden="true">{rescue.mission && (rescue.email || rescue.phone) ? '✅' : '⬜'}</span>
+          Profile: mission and a way for adopters to reach you
+        </li>
+        <li className="flex items-center gap-1.5">
+          <span aria-hidden="true">{petCount > 0 ? '✅' : '⬜'}</span>
+          {petCount > 0 ? `${petCount} pet${petCount === 1 ? '' : 's'} added` : 'Add your first pet'}
+        </li>
+      </ul>
+
+      <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+        EIN <span className="font-normal text-gray-400">(optional — speeds up verification)</span>
+      </label>
+      <div className="flex gap-2">
+        <input
+          value={einInput}
+          onChange={e => setEinInput(formatEin(e.target.value))}
+          placeholder="XX-XXXXXXX"
+          aria-label="EIN"
+          className="flex-1 min-w-0 border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none font-mono tracking-widest placeholder:text-gray-400"
+          onFocus={e => e.target.style.borderColor = '#e05a4e'}
+          onBlur={e => e.target.style.borderColor = '#e5e7eb'}
+        />
+        <button
+          onClick={submitForReview}
+          disabled={submitting}
+          className="px-4 py-2 rounded-xl text-white text-xs font-semibold disabled:opacity-40 flex items-center gap-1.5 flex-shrink-0"
+          style={{ backgroundColor: '#e05a4e' }}
+        >
+          {submitting ? <Loader2 size={13} className="animate-spin" /> : 'Submit for review'}
+        </button>
       </div>
 
-      {/* Option 2 — manual review */}
-      <div>
-        <p className="text-xs font-semibold text-gray-700 mb-1.5">2 · No EIN? Ask for a manual review</p>
-        {requested ? (
-          <div className="bg-green-50 border border-green-200 rounded-xl px-3 py-2.5 flex items-center gap-2">
-            <Check size={14} className="text-green-600 flex-shrink-0" />
-            <p className="text-xs text-green-800">
-              Review requested — our team will look over your page and publish it once approved.
-            </p>
-          </div>
-        ) : (
-          <button
-            onClick={requestApproval}
-            disabled={requesting}
-            className="w-full py-2 rounded-xl border border-gray-200 text-xs font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-40 flex items-center justify-center gap-1.5"
-          >
-            {requesting ? <Loader2 size={13} className="animate-spin" /> : 'Request approval'}
-          </button>
-        )}
-      </div>
-
-      {error && <p className="text-xs text-red-600 mt-2">{error}</p>}
+      {error && <p role="alert" className="text-xs text-red-600 mt-2">{error}</p>}
     </div>
   )
 }
@@ -715,7 +711,7 @@ export default function RescueDashboardPage() {
 
         {/* Draft publish gate / verification badge */}
         {rescue.published === false ? (
-          <PublishGate rescue={rescue} onPublished={refetchRescue} />
+          <PublishGate rescue={rescue} petCount={pets.length} onSubmitted={refetchRescue} />
         ) : !rescue.verified && (
           <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-4 flex items-start gap-2">
             <span className="text-amber-500 mt-0.5">⏳</span>

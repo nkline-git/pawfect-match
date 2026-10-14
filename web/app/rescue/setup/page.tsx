@@ -92,12 +92,15 @@ function RescueSetupForm() {
       appointment_required: false,
       requirements: { application: true, homeVisit: false, refCheck: false, trial: false },
       requirement_notes: null,
-      // No EIN = draft page: hidden from adopters until they add an EIN or
-      // an admin approves their manual-review request (dashboard banner)
+      // Every rescue starts as a private draft: they finish their page and
+      // add pets, then submit for review from the dashboard. Only an admin's
+      // Verify publishes it (enforced in the DB by migration 015). An EIN
+      // given here was already checked against IRS records on /rescue/verify
+      // and is attached to the review request.
       ein: ein || null,
       verified: false,
       verified_at: null,
-      published: !!ein,
+      published: false,
       approval_requested_at: null,
       stats: { animals: 0, placed: 0, apps: 0 },
     })
@@ -124,7 +127,7 @@ function RescueSetupForm() {
 
         {/* Progress */}
         <div className="flex items-center gap-2 mb-6">
-          {['Verify EIN', 'Set up profile', 'Go live'].map((step, i) => (
+          {['Verify EIN', 'Build your page', 'Get verified'].map((step, i) => (
             <div key={step} className="flex items-center gap-2 flex-1">
               <div className={`flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full ${
                 i < 2 ? 'text-white' : 'bg-gray-100 text-gray-400'
@@ -139,16 +142,15 @@ function RescueSetupForm() {
 
         <div className="bg-white rounded-2xl shadow-lg p-6 space-y-4">
 
-          {!ein && (
-            <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 flex items-start gap-2">
-              <span className="mt-0.5">📝</span>
-              <p className="text-xs text-blue-800 leading-relaxed">
-                <span className="font-semibold">Building without an EIN.</span> You can
-                set up everything now — your page stays a private draft until you add
-                your EIN or request approval from your dashboard.
-              </p>
-            </div>
-          )}
+          <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 flex items-start gap-2">
+            <span className="mt-0.5">📝</span>
+            <p className="text-xs text-blue-800 leading-relaxed">
+              <span className="font-semibold">Your page starts as a private draft.</span> Set
+              up your profile and add your animals at your own pace — adopters won&apos;t
+              see anything until you submit for review from your dashboard and we verify
+              your rescue.
+            </p>
+          </div>
 
           {/* Logo */}
           <div>

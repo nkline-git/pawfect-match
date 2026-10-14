@@ -37,6 +37,8 @@ type PetWithRescue = Pet & {
     phone: string | null
     email: string | null
     website: string | null
+    user_id: string | null
+    published?: boolean
   } | null
 }
 
@@ -61,14 +63,18 @@ export default function PetDetailPage() {
     const load = async () => {
       const { data } = await supabase
         .from('pets')
-        .select('*, rescue:rescues(id, name, city, logo, phone, email, website)')
+        .select('*, rescue:rescues(id, name, city, logo, phone, email, website, user_id, published)')
         .eq('id', id)
         .single()
-      setPet(data)
+      const { data: { user } } = await supabase.auth.getUser()
+      // A draft rescue's pets are private until an admin verifies the rescue
+      // — only the rescue itself can preview them (the DB enforces this too
+      // once migration 015 is applied)
+      const isDraft = data?.rescue?.published === false && data.rescue.user_id !== user?.id
+      setPet(isDraft ? null : data)
       setLoading(false)
 
-      if (data) {
-        const { data: { user } } = await supabase.auth.getUser()
+      if (data && !isDraft) {
         if (user) {
           const { data: savedRow } = await supabase
             .from('saved_pets')
@@ -372,6 +378,16 @@ export default function PetDetailPage() {
           </div>
         )}
 
+        {/* The rescue previewing its own draft listing */}
+        {pet.rescue?.published === false && (
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 mb-4 text-center">
+            <p className="text-sm font-semibold text-amber-900">Private preview</p>
+            <p className="text-xs text-amber-800 mt-0.5">
+              Only you can see this listing. It goes live when your rescue is verified.
+            </p>
+          </div>
+        )}
+
         {/* Availability — adopted/pending pets can't take new applications */}
         {pet.status !== 'available' && (
           <div className="bg-white rounded-2xl shadow-lg px-5 py-4 mb-6 text-center">
@@ -389,7 +405,7 @@ export default function PetDetailPage() {
 
         {/* Apply button — rescue listings only; owner-rehoming pets are
             contacted by email above (applications require a rescue) */}
-        {pet.status === 'available' && pet.rescue && (
+        {pet.status === 'available' && pet.rescue && pet.rescue.published !== false && (
           <>
             <button
               onClick={() => { if (!applied) setShowApplyForm(true) }}

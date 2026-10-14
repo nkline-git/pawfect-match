@@ -12,6 +12,7 @@ const h = vi.hoisted(() => ({
   calls: [] as Call[],
   uploads: [] as string[],
   refetch: () => {},
+  refetchRescue: () => {},
   pets: [] as Pet[],
   rescue: null as Rescue | null,
 }))
@@ -54,7 +55,7 @@ vi.mock('next/image', () => ({
   default: (props: { src: string; alt: string }) => <img src={props.src} alt={props.alt} />,
 }))
 vi.mock('@/hooks/useRescue', () => ({
-  useRescue: () => ({ rescue: h.rescue, loading: false, updateRescue: vi.fn() }),
+  useRescue: () => ({ rescue: h.rescue, loading: false, updateRescue: vi.fn(), refetch: h.refetchRescue }),
 }))
 vi.mock('@/hooks/usePets', () => ({
   usePets: () => ({ pets: h.pets, loading: false, refetch: h.refetch }),
@@ -93,6 +94,7 @@ beforeEach(() => {
   h.calls = []
   h.uploads = []
   h.refetch = vi.fn()
+  h.refetchRescue = vi.fn()
   h.pets = [MAPLE]
   h.rescue = RESCUE
   window.scrollTo = vi.fn() as unknown as typeof window.scrollTo
@@ -199,5 +201,80 @@ describe('rescue dashboard — edit pet', () => {
 
     expect(screen.queryByRole('heading', { name: /Edit/ })).not.toBeInTheDocument()
     expect(writes()).toHaveLength(0)
+  })
+})
+
+describe('rescue dashboard — draft page and review', () => {
+  const DRAFT: Rescue = { ...RESCUE, ein: null, verified: false, published: false, approval_requested_at: null, mission: 'We rescue dogs.', email: 'hi@rescue.example' }
+  const respond = (ok: boolean, body: unknown) =>
+    vi.fn().mockResolvedValue({ ok, json: async () => body }) as unknown as typeof fetch
+
+  it('a draft rescue can still add and edit pets, and sees what is left before submitting', async () => {
+    h.rescue = DRAFT
+    render(<RescueDashboardPage />)
+    expect(await screen.findByText('Your page is a private draft')).toBeInTheDocument()
+    expect(screen.getByText('1 pet added')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Add new pet/ })).toBeInTheDocument()
+    expect(screen.getByTitle('Edit this listing')).toBeInTheDocument()
+  })
+
+  it('submits for review with an EIN — it never publishes the page itself', async () => {
+    h.rescue = DRAFT
+    const fetchSpy = respond(true, { ok: true })
+    vi.stubGlobal('fetch', fetchSpy)
+    const user = userEvent.setup()
+    render(<RescueDashboardPage />)
+
+    await user.type(await screen.findByLabelText('EIN'), '481234567')
+    await user.click(screen.getByRole('button', { name: 'Submit for review' }))
+
+    await waitFor(() => expect(h.refetchRescue).toHaveBeenCalled())
+    expect(fetchSpy).toHaveBeenCalledWith('/api/rescue/request-approval', expect.objectContaining({
+      method: 'POST', body: JSON.stringify({ ein: '48-1234567' }),
+    }))
+    // No client-side write to published/verified
+    expect(writes().filter(w => w.table === 'rescues')).toEqual([])
+    vi.unstubAllGlobals()
+  })
+
+  it('can submit without an EIN', async () => {
+    h.rescue = DRAFT
+    const fetchSpy = respond(true, { ok: true })
+    vi.stubGlobal('fetch', fetchSpy)
+    const user = userEvent.setup()
+    render(<RescueDashboardPage />)
+    await user.click(await screen.findByRole('button', { name: 'Submit for review' }))
+    await waitFor(() => expect(h.refetchRescue).toHaveBeenCalled())
+    expect(fetchSpy).toHaveBeenCalledWith('/api/rescue/request-approval', expect.objectContaining({ body: '{}' }))
+    vi.unstubAllGlobals()
+  })
+
+  it('rejects a partial EIN without calling the server, and shows server errors', async () => {
+    h.rescue = DRAFT
+    const fetchSpy = respond(false, { error: "We couldn't find this EIN in IRS nonprofit records." })
+    vi.stubGlobal('fetch', fetchSpy)
+    const user = userEvent.setup()
+    render(<RescueDashboardPage />)
+
+    const ein = await screen.findByLabelText('EIN')
+    await user.type(ein, '1234')
+    await user.click(screen.getByRole('button', { name: 'Submit for review' }))
+    expect(screen.getByRole('alert')).toHaveTextContent('9-digit EIN')
+    expect(fetchSpy).not.toHaveBeenCalled()
+
+    await user.type(ein, '56789')
+    await user.click(screen.getByRole('button', { name: 'Submit for review' }))
+    expect(await screen.findByText(/couldn't find this EIN/)).toBeInTheDocument()
+    expect(h.refetchRescue).not.toHaveBeenCalled()
+    vi.unstubAllGlobals()
+  })
+
+  it('after submitting, shows the pending review and keeps editing open', async () => {
+    h.rescue = { ...DRAFT, ein: '48-1234567', approval_requested_at: '2026-10-13T00:00:00Z' }
+    render(<RescueDashboardPage />)
+    expect(await screen.findByText('Submitted for review')).toBeInTheDocument()
+    expect(screen.getByText(/EIN 48-1234567/)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Submit for review' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Add new pet/ })).toBeInTheDocument()
   })
 })

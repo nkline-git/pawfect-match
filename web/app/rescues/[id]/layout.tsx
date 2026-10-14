@@ -9,11 +9,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   const { data: rescue } = await supabase
     .from('rescues')
-    .select('name, city')
+    .select('name, city, published')
     .eq('id', id)
     .single()
 
-  if (!rescue) return { title: 'Rescue Details' }
+  // Draft pages stay private — don't leak the name via title/share preview
+  if (!rescue || rescue.published === false) return { title: 'Rescue Details' }
 
   return {
     title: rescue.name,
