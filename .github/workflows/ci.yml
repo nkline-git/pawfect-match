@@ -19,10 +19,14 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
+          cache: npm
+          cache-dependency-path: web/package-lock.json
 
       - name: Install dependencies
-        run: npm install
+        # Exact versions from the committed lockfile — a fresh resolve on every
+        # run let a newly published package break CI (npm 10 'edgesOut' crash)
+        run: npm ci
 
       - name: Lint
         run: npm run lint
@@ -66,10 +70,14 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
+          cache: npm
+          cache-dependency-path: web/package-lock.json
 
       - name: Install dependencies
-        run: npm install
+        # Exact versions from the committed lockfile — a fresh resolve on every
+        # run let a newly published package break CI (npm 10 'edgesOut' crash)
+        run: npm ci
 
       - name: Install Playwright browser
         run: npx playwright install --with-deps chromium
