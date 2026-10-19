@@ -19,6 +19,8 @@ import type { PetSpecies, PetPreferences, SavedRGAnimal, UnifiedPet } from '@/ty
 import { RG_SAVED_KEY, RG_SEEN_KEY, HIDE_MATCH_POPUP_KEY, GUEST_PREFS_KEY, GUEST_RADIUS_KEY } from '@/types'
 import { haversineMiles, applyPreferences, localPetToUnified } from '@/lib/matching'
 import { prefsToParams } from '@/lib/rescuegroups'
+import { rememberVisitorCoords } from '@/lib/sponsors'
+import SponsoredBanner from '@/components/ui/SponsoredBanner'
 import { RADIUS_MIN, RADIUS_STEP, RADIUS_ANY, SLIDER_ANY, radiusToSlider, sliderToRadius, formatRadius } from '@/lib/radius'
 
 
@@ -207,6 +209,8 @@ export default function BrowsePage() {
   const searchCity = profile?.city
     ? (sessionCityIsManual && guestCity ? guestCity : profile.city)
     : (guestCity || 'Wichita, KS')
+  // False when browsing the nationwide default (no city chosen anywhere)
+  const hasRealLocation = !!(profile?.city || guestCity)
 
   // Radius priority:
   //   1. Logged-in user → always use their profile slider (even if guestCity is set)
@@ -444,6 +448,11 @@ export default function BrowsePage() {
             )
           : unseenLocal
 
+        // Remember where this visitor is searching so location-targeted
+        // sponsors can be matched on every page. The nationwide default
+        // center (no city set) is not a real location — forget it then.
+        rememberVisitorCoords(hasRealLocation ? data.searchCoords ?? null : null)
+
         if (data.setup) {
           setAnimals(nearbyLocal)
         } else {
@@ -475,7 +484,7 @@ export default function BrowsePage() {
       })
       .finally(() => { if (!ac.signal.aborted) setRgLoading(false) })
     return () => ac.abort()
-  }, [pets, speciesFilter, prefs, searchCity, searchRadius, retryTick, profileLoading])
+  }, [pets, speciesFilter, prefs, searchCity, searchRadius, retryTick, profileLoading, hasRealLocation])
 
   // ── Auto-load more when queue is getting low (< 15 animals left) ─
   useEffect(() => {
@@ -1272,6 +1281,10 @@ export default function BrowsePage() {
                     📞 {matchedPet.orgPhone}
                   </a>
                 )}
+                {/* Sponsor — the "just adopted" moment: vets, trainers, insurance */}
+                <div className="text-left pt-1">
+                  <SponsoredBanner placement="match" inline />
+                </div>
                 <button
                   onClick={() => setMatchedPet(null)}
                   className="py-3 rounded-xl text-sm font-semibold text-gray-500 border border-gray-200 hover:bg-gray-50 transition-colors"

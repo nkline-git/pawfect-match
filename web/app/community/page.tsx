@@ -755,6 +755,14 @@ export default function CommunityPage() {
             <p className="text-xs font-semibold text-gray-700 leading-tight">Own a pet store?</p>
             <p className="text-[10px] leading-tight" style={{ color: '#e05a4e' }}>Create your page →</p>
           </Link>
+          <Link
+            href="/sponsors"
+            className="col-span-2 flex items-center justify-center gap-2 bg-white rounded-2xl shadow-sm px-3 py-2.5 text-center hover:shadow-md transition-shadow"
+          >
+            <span className="text-lg" aria-hidden="true">💼</span>
+            <p className="text-xs font-semibold text-gray-700">Pet business?</p>
+            <p className="text-[10px]" style={{ color: '#e05a4e' }}>Become a sponsor →</p>
+          </Link>
         </div>
 
         </div>{/* end scrollable */}

@@ -4,6 +4,9 @@ import userEvent from '@testing-library/user-event'
 import AnimalDetailSheet, { shortBreed, formatAge } from './AnimalDetailSheet'
 import type { UnifiedPet, PetPreferences } from '@/types'
 
+// The sponsor slot talks to Supabase; it has its own tests (SponsoredBanner.test)
+vi.mock('@/components/ui/SponsoredBanner', () => ({ default: () => null }))
+
 function makeAnimal(overrides: Partial<UnifiedPet> = {}): UnifiedPet {
   return {
     id: 'a1', name: 'Buddy', type: 'dog', breed: 'Golden Retriever', age: '2 Years',

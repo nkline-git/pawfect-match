@@ -2,6 +2,28 @@
 
 _Last updated: October 12, 2026_
 
+## 💼 Sponsor tools (Oct 18, 2026)
+
+**Apply `supabase/migrations/016_sponsor_tools.sql`** in the Supabase SQL editor
+(after 015). The app works before it's applied; targeting, the new placements,
+report links, and stored inquiries switch on once it is. Tested — along with
+every earlier migration — against a real Postgres (PGlite) with 29 behavior
+checks before shipping.
+
+How to sell and run a sponsorship:
+1. Point local pet businesses at **/sponsors** (also linked from Community).
+   Inquiries land in **/admin → Ads → Sponsor inquiries** and in your email.
+2. In **/admin → Ads → New ad**: sponsor name, placement (**"It's a match!"
+   popup** and **Pet details** are the high-attention spots), and audience —
+   nationwide, or a city + radius. Local ads only show to adopters searching
+   within that radius; visitors with no location see nationwide ads only.
+3. Click **Copy sponsor report link** and send it to the sponsor: a private
+   page with views, clicks, and click rate by day (last 30 days + all time).
+   No visitor data is collected or shown.
+
+Not built yet: "Sponsored adoptions" (fee sponsorship badges on pets) — the
+sponsor page lists it as coming soon so you can gauge interest first.
+
 ## 🔍 Production audit (Oct 12, 2026): real pets only
 
 ### Release blockers that need the owner's approval (not done automatically)

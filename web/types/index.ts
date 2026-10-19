@@ -273,7 +273,8 @@ export interface UnifiedPet {
 }
 
 // ── Sponsored ads (house ads, admin-curated — no ad network) ──────
-export type AdPlacement = 'shop' | 'community' | 'saved'
+// 'match' = the "It's a match!" popup, 'detail' = the pet detail sheet (016)
+export type AdPlacement = 'shop' | 'community' | 'saved' | 'match' | 'detail'
 
 export interface SponsoredAd {
   id: string
@@ -292,6 +293,12 @@ export interface SponsoredAd {
   clicks: number
   created_at: string
   updated_at: string
+  // Added by migration 016 — absent until it's applied
+  sponsor_name?: string | null
+  target_city?: string | null       // display label, e.g. "San Diego, CA"
+  target_lat?: number | null        // null = nationwide
+  target_lon?: number | null
+  target_radius_mi?: number | null
 }
 
 export const RG_SAVED_KEY = 'pawfect_saved_rg'

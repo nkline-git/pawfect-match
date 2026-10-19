@@ -6,6 +6,7 @@ import { useState, useEffect } from 'react'
 import Image from 'next/image'
 import { X, ChevronLeft, ChevronRight, MapPin, ExternalLink, Globe } from 'lucide-react'
 import type { UnifiedPet, PetPreferences } from '@/types'
+import SponsoredBanner from '@/components/ui/SponsoredBanner'
 
 // Shorten breed strings: "Domestic Short Hair / Mixed (short coat)" → "Domestic Short Hair"
 // Also trims RG compound breeds like "Parakeet - Other" → "Parakeet"
@@ -406,6 +407,11 @@ export default function AnimalDetailSheet({
                 </p>
               </div>
             )}
+
+            {/* Sponsor — below the adoption actions, never between them */}
+            <div className="mt-5">
+              <SponsoredBanner placement="detail" inline />
+            </div>
           </div>
         </div>
       </div>

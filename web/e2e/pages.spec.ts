@@ -8,6 +8,7 @@ import { test, expect, type Page } from '@playwright/test'
 const PAGES = [
   '/', '/saved', '/shop', '/community', '/login', '/signup', '/forgot-password',
   '/rehome', '/sos', '/privacy', '/terms', '/rescue/verify', '/stores/register',
+  '/sponsors',
 ]
 
 const VIEWPORTS = [

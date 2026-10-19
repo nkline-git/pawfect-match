@@ -6,9 +6,27 @@ import { createClient } from '@/lib/supabase/client'
 import {
   ArrowLeft, Loader2, Check, X, Eye, EyeOff,
   Flag, AlertTriangle, Building2, BadgeCheck, Trash2,
-  Megaphone, Plus, Pencil, MousePointerClick, Store, Star,
+  Megaphone, Plus, Pencil, MousePointerClick, Store, Star, Link2, MapPin, Inbox,
 } from 'lucide-react'
 import type { SponsoredAd, AdPlacement } from '@/types'
+import CityAutocomplete from '@/components/ui/CityAutocomplete'
+import { geocodeCity } from '@/lib/geocode'
+import { ctr } from '@/lib/sponsors'
+
+const PLACEMENTS: { value: AdPlacement; label: string }[] = [
+  { value: 'match',     label: '“It’s a match!” popup' },
+  { value: 'detail',    label: 'Pet details' },
+  { value: 'shop',      label: 'Shop' },
+  { value: 'community', label: 'Community' },
+  { value: 'saved',     label: 'Saved' },
+]
+const RADIUS_OPTIONS = [10, 25, 50, 100, 250]
+
+type SponsorInquiry = {
+  id: string; business_name: string; contact_name: string; email: string; phone: string | null
+  website: string | null; city: string | null; package: string; message: string | null
+  status: 'new' | 'contacted' | 'won' | 'lost'; created_at: string
+}
 
 type PendingRescue = {
   id: string
@@ -87,6 +105,13 @@ export default function AdminPage() {
   const [adPlacement, setAdPlacement] = useState<AdPlacement>('shop')
   const [adPriority, setAdPriority] = useState(0)
   const [adActive,   setAdActive]   = useState(true)
+  // Sponsor tools (migration 016)
+  const [adSponsor,    setAdSponsor]    = useState('')
+  const [adTargetCity, setAdTargetCity] = useState('')        // '' = nationwide
+  const [adRadius,     setAdRadius]     = useState(25)
+  const [reportTokens, setReportTokens] = useState<Record<string, string>>({})
+  const [copiedAd,     setCopiedAd]     = useState<string | null>(null)
+  const [inquiries,    setInquiries]    = useState<SponsorInquiry[]>([])
 
   // Pet stores — no in-app checkout, so "featured" is a manually-toggled
   // paid placement (arranged with the seller off-platform); click counts
@@ -152,7 +177,26 @@ export default function AdminPage() {
       .select('*')
       .order('created_at', { ascending: false })
     setAds((data ?? []) as SponsoredAd[])
+    // Report links + inquiries arrive with migration 016 — silently empty before
+    const { data: links } = await supabase.from('sponsored_ad_reports').select('ad_id, token')
+    setReportTokens(Object.fromEntries(((links ?? []) as { ad_id: string; token: string }[]).map(l => [l.ad_id, l.token])))
+    const { data: inq } = await supabase.from('sponsor_inquiries').select('*').order('created_at', { ascending: false }).limit(50)
+    setInquiries((inq ?? []) as SponsorInquiry[])
   }, [supabase])
+
+  const copyReportLink = async (adId: string) => {
+    const token = reportTokens[adId]
+    if (!token) return
+    const url = `${window.location.origin}/sponsor/report/${token}`
+    try { await navigator.clipboard.writeText(url) } catch { window.prompt('Copy this report link:', url) }
+    setCopiedAd(adId)
+    setTimeout(() => setCopiedAd(c => (c === adId ? null : c)), 2000)
+  }
+
+  const setInquiryStatus = async (id: string, status: SponsorInquiry['status']) => {
+    const { error } = await supabase.from('sponsor_inquiries').update({ status }).eq('id', id)
+    if (!error) setInquiries(prev => prev.map(q => q.id === id ? { ...q, status } : q))
+  }
 
   const fetchStores = useCallback(async () => {
     // featured arrives with migration 014 — fall back to the older column
@@ -204,9 +248,12 @@ export default function AdminPage() {
     setAdImageUrl('')
     setAdCtaLabel('Learn more')
     setAdCtaUrl('')
-    setAdPlacement('shop')
+    setAdPlacement('match')
     setAdPriority(0)
     setAdActive(true)
+    setAdSponsor('')
+    setAdTargetCity('')
+    setAdRadius(25)
     setAdError(null)
   }
 
@@ -221,6 +268,9 @@ export default function AdminPage() {
     setAdPlacement(ad.placement)
     setAdPriority(ad.priority)
     setAdActive(ad.active)
+    setAdSponsor(ad.sponsor_name ?? '')
+    setAdTargetCity(ad.target_lat != null ? (ad.target_city ?? '') : '')
+    setAdRadius(ad.target_radius_mi ?? 25)
     setAdError(null)
     setShowAdForm(true)
   }
@@ -232,7 +282,21 @@ export default function AdminPage() {
     }
     setAdSaving(true)
     setAdError(null)
+    // Location targeting: geocode the city once, store its coordinates
+    let target: { target_city: string | null; target_lat: number | null; target_lon: number | null; target_radius_mi: number | null } =
+      { target_city: null, target_lat: null, target_lon: null, target_radius_mi: null }
+    if (adTargetCity.trim()) {
+      const c = await geocodeCity(adTargetCity)
+      if (!c) {
+        setAdSaving(false)
+        setAdError(`Couldn't find "${adTargetCity}". Try "City, ST" or a zip code.`)
+        return
+      }
+      target = { target_city: adTargetCity.trim(), target_lat: c.lat, target_lon: c.lon, target_radius_mi: adRadius }
+    }
     const payload = {
+      sponsor_name: adSponsor.trim() || null,
+      ...target,
       title: adTitle.trim(),
       body: adBody.trim() || null,
       emoji: adEmoji.trim() || '🐾',
@@ -247,7 +311,14 @@ export default function AdminPage() {
       ? await supabase.from('sponsored_ads').update(payload).eq('id', editingAd)
       : await supabase.from('sponsored_ads').insert(payload)
     setAdSaving(false)
-    if (error) { setAdError(error.message); return }
+    if (error) {
+      // Before migration 016: new columns/placements don't exist yet
+      const needsMigration = error.code === 'PGRST204' || error.code === '23514' || /column|placement_check/i.test(error.message)
+      setAdError(needsMigration
+        ? 'Sponsor targeting and the new placements need migration 016_sponsor_tools.sql — run it in the Supabase SQL editor, then save again.'
+        : error.message)
+      return
+    }
     setShowAdForm(false)
     resetAdForm()
     fetchAds()
@@ -454,6 +525,57 @@ export default function AdminPage() {
         {/* ── ADS TAB ── */}
         {mainTab === 'ads' && (
           <div className="space-y-3 pb-6">
+            {/* Leads from /sponsors */}
+            <div className="bg-white rounded-2xl shadow-sm px-4 py-3">
+              <div className="flex items-center justify-between mb-1">
+                <p className="text-sm font-bold text-gray-800 flex items-center gap-1.5">
+                  <Inbox size={14} /> Sponsor inquiries
+                  {inquiries.some(q => q.status === 'new') && (
+                    <span className="text-[10px] font-bold text-white px-1.5 py-0.5 rounded-full" style={{ backgroundColor: '#e05a4e' }}>
+                      {inquiries.filter(q => q.status === 'new').length} new
+                    </span>
+                  )}
+                </p>
+                <a href="/sponsors" target="_blank" rel="noopener noreferrer" className="text-[11px] font-semibold" style={{ color: '#e05a4e' }}>
+                  View sponsor page →
+                </a>
+              </div>
+              {inquiries.length === 0 ? (
+                <p className="text-xs text-gray-500">No inquiries yet. Share yoursite/sponsors with local pet businesses.</p>
+              ) : (
+                <ul className="divide-y divide-gray-100">
+                  {inquiries.map(q => (
+                    <li key={q.id} className="py-2.5">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-gray-900 truncate">{q.business_name}</p>
+                          <p className="text-xs text-gray-600 truncate">
+                            {q.contact_name} · <a href={`mailto:${q.email}`} className="underline">{q.email}</a>
+                            {q.phone && <> · {q.phone}</>}
+                          </p>
+                          <p className="text-[11px] text-gray-500">
+                            {[q.city, q.package === 'other' ? 'Not sure yet' : q.package, new Date(q.created_at).toLocaleDateString()].filter(Boolean).join(' · ')}
+                          </p>
+                          {q.message && <p className="text-xs text-gray-700 mt-1 whitespace-pre-line">{q.message}</p>}
+                        </div>
+                        <select
+                          value={q.status}
+                          onChange={e => setInquiryStatus(q.id, e.target.value as SponsorInquiry['status'])}
+                          aria-label={`Status for ${q.business_name}`}
+                          className="text-xs border border-gray-200 rounded-lg px-2 py-1 bg-white flex-shrink-0"
+                        >
+                          <option value="new">New</option>
+                          <option value="contacted">Contacted</option>
+                          <option value="won">Won</option>
+                          <option value="lost">Lost</option>
+                        </select>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+
             <button
               onClick={() => { resetAdForm(); setShowAdForm(v => !v) }}
               className={`w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-semibold border-2 transition-all ${
@@ -470,6 +592,16 @@ export default function AdminPage() {
             {showAdForm && (
               <div className="bg-white rounded-2xl shadow-sm p-4 space-y-3">
                 <p className="text-sm font-bold text-gray-800">{editingAd ? 'Edit ad' : 'New sponsored ad'}</p>
+
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Sponsor <span className="text-gray-400 font-normal">(shown on their report)</span></label>
+                  <input
+                    value={adSponsor}
+                    onChange={e => setAdSponsor(e.target.value)}
+                    placeholder="Smith Family Vet"
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none placeholder:text-gray-400"
+                  />
+                </div>
 
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1">Title *</label>
@@ -538,11 +670,35 @@ export default function AdminPage() {
                       onChange={e => setAdPlacement(e.target.value as AdPlacement)}
                       className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none bg-white"
                     >
-                      <option value="shop">Shop</option>
-                      <option value="community">Community</option>
-                      <option value="saved">Saved</option>
+                      {PLACEMENTS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
                     </select>
                   </div>
+                </div>
+
+                {/* Audience — nationwide, or only adopters near a city */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">
+                    Show to <span className="text-gray-400 font-normal">(leave city blank for nationwide)</span>
+                  </label>
+                  <div className="flex gap-2">
+                    <div className="flex-1 min-w-0">
+                      <CityAutocomplete value={adTargetCity} onChange={setAdTargetCity} placeholder="Nationwide — or type a city" />
+                    </div>
+                    <select
+                      value={adRadius}
+                      onChange={e => setAdRadius(Number(e.target.value))}
+                      disabled={!adTargetCity.trim()}
+                      aria-label="Radius"
+                      className="border border-gray-200 rounded-xl px-2 py-2 text-sm outline-none bg-white disabled:opacity-40"
+                    >
+                      {RADIUS_OPTIONS.map(r => <option key={r} value={r}>{r} mi</option>)}
+                    </select>
+                  </div>
+                  <p className="text-[11px] text-gray-500 mt-1">
+                    {adTargetCity.trim()
+                      ? `Only adopters searching within ${adRadius} mi of ${adTargetCity.trim()} will see this.`
+                      : 'Everyone sees this ad, including visitors who haven’t set a location.'}
+                  </p>
                 </div>
 
                 <div>
@@ -587,7 +743,7 @@ export default function AdminPage() {
               <div className="bg-white rounded-2xl shadow-sm px-5 py-12 text-center">
                 <Megaphone size={32} className="text-gray-300 mx-auto mb-3" />
                 <p className="text-sm font-semibold text-gray-700">No ads yet</p>
-                <p className="text-xs text-gray-400 mt-1">Add a sponsor to start earning from Shop, Community, or Saved.</p>
+                <p className="text-xs text-gray-400 mt-1">Add a sponsor to start earning. Leads from the “Become a sponsor” page appear above.</p>
               </div>
             ) : (
               ads.map(ad => (
@@ -608,12 +764,37 @@ export default function AdminPage() {
                       </span>
                     </div>
 
-                    <div className="flex items-center gap-3 text-[11px] text-gray-400 mb-2">
-                      <span className="capitalize bg-gray-50 px-2 py-0.5 rounded-full">{ad.placement}</span>
-                      <span className="flex items-center gap-1"><Eye size={11} /> {ad.impressions}</span>
-                      <span className="flex items-center gap-1"><MousePointerClick size={11} /> {ad.clicks}</span>
+                    {ad.sponsor_name && <p className="text-[11px] font-semibold text-gray-600 mb-1">{ad.sponsor_name}</p>}
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-gray-500 mb-2">
+                      <span className="bg-gray-50 px-2 py-0.5 rounded-full">{PLACEMENTS.find(p => p.value === ad.placement)?.label ?? ad.placement}</span>
+                      <span className="flex items-center gap-1">
+                        <MapPin size={11} />
+                        {ad.target_lat != null && ad.target_city ? `${ad.target_radius_mi} mi of ${ad.target_city}` : 'Nationwide'}
+                      </span>
+                      <span className="flex items-center gap-1" title="Views"><Eye size={11} /> {ad.impressions.toLocaleString()}</span>
+                      <span className="flex items-center gap-1" title="Clicks"><MousePointerClick size={11} /> {ad.clicks.toLocaleString()}</span>
+                      <span title="Click rate">{ctr(ad.impressions, ad.clicks)} CTR</span>
                       <span>Priority {ad.priority}</span>
                     </div>
+                    {reportTokens[ad.id] && (
+                      <div className="flex gap-2 mb-2">
+                        <button
+                          onClick={() => copyReportLink(ad.id)}
+                          className="flex-1 py-1.5 rounded-lg bg-gray-50 text-xs font-semibold text-gray-700 hover:bg-gray-100 flex items-center justify-center gap-1"
+                        >
+                          {copiedAd === ad.id ? <Check size={11} className="text-green-600" /> : <Link2 size={11} />}
+                          {copiedAd === ad.id ? 'Copied — send it to the sponsor' : 'Copy sponsor report link'}
+                        </button>
+                        <a
+                          href={`/sponsor/report/${reportTokens[ad.id]}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="px-3 py-1.5 rounded-lg bg-gray-50 text-xs font-semibold text-gray-700 hover:bg-gray-100"
+                        >
+                          Preview
+                        </a>
+                      </div>
+                    )}
 
                     <div className="flex gap-2">
                       <button
